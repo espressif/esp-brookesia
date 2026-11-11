@@ -15,6 +15,7 @@
 #include "private/runtime/service_json.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -233,6 +234,13 @@ std::string file_url_from_path(std::string path)
 
 class SystemHostBridge::Impl {
 public:
+    struct EventDispatchState {
+        std::atomic_bool active{true};
+        std::mutex post_mutex;
+        std::shared_ptr<lib_utils::TaskScheduler> scheduler;
+        SystemHostBridge::EventDispatcher dispatcher;
+    };
+
     struct ServiceRecord {
         RuntimeAppId app_id = runtime::INVALID_APP_ID;
         service::ServiceBinding binding;
@@ -279,14 +287,27 @@ public:
         : function_bridge_(std::move(function_bridge))
         , task_scheduler_(std::move(task_scheduler))
         , storage_path_resolver_(std::move(storage_path_resolver))
-        , event_dispatcher_(std::move(event_dispatcher))
+        , event_dispatch_(std::make_shared<EventDispatchState>())
         , gsp_updater_(std::move(gsp_updater))
     {
+        event_dispatch_->scheduler = task_scheduler_;
+        event_dispatch_->dispatcher = std::move(event_dispatcher);
         auto result = function_bridge_->add_module(make_brookesia_module());
         if (!result) {
             BROOKESIA_LOGW("Failed to add system Brookesia runtime module: %1%", result.error());
         }
     }
+
+    ~Impl()
+    {
+        stop_event_dispatch();
+    }
+
+    void stop_event_dispatch();
+    static void post_service_event(
+        const std::weak_ptr<EventDispatchState> &weak_state, RuntimeAppId app_id,
+        std::string service_name, std::string event_name, std::string items_json
+    );
 
     NativeModule make_brookesia_module();
     NativeResult service_available(const NativeArgs &args);
@@ -345,7 +366,7 @@ public:
     std::shared_ptr<runtime::RuntimeFunctionBridge> function_bridge_;
     std::shared_ptr<lib_utils::TaskScheduler> task_scheduler_;
     SystemHostBridge::StoragePathResolver storage_path_resolver_;
-    SystemHostBridge::EventDispatcher event_dispatcher_;
+    std::shared_ptr<EventDispatchState> event_dispatch_;
     SystemHostBridge::GspUpdater gsp_updater_;
     mutable std::mutex mutex_;
     std::map<int64_t, ServiceRecord> services_;
@@ -358,6 +379,50 @@ public:
     int64_t next_handle_id_ = 1;
     uint64_t next_async_call_id_ = 1;
 };
+
+void SystemHostBridge::Impl::stop_event_dispatch()
+{
+    std::lock_guard lock(event_dispatch_->post_mutex);
+    event_dispatch_->active = false;
+}
+
+void SystemHostBridge::Impl::post_service_event(
+    const std::weak_ptr<EventDispatchState> &weak_state, RuntimeAppId app_id,
+    std::string service_name, std::string event_name, std::string items_json
+)
+{
+    auto state = weak_state.lock();
+    if (!state) {
+        return;
+    }
+    auto task = [state, app_id, service_name = std::move(service_name), event_name = std::move(event_name),
+           items_json = std::move(items_json)]() mutable {
+        if (!state->active)
+        {
+            return;
+        }
+        auto result = state->dispatcher(app_id, service_name, event_name, items_json);
+        if (!result)
+        {
+            BROOKESIA_LOGW("Failed to dispatch runtime service event: service(%1%), event(%2%), error(%3%)",
+                           service_name, event_name, result.error());
+        }
+    };
+    std::unique_lock lock(state->post_mutex);
+    if (!state->active || !state->dispatcher) {
+        return;
+    }
+    if (!state->scheduler) {
+        lock.unlock();
+        task();
+        return;
+    }
+    const bool posted = state->scheduler->post(std::move(task));
+    lock.unlock();
+    if (!posted && state->active) {
+        BROOKESIA_LOGW("Failed to queue runtime service event");
+    }
+}
 
 std::shared_ptr<SystemHostBridge::Impl::AsyncCallRecord> SystemHostBridge::Impl::create_async_call(
     RuntimeAppId app_id, NativeAsyncCallback callback
@@ -1427,23 +1492,15 @@ NativeResult SystemHostBridge::Impl::subscribe_event(const NativeArgs &args)
         service = it->second.service;
     }
 
+    const std::weak_ptr<EventDispatchState> weak_dispatch = event_dispatch_;
     auto connection = service->subscribe_event(
                           event_name,
-                          [this, app_id = app_id.value(), service_name = service->get_attributes().name](
+                          [weak_dispatch, app_id = app_id.value(), service_name = service->get_attributes().name](
                               const std::string & event_name, const service::EventItemMap & items
     ) {
         const auto items_json = event_items_to_json(items);
         BROOKESIA_LOGD("Service event [%1%.%2%]", service_name, event_name);
-        if (!event_dispatcher_) {
-            return;
-        }
-        auto dispatch_result = event_dispatcher_(app_id, service_name, event_name, items_json);
-        if (!dispatch_result) {
-            BROOKESIA_LOGW(
-                "Failed to dispatch runtime service event: service(%1%), event(%2%), error(%3%)",
-                service_name, event_name, dispatch_result.error()
-            );
-        }
+        post_service_event(weak_dispatch, app_id, service_name, event_name, items_json);
     }
                       );
     if (!connection.connected()) {
@@ -1496,23 +1553,15 @@ NativeResult SystemHostBridge::Impl::subscribe_service_event(const NativeArgs &a
         return std::unexpected("Service not found: " + service_name);
     }
 
+    const std::weak_ptr<EventDispatchState> weak_dispatch = event_dispatch_;
     auto connection = service->subscribe_event(
                           event_name,
-                          [this, app_id = app_id.value(), service_name = service->get_attributes().name](
+                          [weak_dispatch, app_id = app_id.value(), service_name = service->get_attributes().name](
                               const std::string & event_name, const service::EventItemMap & items
     ) {
         const auto items_json = event_items_to_json(items);
         BROOKESIA_LOGD("Service event [%1%.%2%]", service_name, event_name);
-        if (!event_dispatcher_) {
-            return;
-        }
-        auto dispatch_result = event_dispatcher_(app_id, service_name, event_name, items_json);
-        if (!dispatch_result) {
-            BROOKESIA_LOGW(
-                "Failed to dispatch runtime service event: service(%1%), event(%2%), error(%3%)",
-                service_name, event_name, dispatch_result.error()
-            );
-        }
+        post_service_event(weak_dispatch, app_id, service_name, event_name, items_json);
     }
                       );
     if (!connection.connected()) {
@@ -1964,6 +2013,11 @@ void SystemHostBridge::release_app_resources(runtime::AppId id)
 void SystemHostBridge::release_all_app_resources()
 {
     impl_->release_all_app_resources();
+}
+
+void SystemHostBridge::stop_event_dispatch()
+{
+    impl_->stop_event_dispatch();
 }
 
 void SystemHostBridge::register_app_manifest(runtime::AppId id, AppManifest manifest)

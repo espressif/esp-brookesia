@@ -4,6 +4,11 @@ url: https://github.com/espressif/esp-brookesia/tree/master/app/brookesia_app_se
 repository: https://github.com/espressif/esp-brookesia.git
 issues: https://github.com/espressif/esp-brookesia/issues
 dependencies:
+  espressif/brookesia_lib_utils:
+    version: ">=0.8.3,<0.9"
+    override_path: ../../utils/brookesia_lib_utils
+    require: public
+
   espressif/brookesia_system_core:
     version: ">=0.8.7,<0.9"
     override_path: ../../system/brookesia_system_core

@@ -152,6 +152,10 @@ private:
     void switch_display_to_gui_for_system_ui();
     void restore_display_after_system_ui();
     void clear_display_source_restore_records();
+    bool start_status_event_processing();
+    void stop_status_event_processing();
+    void process_status_events();
+    void invalidate_wifi_status();
     bool ensure_wifi_service_binding();
     void release_wifi_service_binding();
     void refresh_wifi_status();
@@ -188,6 +192,23 @@ private:
     std::vector<lib_utils::connection> display_gesture_connections_;
     service::EventRegistry::SignalConnection wifi_event_connection_;
     service::EventRegistry::SignalConnection sntp_event_connection_;
+    struct StatusMailbox {
+        struct WifiStatus {
+            bool visible;
+            bool connected;
+        };
+        std::mutex mutex;
+        bool open = true;
+        uint64_t wifi_subscription = 0;
+        uint64_t wifi_query = 0;
+        uint64_t sntp_subscription = 0;
+        uint64_t gesture_subscription = 0;
+        std::optional<WifiStatus> wifi;
+        std::vector<service::Display::TouchGestureInfo> gestures;
+        bool timezone_changed = false;
+    };
+    std::shared_ptr<StatusMailbox> status_mailbox_;
+    core::TimerId status_event_timer_id_ = core::INVALID_TIMER_ID;
     bool background_mounted_ = false;
     bool overlay_mounted_ = false;
     bool system_ui_expanded_ = true;
@@ -203,7 +224,6 @@ private:
     uint64_t system_ui_animation_generation_ = 0;
     uint64_t gesture_generation_ = 0;
     uint64_t status_peek_generation_ = 0;
-    uint64_t wifi_status_generation_ = 0;
     bool gesture_tracking_ = false;
     bool gesture_exit_armed_ = false;
     bool gesture_exit_triggered_ = false;

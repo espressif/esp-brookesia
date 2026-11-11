@@ -125,7 +125,7 @@ class AppHost::Impl {
 public:
     Session session{};
     std::shared_ptr<const Bundle> bundle{};
-    std::byte *owned_bytes = nullptr;
+    std::shared_ptr<std::byte> owned_bytes;
     void *event_user_ctx = nullptr;
 };
 
@@ -136,14 +136,14 @@ AppHost::AppHost()
 
 AppHost::~AppHost()
 {
-    if (running() && !stop()) {
-        BROOKESIA_LOGE("Cannot destroy a GSP app host while the UI still owns borrowed resources");
-        std::terminate();
+    if (s_current == this) {
+        s_current = nullptr;
     }
 }
 
 std::expected<void, std::string> AppHost::start(
-    std::span<const std::byte> bytes, const DisplayLease &display, Session::EventCallback on_event, void *user_ctx
+    std::span<const std::byte> bytes, const DisplayLease &display, Session::EventCallback on_event, void *user_ctx,
+    std::shared_ptr<void> callback_owner
 )
 {
     if (running()) {
@@ -154,11 +154,12 @@ std::expected<void, std::string> AppHost::start(
     if (!loaded) {
         return std::unexpected(loaded.error());
     }
-    return start(std::move(loaded.value()), display, on_event, user_ctx);
+    return start(std::move(loaded.value()), display, on_event, user_ctx, std::move(callback_owner));
 }
 
 std::expected<void, std::string> AppHost::start(
-    std::shared_ptr<const Bundle> bundle, const DisplayLease &display, Session::EventCallback on_event, void *user_ctx
+    std::shared_ptr<const Bundle> bundle, const DisplayLease &display, Session::EventCallback on_event, void *user_ctx,
+    std::shared_ptr<void> callback_owner
 )
 {
     if (running()) {
@@ -170,7 +171,7 @@ std::expected<void, std::string> AppHost::start(
 
     impl_->bundle = std::move(bundle);
     impl_->event_user_ctx = user_ctx;
-    if (!impl_->session.start(impl_->bundle, display, on_event, user_ctx)) {
+    if (!impl_->session.start(impl_->bundle, display, on_event, user_ctx, std::move(callback_owner))) {
         if (impl_->session.running()) {
             s_current = this;
             return std::unexpected("GSP session event registration failed and the session is still running");
@@ -184,7 +185,8 @@ std::expected<void, std::string> AppHost::start(
 }
 
 std::expected<void, std::string> AppHost::start(
-    const esp_gsp_config_t &config, const DisplayLease &display, Session::EventCallback on_event, void *user_ctx
+    const esp_gsp_config_t &config, const DisplayLease &display, Session::EventCallback on_event, void *user_ctx,
+    std::shared_ptr<void> callback_owner, std::shared_ptr<const void> bundle_owner
 )
 {
     if (running()) {
@@ -192,6 +194,9 @@ std::expected<void, std::string> AppHost::start(
     }
     if ((config.bundle == nullptr) || (config.bundle_size == 0)) {
         return std::unexpected("GSP compiler config has no bundle");
+    }
+    if (!bundle_owner) {
+        return std::unexpected("GSP compiler config has no lifetime owner");
     }
     const auto bytes = std::span<const std::byte>(
                            reinterpret_cast<const std::byte *>(config.bundle), config.bundle_size);
@@ -206,15 +211,19 @@ std::expected<void, std::string> AppHost::start(
         esp_gsp_config_t expanded_config = config;
         expanded_config.bundle = expanded->bytes.get();
         expanded_config.bundle_size = expanded->size;
-        impl_->owned_bytes = expanded->bytes.release();
+        impl_->owned_bytes = std::shared_ptr<std::byte>(expanded->bytes.release(), HeapDeleter{});
+        struct ConfigOwners {
+            std::shared_ptr<std::byte> expanded;
+            std::shared_ptr<const void> original;
+        };
+        auto owners = std::make_shared<ConfigOwners>(impl_->owned_bytes, std::move(bundle_owner));
         impl_->event_user_ctx = user_ctx;
-        if (!impl_->session.start(expanded_config, display, on_event, user_ctx)) {
+        if (!impl_->session.start(expanded_config, display, on_event, user_ctx, std::move(callback_owner), owners)) {
             if (impl_->session.running()) {
                 s_current = this;
                 return std::unexpected("GSP session event registration failed and the session is still running");
             }
-            heap_caps_free(impl_->owned_bytes);
-            impl_->owned_bytes = nullptr;
+            impl_->owned_bytes.reset();
             impl_->event_user_ctx = nullptr;
             return std::unexpected("Failed to start GSP session with expanded compiler bundle");
         }
@@ -229,7 +238,7 @@ std::expected<void, std::string> AppHost::start(
     if (loaded) {
         impl_->bundle = std::move(loaded.value());
         impl_->event_user_ctx = user_ctx;
-        if (!impl_->session.start(impl_->bundle, display, on_event, user_ctx)) {
+        if (!impl_->session.start(impl_->bundle, display, on_event, user_ctx, std::move(callback_owner))) {
             if (impl_->session.running()) {
                 s_current = this;
                 return std::unexpected("GSP session event registration failed and the session is still running");
@@ -249,7 +258,7 @@ std::expected<void, std::string> AppHost::start(
     // Retain the supplied config when self-describing metadata is absent.
     BROOKESIA_LOGW("GSP deployable open failed (%1%); using the compiler config in place", loaded.error());
     impl_->event_user_ctx = user_ctx;
-    if (!impl_->session.start(config, display, on_event, user_ctx)) {
+    if (!impl_->session.start(config, display, on_event, user_ctx, std::move(callback_owner), std::move(bundle_owner))) {
         if (impl_->session.running()) {
             s_current = this;
             return std::unexpected("GSP session event registration failed and the session is still running");
@@ -266,10 +275,7 @@ std::expected<void, std::string> AppHost::stop()
 {
     if (!running()) {
         impl_->bundle.reset();
-        if (impl_->owned_bytes != nullptr) {
-            heap_caps_free(impl_->owned_bytes);
-            impl_->owned_bytes = nullptr;
-        }
+        impl_->owned_bytes.reset();
         impl_->event_user_ctx = nullptr;
         return {};
     }
@@ -277,10 +283,7 @@ std::expected<void, std::string> AppHost::stop()
         return std::unexpected("Failed to stop GSP session");
     }
     impl_->bundle.reset();
-    if (impl_->owned_bytes != nullptr) {
-        heap_caps_free(impl_->owned_bytes);
-        impl_->owned_bytes = nullptr;
-    }
+    impl_->owned_bytes.reset();
     impl_->event_user_ctx = nullptr;
     if (s_current == this) {
         s_current = nullptr;

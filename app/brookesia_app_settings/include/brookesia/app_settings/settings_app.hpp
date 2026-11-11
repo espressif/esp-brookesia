@@ -153,12 +153,12 @@ private:
         std::string_view action
     );
     std::expected<void, std::string> load_backlight_state();
-    void arm_ui_epoch();
     void shutdown_brightness_callbacks();
-    void apply_scheduled_brightness(system::core::AppContext &context, uint64_t ticket);
+    void apply_scheduled_brightness(system::core::AppContext &context, uint64_t timer_id);
     std::string page_title_text(std::string_view page) const;
     std::string brightness_status_text() const;
     std::string brightness_caption_text() const;
+    void subscribe_brightness_events();
     void subscribe_device_events();
     void disconnect_device_events();
     void handle_brightness_event(const gui::Event &event);

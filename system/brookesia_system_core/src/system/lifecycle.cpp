@@ -431,7 +431,6 @@ void System::deinit()
                          );
     if (!shell_stopped) {
         BROOKESIA_LOGE("GSP modal stop failed; keeping system and HAL ownership: %1%", shell_stopped.error());
-        return;
     }
     for (const auto &record_owner : impl_->snapshot_app_records()) {
         auto &record = *record_owner;
@@ -497,7 +496,7 @@ void System::deinit()
             );
         }
     }
-    if (impl_->any_gsp_session_running()) {
+    if (!shell_stopped || impl_->any_gsp_session_running()) {
         BROOKESIA_LOGE(
             "GSP stop failed; system stays initialized so stop can be retried. "
             "Display and touch devices stay owned until stop succeeds"
@@ -568,6 +567,15 @@ void System::Impl::abandon_system_references()
 {
     detach_gsp_callbacks();
     detach_gsp_shell_callbacks();
+    // A queued service event can still use the runtime. Stop new posts and join
+    // scheduler workers before destroying that runtime after a failed GSP stop.
+    if (host_bridge_) {
+        host_bridge_->stop_event_dispatch();
+    }
+    if (task_scheduler_) {
+        task_scheduler_->stop();
+        task_scheduler_.reset();
+    }
     system_service_binding_.release();
     gui_service_binding_.release();
     timer_service_binding_.release();
@@ -589,10 +597,15 @@ void System::Impl::abandon_system_references()
     }
     host_bridge_.reset();
     runtime_function_bridge_.reset();
-    if (task_scheduler_) {
-        task_scheduler_->stop();
-        task_scheduler_.reset();
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
+    decltype(apps_) abandoned_apps;
+    {
+        std::lock_guard lock(app_records_mutex_);
+        abandoned_apps.swap(apps_);
     }
+    abandoned_apps.clear();
+    gsp_shell_app_.reset();
+#endif
     {
         std::lock_guard<std::recursive_mutex> runtime_lock(gui_runtime_mutex_);
         gui_runtime_.reset();

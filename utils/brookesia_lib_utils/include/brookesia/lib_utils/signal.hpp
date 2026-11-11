@@ -122,8 +122,8 @@ struct SlotControl {
         if (!connected) {
             return false;
         }
-        ++inflight;
         runners.push_back(current_execution_id());
+        ++inflight;
         return true;
     }
 
@@ -187,6 +187,25 @@ struct SlotControl {
         (void)disconnect_and_wait();
     }
 
+    void disconnect_without_wait() noexcept
+    {
+        std::function<void()> detach;
+        try {
+            {
+                std::lock_guard<std::mutex> lock(mutex);
+                connected = false;
+                if (inflight == 0) {
+                    detach = std::move(detach_fn);
+                }
+            }
+            if (detach) {
+                detach();
+            }
+        } catch (...) {
+            // Destruction of the connection must not throw.
+        }
+    }
+
     bool is_connected() const
     {
         std::lock_guard<std::mutex> lock(mutex);
@@ -195,6 +214,23 @@ struct SlotControl {
 };
 
 } // namespace signal_detail
+
+/**
+ * @brief Keep the owner alive for each callback without an ownership cycle.
+ *
+ * The callback receives the owner as its first argument. Calls are skipped
+ * after the owner's last shared reference is released.
+ */
+template<typename Owner, typename Callback>
+auto track_callback(std::weak_ptr<Owner> owner, Callback callback)
+{
+    return [owner = std::move(owner), callback = std::move(callback)](auto &&...args) mutable {
+        if (auto locked = owner.lock())
+        {
+            std::invoke(callback, *locked, std::forward<decltype(args)>(args)...);
+        }
+    };
+}
 
 /**
  * @brief Lightweight handle to a single signal/slot connection.
@@ -228,6 +264,19 @@ public:
     }
 
     /**
+     * @brief Disconnect without waiting for calls already in progress.
+     *
+     * The callback must own or otherwise protect everything it accesses until
+     * it returns, for example by using track_callback() or a shared mailbox.
+     */
+    void disconnect_without_wait() const noexcept
+    {
+        if (auto control = control_.lock()) {
+            control->disconnect_without_wait();
+        }
+    }
+
+    /**
      * @brief Disconnect and report whether all in-flight calls have finished.
      *
      * Returns false if called from any signal callback while this slot is
@@ -249,7 +298,9 @@ private:
  *
  * Movable but not copyable, mirroring `boost::signals2::scoped_connection`.
  * Destruction from a signal callback does not wait for other in-flight calls.
- * Keep their captured state alive until disconnect_and_wait() reports success.
+ * For an object accessed by a callback, use track_callback() with a weak
+ * shared owner or keep the callback state independently owned. A raw `this`
+ * capture requires a successful disconnect_and_wait() before destruction.
  */
 class scoped_connection {
 public:
@@ -295,6 +346,13 @@ public:
     void disconnect() const noexcept
     {
         conn_.disconnect();
+    }
+
+    /** @copydoc connection::disconnect_without_wait() */
+    void disconnect_without_wait() noexcept
+    {
+        conn_.disconnect_without_wait();
+        conn_ = connection{};
     }
 
     /** @copydoc connection::disconnect_and_wait() */

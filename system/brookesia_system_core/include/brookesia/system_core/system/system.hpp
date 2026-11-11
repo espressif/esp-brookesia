@@ -524,6 +524,7 @@ protected:
     std::expected<AppId, std::string> suspend_gsp_session_for_modal(AppId exclude_app_id = INVALID_APP_ID);
     std::expected<void, std::string> resume_gsp_session_after_modal(AppId app_id);
     std::expected<void, std::string> post_system_app_task(std::function<void()> task);
+    std::expected<void, std::string> post_system_app_task_queued(std::function<void()> task);
     std::expected<uint64_t, std::string> post_system_app_delayed_task(
         int32_t delay_ms,
         std::function<void()> task

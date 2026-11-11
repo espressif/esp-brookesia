@@ -7,7 +7,6 @@
 
 #include <array>
 #include <atomic>
-#include <charconv>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
@@ -213,6 +212,7 @@ inline constexpr const char *WIFI_SCAN_RETRY_TIMER_NAME = "settings.wifi.scan.re
 inline constexpr const char *WIFI_UI_TIMER_NAME = "settings.wifi.ui";
 inline constexpr int WIFI_UI_POLL_INTERVAL_MS = 100;
 inline constexpr const char *BRIGHTNESS_UI_TIMER_NAME = "settings.display.brightness";
+inline constexpr int BRIGHTNESS_UI_POLL_INTERVAL_MS = 100;
 inline constexpr const char *WIFI_CONNECTED_HIDE_TIMER_NAME = "settings.wifi.connected.hide";
 inline constexpr const char *WIFI_CONNECTED_SCROLL_TIMER_NAME = "settings.wifi.connected.scroll";
 inline constexpr const char *TIME_ZONE_OPTION_UTC_ACTION = "settings.time_zone.utc";
@@ -502,21 +502,14 @@ const service::EventItem *find_event_item(
 
 namespace esp_brookesia::app::settings {
 
-// Shared with the display callback. That callback updates this state and
-// does not touch the Settings object. Stopping Settings waits, from outside
-// the callback, until the current call has finished.
+// Display callbacks only update this mailbox; the app task updates the UI.
 struct BrightnessCallbackState {
     std::mutex mutex;
     bool open = false;
-    system::core::AppContext *context = nullptr;
-    uint64_t epoch = 0;
     uint32_t output_id = 0;
     bool output_valid = false;
     bool sync_queued = false;
     int pending_brightness = 0;
-    uint64_t pending_epoch = 0;
-    uint64_t schedule_ticket = 0;
-    uint64_t active_ticket = 0;
     system::core::TimerId timer_id = system::core::INVALID_TIMER_ID;
 };
 
@@ -562,15 +555,8 @@ struct WifiUiMailbox {
 template<typename Handler>
 auto make_wifi_ui_result_handler(const std::shared_ptr<WifiUiMailbox> &mailbox, Handler handler)
 {
-    const bool defer_to_app = static_cast<bool>(mailbox);
     const std::weak_ptr<WifiUiMailbox> weak_mailbox = mailbox;
-    return [defer_to_app, weak_mailbox, handler = std::move(handler)](service::FunctionResult && result) mutable {
-        if (!defer_to_app)
-        {
-            // GSP and installation have no LVGL UI mailbox; preserve their existing callback path.
-            handler(std::move(result));
-            return;
-        }
+    return [weak_mailbox, handler = std::move(handler)](service::FunctionResult && result) mutable {
         if (auto active = weak_mailbox.lock())
         {
             auto payload = std::make_shared<service::FunctionResult>(std::move(result));
@@ -729,7 +715,6 @@ struct SettingsApp::Impl {
     bool utils_debug_unavailable_logged = false;
     std::unique_ptr<SettingsSurface> surface;
     std::shared_ptr<BrightnessCallbackState> brightness_callbacks = std::make_shared<BrightnessCallbackState>();
-    uint64_t ui_epoch_counter = 0;
     int logged_brightness = -1;
     bool logged_brightness_enabled = false;
 };
@@ -813,6 +798,5 @@ struct SettingsApp::Impl {
 #define utils_debug_unavailable_logged_ impl_->utils_debug_unavailable_logged
 #define surface_ impl_->surface
 #define brightness_callbacks_ impl_->brightness_callbacks
-#define ui_epoch_counter_ impl_->ui_epoch_counter
 #define logged_brightness_ impl_->logged_brightness
 #define logged_brightness_enabled_ impl_->logged_brightness_enabled

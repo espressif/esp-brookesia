@@ -5,6 +5,7 @@
 ### Bug Fixes:
 
 - fix(logging): omit service call arguments, results, and event payloads from debug logs to protect credentials.
+- fix(events): stop event monitors safely while callbacks are running.
 
 ## v0.8.2 - 2026-07-22
 

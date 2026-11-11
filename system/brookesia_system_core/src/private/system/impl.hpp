@@ -98,12 +98,12 @@ public:
         struct GspEventTarget {
             std::shared_ptr<GspCallbackGate> gate;
             AppId app_id = INVALID_APP_ID;
-            std::atomic<uint64_t> *epoch = nullptr;
+            std::shared_ptr<std::atomic<uint64_t>> epoch;
         };
         std::unique_ptr<gui::gsp::AppHost> gsp_host;
         std::shared_ptr<const gui::gsp::BundleContract> gsp_suspended_contract;
-        std::unique_ptr<std::atomic<uint64_t>> gsp_epoch;
-        GspEventTarget gsp_event_target{};
+        std::shared_ptr<std::atomic<uint64_t>> gsp_epoch;
+        std::shared_ptr<GspEventTarget> gsp_event_target;
         uint16_t gsp_current_scene = 0;
         bool gsp_scene_known = false;
         bool gsp_suspended = false;
@@ -356,8 +356,8 @@ public:
     void *gsp_panel_ = nullptr;
     void *gsp_touch_ = nullptr;
 #if CONFIG_BROOKESIA_GUI_BACKEND_GSP
-    hal::InterfaceHandle<hal::display::PanelIface> gsp_panel_owner_;
-    hal::InterfaceHandle<hal::display::TouchIface> gsp_touch_owner_;
+    std::shared_ptr<hal::InterfaceHandle<hal::display::PanelIface>> gsp_panel_owner_;
+    std::shared_ptr<hal::InterfaceHandle<hal::display::TouchIface>> gsp_touch_owner_;
     std::shared_ptr<IApp> gsp_shell_app_;
     AppId gsp_shell_app_id_ = INVALID_APP_ID;
     service::ServiceBinding gsp_sntp_binding_;

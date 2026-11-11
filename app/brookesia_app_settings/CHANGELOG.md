@@ -15,6 +15,7 @@
 
 - fix(wifi): keep page controls available when the connected SSID cannot be queried.
 - fix(sntp): deliver Settings state updates through the app mailbox without retaining the app in service callbacks.
+- fix(display): deliver brightness updates safely while Settings is stopping.
 - fix(deps): require the System Core, Service Helper, Wi-Fi, and HAL Interface versions used by GSP Settings.
 
 ### Documentation:

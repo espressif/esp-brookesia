@@ -691,8 +691,6 @@ std::expected<void, std::string> SettingsApp::start_gsp_pages(system::core::AppC
     restart_in_progress_ = false;
     restart_iface_ = hal::acquire_first_interface<hal::system::GeneralIface>();
     device_ui_state_ = DeviceUiState{};
-    arm_ui_epoch();
-
     auto loaded = load_backlight_state();
     if (!loaded) {
         shutdown_brightness_callbacks();

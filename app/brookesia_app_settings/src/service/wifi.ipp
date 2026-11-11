@@ -781,7 +781,7 @@ void SettingsApp::invalidate_wifi_connect_operation(system::core::AppContext &co
             std::fill(operation->password.begin(), operation->password.end(), '\0');
             operation->password.clear();
         }
-        operation->connected_event_connection.disconnect();
+        operation->connected_event_connection.disconnect_without_wait();
     }
     if (wifi_connect_timer_id_ != system::core::INVALID_TIMER_ID) {
         (void)context.timer().stop(wifi_connect_timer_id_);

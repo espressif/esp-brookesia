@@ -5,6 +5,7 @@
 ### Enhancements:
 
 - feat(signal): report whether disconnect has drained in-flight callbacks so callers can defer captured-object cleanup.
+- feat(signal): support tracked callback owners and nonblocking disconnection.
 
 ### Bug Fixes:
 

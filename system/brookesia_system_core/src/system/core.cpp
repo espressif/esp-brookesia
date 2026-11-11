@@ -1444,8 +1444,12 @@ private:
             modal_gate_->epoch.fetch_add(1, std::memory_order_release);
         }
         const auto *config = static_cast<const esp_gsp_config_t *>(gui_runtime_config());
+        using PanelOwner = decltype(owner_.impl_->gsp_panel_owner_);
+        using TouchOwner = decltype(owner_.impl_->gsp_touch_owner_);
+        using DisplayOwners = std::pair<PanelOwner, TouchOwner>;
         const gui::gsp::DisplayLease lease{
-            .panel = panel, .touch = touch, .desktop = owner_.gsp_desktop_display()
+            .panel = panel, .touch = touch, .desktop = owner_.gsp_desktop_display(),
+            .lifetime = std::make_shared<DisplayOwners>(owner_.impl_->gsp_panel_owner_, owner_.impl_->gsp_touch_owner_),
         };
         auto *gate_ptr = modal_gate_.get();
         const auto on_modal_event = [](esp_gsp_handle_t, const esp_gsp_event_t *event, void *user_ctx) {
@@ -1482,9 +1486,13 @@ private:
                     (void)shell->on_action(dummy_context, action_str);
                 }
             };
-            (void)gate->shell->owner_.post_system_app_task(std::move(dispatch));
+            auto posted = gate->shell->owner_.post_system_app_task_queued(std::move(dispatch));
+            if (!posted) {
+                BROOKESIA_LOGW("Failed to post GSP modal action: %1%", posted.error());
+            }
         };
-        auto started = modal_host_->start(*config, lease, on_modal_event, gate_ptr);
+        const std::shared_ptr<const void> config_owner(config, [](const void *) {});
+        auto started = modal_host_->start(*config, lease, on_modal_event, gate_ptr, modal_gate_, config_owner);
         if (!started) {
             if (modal_host_->running()) {
                 return std::unexpected(started.error());
@@ -1579,7 +1587,7 @@ private:
                     shell->clock_timer_id_ = *timer;
                 }
             };
-            auto posted = gate->shell->owner_.post_system_app_task(std::move(refresh_clock));
+            auto posted = gate->shell->owner_.post_system_app_task_queued(std::move(refresh_clock));
             if (!posted) {
                 BROOKESIA_LOGW("Failed to post SNTP clock refresh: %1%", posted.error());
             }
@@ -1701,12 +1709,9 @@ void System::Impl::detach_gsp_shell_callbacks()
 System::~System()
 {
     deinit();
-    if ((impl_ != nullptr) && impl_->any_gsp_session_running()) {
-        BROOKESIA_LOGE(
-            "GSP session is still running; display and touch devices stay owned"
-        );
+    if ((impl_ != nullptr) && impl_->initialized_) {
+        BROOKESIA_LOGE("System deinitialization did not finish; releasing remaining references");
         impl_->abandon_system_references();
-        impl_.release();
     }
 }
 
@@ -2043,6 +2048,14 @@ std::expected<void, std::string> System::post_system_app_task(std::function<void
         return std::unexpected("System task scheduler is unavailable");
     }
     return impl_->post_task(SYSTEM_APP_TASK_GROUP, std::move(task));
+}
+
+std::expected<void, std::string> System::post_system_app_task_queued(std::function<void()> task)
+{
+    if (!impl_ || !task) {
+        return std::unexpected("System task scheduler is unavailable");
+    }
+    return impl_->post_task(SYSTEM_APP_TASK_GROUP, std::move(task), false);
 }
 
 std::expected<uint64_t, std::string> System::post_system_app_delayed_task(

@@ -1,10 +1,20 @@
 # Brookesia GSP GUI adapter
 
-`AppHost` starts a compiled GSP scene bundle on borrowed display devices. The
-caller must keep the callback context, HAL devices, and any borrowed data in an
-ordinary generated config alive until `stop()` succeeds, even after a failed
-start or stop. `AppHost` owns loaded deployable bundles and decompressed bytes;
-ordinary uncompressed bundle bytes and generated directory tables remain borrowed.
+`AppHost` starts a compiled GSP scene bundle on display devices. On ESP,
+`DisplayLease::lifetime` must own both initialized HAL interfaces and their
+devices; do not explicitly close them while the session is active. A non-null
+callback context requires a shared `callback_owner`. For an ordinary generated
+config, pass a `bundle_owner` that keeps its bundle bytes, generated tables,
+fonts, and any other referenced data valid. Static data can use a shared owner
+with a no-op deleter. Loaded deployable bundles and decompressed bytes are owned
+by `AppHost` and the session. Prefer a callback context that does not own the
+session; otherwise stop the session explicitly to break the ownership cycle.
+
+Call `stop()` from an application task. A failed stop retains these owners and
+can be retried. If the session is destroyed first, an ESP cleanup task keeps the
+resources and retries the stop; the panel cannot start another session until
+cleanup succeeds. An ESP session reserves an 8 KiB internal-stack cleanup task
+before starting GSP, and startup fails if that task cannot be created.
 
 On Linux, enable `BROOKESIA_BUILD_GUI_GSP` and provide `ESP_GSP_ROOT` for the
 official ESP-GSP 1.4 simulator bridge. `DisplayLease::desktop` holds a shared

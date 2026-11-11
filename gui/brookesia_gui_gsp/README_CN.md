@@ -1,9 +1,17 @@
 # Brookesia GSP GUI 适配器
 
-`AppHost` 在借用的显示设备上启动编译后的 GSP 场景。调用者必须保持回调上下文、
-HAL 设备及普通生成配置所引用的借用数据有效，直到 `stop()` 成功；启动或停止失败时
-也不能提前释放。`AppHost` 拥有已加载的 deployable bundle 和解压后的字节，普通
-未压缩 bundle 字节及生成的目录表仍由调用者保管。
+`AppHost` 在显示设备上启动编译后的 GSP 场景。ESP 平台的
+`DisplayLease::lifetime` 必须持有已初始化的显示和触摸 HAL 接口及其设备；会话运行
+期间不要主动关闭它们。非空回调上下文必须提供共享的 `callback_owner`。使用普通
+生成配置时，`bundle_owner` 需要保证 bundle 字节、生成的目录表、字体及配置引用的
+其他数据有效；静态数据可以使用空操作删除器的共享所有者。已加载的 deployable
+bundle 和解压后的字节由 `AppHost` 与会话持有。回调上下文宜与会话分开持有；如果
+上下文也拥有会话，需要显式停止会话以解除循环引用。
+
+在应用任务中调用 `stop()`。停止失败时，会话保留这些所有者，调用方可以重试；若
+会话先被销毁，ESP 清理任务会继续持有资源并重试，同一显示面板在清理成功前不能启动
+新会话。ESP 会话在启动 GSP 前会创建一个内部栈为 8 KiB 的清理任务；任务创建失败时
+会话启动失败。
 
 Linux 下启用 `BROOKESIA_BUILD_GUI_GSP`，并用 `ESP_GSP_ROOT` 指定官方 ESP-GSP 1.4
 模拟器桥接组件。`DisplayLease::desktop` 持有共享的 `DesktopDisplay`，不需要 ESP

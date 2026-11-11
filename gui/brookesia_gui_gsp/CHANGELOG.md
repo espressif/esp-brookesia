@@ -2,6 +2,10 @@
 
 ## v0.8.0 - 2026-11-10
 
+### Breaking Changes:
+
+- break(session): require owners for borrowed display, callback, and generated configuration data.
+
 ### Enhancements:
 
 - feat(gsp): add GSP sessions and application hosting on borrowed HAL display and touch devices.
@@ -14,4 +18,4 @@
 
 ### Documentation:
 
-- docs(lifecycle): document borrowed-device lifetimes and retry requirements after failed starts or stops.
+- docs(lifecycle): document borrowed-device lifetimes and cleanup after failed starts or stops.

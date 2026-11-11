@@ -3,17 +3,25 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include <algorithm>
+#include <chrono>
 #include <exception>
+#include <mutex>
+#include <set>
+#include <thread>
+#include "boost/thread.hpp"
 
 #if defined(BROOKESIA_GUI_GSP_HOST_TEST)
 #   include "sdk_stubs.hpp"
 #   include "host_log_stubs.hpp"
+#   define BROOKESIA_THREAD_CONFIG_GUARD(...) ((void)0)
 #else
 #   include "brookesia/gui_gsp/macro_configs.h"
 #   if !BROOKESIA_GUI_GSP_ENABLE_DEBUG_LOG
 #       define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
 #   endif
 #   include "private/utils.hpp"
+#   include "brookesia/lib_utils/thread_config.hpp"
 #   include "esp_gsp_esp_lcd.h"
 #endif
 
@@ -26,6 +34,35 @@ namespace {
 
 constexpr uint32_t RENDER_TASK_STACK_SIZE = 49152;
 constexpr int STOP_ATTEMPTS = 3;
+constexpr size_t CLEANUP_THREAD_STACK_SIZE = 8 * 1024;
+constexpr auto CLEANUP_RETRY_INTERVAL = std::chrono::milliseconds(250);
+constexpr auto CLEANUP_MAX_RETRY_INTERVAL = std::chrono::seconds(4);
+
+struct ActivePanels {
+    std::mutex mutex;
+    std::set<const void *> panels;
+};
+
+ActivePanels &active_panels()
+{
+    // A deferred session may outlive other static objects at process shutdown.
+    static auto *panels = new ActivePanels;
+    return *panels;
+}
+
+bool reserve_panel(const void *panel)
+{
+    auto &registry = active_panels();
+    std::lock_guard lock(registry.mutex);
+    return registry.panels.insert(panel).second;
+}
+
+void release_panel(const void *panel)
+{
+    auto &registry = active_panels();
+    std::lock_guard lock(registry.mutex);
+    registry.panels.erase(panel);
+}
 
 esp_display_present_panel_t panel_type_from_bus(hal::display::PanelIface::BusType bus_type, bool &swap_bytes)
 {
@@ -78,43 +115,111 @@ void forward_event(esp_gsp_handle_t gsp, const esp_gsp_event_t *event, void *use
 
 class Session::Impl {
 public:
+    boost::mutex mutex;
+    boost::condition_variable condition;
+    bool abandoned = false;
+    bool finished = false;
+    bool stopping = false;
+    const void *panel = nullptr;
     esp_gsp_handle_t handle = nullptr;
     EventBridge bridge{};
     std::shared_ptr<const Bundle> bundle{};
+    std::shared_ptr<void> display_owner{};
+    std::shared_ptr<void> callback_owner{};
+    std::shared_ptr<const void> bundle_owner{};
+
+    struct Resources {
+        std::shared_ptr<const Bundle> bundle;
+        std::shared_ptr<void> display;
+        std::shared_ptr<void> callback;
+        std::shared_ptr<const void> config;
+    };
+
+    Resources take_resources()
+    {
+        bridge = {};
+        return {std::move(bundle), std::move(display_owner), std::move(callback_owner), std::move(bundle_owner)};
+    }
+
+    static void cleanup(std::shared_ptr<Impl> state)
+    {
+        boost::unique_lock lock(state->mutex);
+        state->condition.wait(lock, [&]() {
+            return state->abandoned || state->finished;
+        });
+        auto retry_interval = CLEANUP_RETRY_INTERVAL;
+        while (!state->finished) {
+            state->condition.wait(lock, [&]() {
+                return !state->stopping || state->finished;
+            });
+            if (state->finished) {
+                break;
+            }
+            const auto handle = state->handle;
+            state->stopping = true;
+            lock.unlock();
+            const auto result = esp_gsp_stop(handle);
+            lock.lock();
+            state->stopping = false;
+            if (result == ESP_GSP_OK) {
+                state->handle = nullptr;
+                release_panel(state->panel);
+                auto resources = state->take_resources();
+                state->finished = true;
+                state->condition.notify_all();
+                lock.unlock();
+                return;
+            }
+            BROOKESIA_LOGW("Deferred GSP stop returned %1%; retrying", static_cast<int>(result));
+            lock.unlock();
+            std::this_thread::sleep_for(retry_interval);
+            retry_interval = std::min(retry_interval * 2,
+                                      std::chrono::duration_cast<std::chrono::milliseconds>(CLEANUP_MAX_RETRY_INTERVAL));
+            lock.lock();
+        }
+    }
 };
 
 Session::Session()
-    : impl_(std::make_unique<Impl>())
+    : impl_(std::make_shared<Impl>())
 {
 }
 
 Session::~Session()
 {
-    if (!stop()) {
-        BROOKESIA_LOGE("Cannot destroy a GSP session while the UI still owns callback and display resources");
-        std::terminate();
+    if (impl_) {
+        boost::lock_guard lock(impl_->mutex);
+        if (impl_->handle != nullptr) {
+            impl_->abandoned = true;
+        } else {
+            impl_->finished = true;
+        }
+        impl_->condition.notify_all();
     }
 }
 
 bool Session::start(
-    const esp_gsp_config_t &bundle, const DisplayLease &display, EventCallback on_event, void *user_ctx
+    const esp_gsp_config_t &bundle, const DisplayLease &display, EventCallback on_event, void *user_ctx,
+    std::shared_ptr<void> callback_owner, std::shared_ptr<const void> bundle_owner
 )
 {
-    return start_impl(bundle, {}, display, on_event, user_ctx);
+    return start_impl(bundle, {}, display, on_event, user_ctx, std::move(callback_owner), std::move(bundle_owner));
 }
 
 bool Session::start(
-    std::shared_ptr<const Bundle> bundle, const DisplayLease &display, EventCallback on_event, void *user_ctx
+    std::shared_ptr<const Bundle> bundle, const DisplayLease &display, EventCallback on_event, void *user_ctx,
+    std::shared_ptr<void> callback_owner
 )
 {
     BROOKESIA_CHECK_NULL_RETURN(bundle, false, "GSP bundle is null");
     const auto &config = bundle->config();
-    return start_impl(config, std::move(bundle), display, on_event, user_ctx);
+    return start_impl(config, std::move(bundle), display, on_event, user_ctx, std::move(callback_owner), {});
 }
 
 bool Session::start_impl(
     const esp_gsp_config_t &bundle, std::shared_ptr<const Bundle> owned_bundle, const DisplayLease &display,
-    EventCallback on_event, void *user_ctx
+    EventCallback on_event, void *user_ctx, std::shared_ptr<void> callback_owner,
+    std::shared_ptr<const void> bundle_owner
 )
 {
     BROOKESIA_LOG_TRACE_GUARD();
@@ -122,6 +227,11 @@ bool Session::start_impl(
     BROOKESIA_CHECK_FALSE_RETURN(!running(), false, "GSP session is already running");
     BROOKESIA_CHECK_NULL_RETURN(display.panel, false, "Display panel is null");
     BROOKESIA_CHECK_NULL_RETURN(display.touch, false, "Display touch is null");
+    BROOKESIA_CHECK_FALSE_RETURN(display.lifetime != nullptr, false, "GSP display lease has no lifetime owner");
+    BROOKESIA_CHECK_FALSE_RETURN(user_ctx == nullptr || callback_owner != nullptr, false,
+                                 "GSP callback context has no lifetime owner");
+    BROOKESIA_CHECK_FALSE_RETURN(owned_bundle != nullptr || bundle_owner != nullptr, false,
+                                 "GSP configuration data has no lifetime owner");
 
     hal::display::PanelIface::DriverSpecific panel_specific{};
     BROOKESIA_CHECK_FALSE_RETURN(
@@ -177,18 +287,46 @@ bool Session::start_impl(
     lcd.task_stack_size_freetype = RENDER_TASK_STACK_SIZE;
     lcd.task_stack_psram = true;
 
+    auto state = std::make_shared<Impl>();
+    state->bundle = std::move(owned_bundle);
+    state->display_owner = display.lifetime;
+    state->callback_owner = std::move(callback_owner);
+    state->bundle_owner = std::move(bundle_owner);
+    state->panel = panel_specific.panel_handle;
+    BROOKESIA_CHECK_FALSE_RETURN(reserve_panel(state->panel), false, "GSP panel is already in use");
+    try {
+        BROOKESIA_THREAD_CONFIG_GUARD({
+            .stack_size = CLEANUP_THREAD_STACK_SIZE,
+            .stack_in_ext = false,
+        });
+        boost::thread(&Impl::cleanup, state).detach();
+    } catch (const std::exception &error) {
+        release_panel(state->panel);
+        BROOKESIA_LOGE("Failed to start GSP cleanup task: %1%", error.what());
+        return false;
+    }
+    impl_ = state;
     esp_gsp_config_t config = bundle;
     esp_gsp_handle_t handle = nullptr;
     const esp_err_t start_result = esp_gsp_esp_lcd_start(&config, &lcd, &handle);
-    BROOKESIA_CHECK_ESP_ERR_RETURN(start_result, false, "Failed to start GSP");
-    BROOKESIA_CHECK_NULL_RETURN(handle, false, "GSP start returned a null handle");
+    if (start_result != ESP_OK || handle == nullptr) {
+        Impl::Resources resources;
+        {
+            boost::lock_guard lock(state->mutex);
+            resources = state->take_resources();
+            release_panel(state->panel);
+            state->finished = true;
+            state->condition.notify_all();
+        }
+        BROOKESIA_LOGE("Failed to start GSP: %1%", static_cast<int>(start_result));
+        return false;
+    }
 
-    impl_->handle = handle;
-    impl_->bundle = std::move(owned_bundle);
-    impl_->bridge.on_event = on_event;
-    impl_->bridge.user_ctx = user_ctx;
+    state->handle = handle;
+    state->bridge.on_event = on_event;
+    state->bridge.user_ctx = user_ctx;
     if (on_event != nullptr) {
-        const esp_gsp_err_t event_result = esp_gsp_on_event(handle, forward_event, &impl_->bridge);
+        const esp_gsp_err_t event_result = esp_gsp_on_event(handle, forward_event, &state->bridge);
         if (event_result != ESP_GSP_OK) {
             BROOKESIA_LOGE("Failed to register GSP event callback: %1%", static_cast<int>(event_result));
             stop();
@@ -202,22 +340,35 @@ bool Session::start_impl(
 
 bool Session::stop()
 {
-    if (!running()) {
-        return true;
-    }
-
     BROOKESIA_LOG_TRACE_GUARD();
-
-    esp_gsp_handle_t handle = impl_->handle;
+    auto state = impl_;
+    esp_gsp_handle_t handle = nullptr;
+    {
+        boost::lock_guard lock(state->mutex);
+        if (state->handle == nullptr) {
+            return true;
+        }
+        if (state->stopping) {
+            return false;
+        }
+        state->stopping = true;
+        handle = state->handle;
+    }
 
     esp_gsp_err_t result = ESP_GSP_FAIL;
     for (int attempt = 0; attempt < STOP_ATTEMPTS; ++attempt) {
         result = esp_gsp_stop(handle);
         if (result == ESP_GSP_OK) {
-            impl_->handle = nullptr;
-            // A successful stop drains callbacks. Only now may their context be released.
-            impl_->bridge = {};
-            impl_->bundle.reset();
+            Impl::Resources resources;
+            {
+                boost::lock_guard lock(state->mutex);
+                state->handle = nullptr;
+                release_panel(state->panel);
+                resources = state->take_resources();
+                state->stopping = false;
+                state->finished = true;
+                state->condition.notify_all();
+            }
             BROOKESIA_LOGI("GSP session stopped");
             return true;
         }
@@ -227,18 +378,32 @@ bool Session::stop()
         }
     }
 
+    {
+        boost::lock_guard lock(state->mutex);
+        state->stopping = false;
+        state->condition.notify_all();
+    }
+
     BROOKESIA_LOGE("GSP session remains owned after stop failure: result(%1%)", static_cast<int>(result));
     return false;
 }
 
 bool Session::running() const
 {
-    return (impl_ != nullptr) && (impl_->handle != nullptr);
+    if (!impl_) {
+        return false;
+    }
+    boost::lock_guard lock(impl_->mutex);
+    return impl_->handle != nullptr;
 }
 
 esp_gsp_handle_t Session::handle() const
 {
-    return running() ? impl_->handle : nullptr;
+    if (!impl_) {
+        return nullptr;
+    }
+    boost::lock_guard lock(impl_->mutex);
+    return impl_->handle;
 }
 
 } // namespace esp_brookesia::gui::gsp

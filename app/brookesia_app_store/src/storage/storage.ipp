@@ -89,6 +89,9 @@ void AppStoreApp::disconnect_http_events()
         mailbox->open = false;
         mailbox->events.clear();
     }
+    for (auto &connection : http_event_connections_) {
+        connection.disconnect_without_wait();
+    }
     http_event_connections_.clear();
 }
 

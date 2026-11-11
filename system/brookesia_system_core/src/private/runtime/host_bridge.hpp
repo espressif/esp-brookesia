@@ -80,6 +80,7 @@ public:
     bool consume_app_finish_request(runtime::AppId id) override;
     void release_app_resources(runtime::AppId id) override;
     void release_all_app_resources() override;
+    void stop_event_dispatch();
     void register_app_manifest(runtime::AppId id, AppManifest manifest);
     void unregister_app_manifest(runtime::AppId id);
 

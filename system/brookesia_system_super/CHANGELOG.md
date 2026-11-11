@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.8.5 - 2026-11-11
+
+### Bug Fixes:
+
+- fix(shell): deliver status and touch events safely on the app task during shutdown.
+
 ## v0.8.4 - 2026-10-27
 
 ### Enhancements:

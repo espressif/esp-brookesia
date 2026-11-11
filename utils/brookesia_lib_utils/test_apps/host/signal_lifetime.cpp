@@ -15,7 +15,9 @@
 #include "brookesia/lib_utils/signal.hpp"
 
 using esp_brookesia::lib_utils::connection;
+using esp_brookesia::lib_utils::scoped_connection;
 using esp_brookesia::lib_utils::signal;
+using esp_brookesia::lib_utils::track_callback;
 
 void test_external_drain()
 {
@@ -121,9 +123,76 @@ void test_mutual_disconnect_and_exception()
     assert(subscription.disconnect_and_wait());
 }
 
+void test_tracked_owner_and_nonblocking_disconnect()
+{
+    struct Owner {
+        std::atomic_bool &destroyed;
+        explicit Owner(std::atomic_bool &value) : destroyed(value) {}
+        ~Owner()
+        {
+            destroyed = true;
+        }
+    };
+    std::atomic_bool destroyed = false;
+    auto owner = std::make_shared<Owner>(destroyed);
+    std::weak_ptr<Owner> weak_owner = owner;
+    signal<void()> events;
+    std::promise<void> entered, release;
+    auto completion = release.get_future().share();
+    scoped_connection subscription = events.connect(track_callback(weak_owner, [&](Owner &) {
+        entered.set_value();
+        completion.wait();
+        assert(!destroyed);
+    }));
+    std::thread emitter([&] { events(); });
+    entered.get_future().wait();
+    subscription.disconnect_without_wait();
+    owner.reset();
+    assert(!subscription.connected() && !destroyed);
+    release.set_value();
+    emitter.join();
+    assert(destroyed && weak_owner.expired());
+    events();
+}
+
+void test_tracked_owner_destroyed_from_another_signal()
+{
+    struct Owner {
+        std::atomic_bool &destroyed;
+        scoped_connection subscription;
+        explicit Owner(std::atomic_bool &value) : destroyed(value) {}
+        ~Owner()
+        {
+            destroyed = true;
+        }
+    };
+    std::atomic_bool destroyed = false;
+    auto owner = std::make_shared<Owner>(destroyed);
+    std::weak_ptr<Owner> weak_owner = owner;
+    signal<void()> events, stop;
+    std::promise<void> entered, release;
+    auto completion = release.get_future().share();
+    owner->subscription = events.connect(track_callback(weak_owner, [&](Owner &) {
+        entered.set_value();
+        completion.wait();
+        assert(!destroyed);
+    }));
+    auto stop_connection = stop.connect([&] { owner.reset(); });
+    std::thread emitter([&] { events(); });
+    entered.get_future().wait();
+    stop();
+    assert(!weak_owner.expired() && !destroyed);
+    release.set_value();
+    emitter.join();
+    assert(destroyed && weak_owner.expired());
+    assert(stop_connection.disconnect_and_wait());
+}
+
 int main()
 {
     test_external_drain();
     test_self_and_cross_signal_drain();
     test_mutual_disconnect_and_exception();
+    test_tracked_owner_and_nonblocking_disconnect();
+    test_tracked_owner_destroyed_from_another_signal();
 }

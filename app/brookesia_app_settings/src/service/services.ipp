@@ -88,6 +88,9 @@ void SettingsApp::subscribe_sntp_events()
 
 void SettingsApp::disconnect_sntp_events()
 {
+    for (auto &connection : sntp_event_connections_) {
+        connection.disconnect_without_wait();
+    }
     sntp_event_connections_.clear();
 }
 
@@ -313,8 +316,7 @@ void SettingsApp::apply_wifi_enabled_preference_to_service()
     const auto preferred_enabled = wifi_ui_state_.enabled;
     const auto generation_token = impl_->wifi_operation_generation;
     const auto generation = generation_token->load();
-    const std::weak_ptr<WifiUiMailbox> weak_mailbox = wifi_ui_mailbox_;
-    const auto state_handler = [preferred_enabled, generation_token, generation, weak_mailbox](service::FunctionResult && result) {
+    const auto state_handler = [preferred_enabled, generation_token, generation](service::FunctionResult && result) {
         if (generation != generation_token->load()) {
             return;
         }
@@ -351,13 +353,12 @@ void SettingsApp::apply_wifi_enabled_preference_to_service()
         if (!WifiHelper::call_function_async(
                     WifiHelper::FunctionId::TriggerGeneralAction,
                     action_name,
-                    make_wifi_ui_result_handler(weak_mailbox.lock(), action_handler)
+                    action_handler
                 )) {
             BROOKESIA_LOGW("Failed to submit Settings Wi-Fi preference action '%1%'", action_name);
         }
     };
-    if (!WifiHelper::call_function_async(WifiHelper::FunctionId::GetGeneralState,
-                                         make_wifi_ui_result_handler(wifi_ui_mailbox_, state_handler))) {
+    if (!WifiHelper::call_function_async(WifiHelper::FunctionId::GetGeneralState, state_handler)) {
         BROOKESIA_LOGW("Failed to submit Settings Wi-Fi state request before applying preference");
     }
 }
@@ -440,6 +441,9 @@ void SettingsApp::subscribe_wifi_events()
 
 void SettingsApp::disconnect_wifi_events()
 {
+    for (auto &connection : wifi_event_connections_) {
+        connection.disconnect_without_wait();
+    }
     wifi_event_connections_.clear();
 }
 

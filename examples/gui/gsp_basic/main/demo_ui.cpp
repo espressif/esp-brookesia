@@ -9,6 +9,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdio>
+#include <memory>
 #include <thread>
 #include "demo_gsp.h"
 #include "demo_ui.hpp"
@@ -104,7 +105,8 @@ bool arm_demo(esp_gsp_handle_t ui)
 
 bool start_demo(gui::gsp::Session &session, const gui::gsp::DisplayLease &display)
 {
-    if (!session.start(gsp_demo_config(), display, on_event, nullptr)) {
+    auto config = std::make_shared<esp_gsp_config_t>(gsp_demo_config());
+    if (!session.start(*config, display, on_event, nullptr, {}, config)) {
         return false;
     }
     if (!arm_demo(session.handle())) {

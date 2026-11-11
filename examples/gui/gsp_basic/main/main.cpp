@@ -7,6 +7,8 @@
 #include "brookesia/lib_utils/log.hpp"
 
 #include <exception>
+#include <memory>
+#include <utility>
 #include "brookesia/hal_adaptor/display/device.hpp"
 #include "brookesia/hal_interface/interface.hpp"
 #include "brookesia/hal_interface/interfaces/display/backlight.hpp"
@@ -43,12 +45,13 @@ void run_main()
         return;
     }
 
-    // The HAL objects stay in static storage so their destructors do not release
-    // the panel while the GSP render task still borrows it.
+    auto display_owner = std::make_shared<std::pair<decltype(panel), decltype(touch)>>(
+                             std::move(panel), std::move(touch));
     const gui::gsp::DisplayLease display{
-        .panel = & *panel,
-        .touch = & *touch,
+        .panel = & *display_owner->first,
+        .touch = & *display_owner->second,
         .desktop = {},
+        .lifetime = display_owner,
     };
     static gui::gsp::Session session;
     if (!start_demo(session, display)) {

@@ -10,11 +10,6 @@ std::expected<void, std::string> SettingsApp::load_backlight_state()
     device_ui_state_.display_backlight_supported = false;
     device_ui_state_.backlight_output_id.reset();
     device_ui_state_.backlight_output_name.clear();
-    {
-        std::lock_guard lock(brightness_callbacks_->mutex);
-        brightness_callbacks_->output_valid = false;
-        brightness_callbacks_->output_id = 0;
-    }
     if (!SETTINGS_HARDWARE_OPERATIONS_ENABLED) {
         return {};
     }
@@ -66,11 +61,6 @@ std::expected<void, std::string> SettingsApp::load_backlight_state()
         return {};
     }
     device_ui_state_.brightness = clamp_percent(*brightness_result);
-    {
-        std::lock_guard lock(brightness_callbacks_->mutex);
-        brightness_callbacks_->output_id = *device_ui_state_.backlight_output_id;
-        brightness_callbacks_->output_valid = true;
-    }
     BROOKESIA_LOGI(
         "Settings backlight: output(%1%:%2%), brightness(%3%)",
         *device_ui_state_.backlight_output_id, device_ui_state_.backlight_output_name, device_ui_state_.brightness
@@ -98,62 +88,21 @@ std::string SettingsApp::brightness_caption_text() const
     return "Brightness level";
 }
 
-void SettingsApp::arm_ui_epoch()
-{
-    std::lock_guard lock(brightness_callbacks_->mutex);
-    brightness_callbacks_->sync_queued = false;
-    brightness_callbacks_->timer_id = system::core::INVALID_TIMER_ID;
-    brightness_callbacks_->pending_epoch = 0;
-    brightness_callbacks_->active_ticket = 0;
-    brightness_callbacks_->epoch = ++ui_epoch_counter_;
-    brightness_callbacks_->context = context_;
-    brightness_callbacks_->open = true;
-}
-
 void SettingsApp::shutdown_brightness_callbacks()
 {
-    system::core::AppContext *app_context = nullptr;
-    {
-        std::lock_guard lock(brightness_callbacks_->mutex);
-        brightness_callbacks_->open = false;
-        brightness_callbacks_->epoch = 0;
-        brightness_callbacks_->output_valid = false;
-        app_context = brightness_callbacks_->context;
-    }
-    // Wait until a display callback on another thread has returned.
-    // Then the timer and the screen context can be dropped.
     disconnect_device_events();
-    system::core::TimerId timer_id = system::core::INVALID_TIMER_ID;
-    {
-        std::lock_guard lock(brightness_callbacks_->mutex);
-        timer_id = brightness_callbacks_->timer_id;
-        brightness_callbacks_->timer_id = system::core::INVALID_TIMER_ID;
-        brightness_callbacks_->sync_queued = false;
-        brightness_callbacks_->pending_epoch = 0;
-        brightness_callbacks_->active_ticket = 0;
-        brightness_callbacks_->context = nullptr;
-    }
-    if ((app_context != nullptr) && (timer_id != system::core::INVALID_TIMER_ID)) {
-        (void)app_context->timer().stop(timer_id);
-    }
 }
 
-void SettingsApp::apply_scheduled_brightness(system::core::AppContext &context, uint64_t ticket)
+void SettingsApp::apply_scheduled_brightness(system::core::AppContext &context, uint64_t timer_id)
 {
     int brightness = 0;
     {
         std::lock_guard lock(brightness_callbacks_->mutex);
-        if (!brightness_callbacks_->sync_queued || (ticket != brightness_callbacks_->active_ticket)) {
+        if (!brightness_callbacks_->open || !brightness_callbacks_->sync_queued ||
+                (timer_id != brightness_callbacks_->timer_id)) {
             return;
         }
         brightness_callbacks_->sync_queued = false;
-        brightness_callbacks_->timer_id = system::core::INVALID_TIMER_ID;
-        brightness_callbacks_->active_ticket = 0;
-        if ((brightness_callbacks_->pending_epoch == 0) ||
-                (brightness_callbacks_->pending_epoch != brightness_callbacks_->epoch) ||
-                (brightness_callbacks_->context == nullptr)) {
-            return;
-        }
         brightness = brightness_callbacks_->pending_brightness;
     }
     device_ui_state_.brightness = brightness;
@@ -166,11 +115,6 @@ std::expected<void, std::string> SettingsApp::refresh_device_state(system::core:
 {
     disconnect_device_events();
     device_ui_state_ = DeviceUiState{};
-    {
-        std::lock_guard lock(brightness_callbacks_->mutex);
-        brightness_callbacks_->output_valid = false;
-        brightness_callbacks_->output_id = 0;
-    }
 
     if (!SETTINGS_HARDWARE_OPERATIONS_ENABLED) {
         BROOKESIA_LOGW("Settings hardware operations are disabled; Device controls will stay disabled");
@@ -650,6 +594,55 @@ std::expected<void, std::string> SettingsApp::drain_sound_events(system::core::A
     return changed ? refresh_sound_state(context) : std::expected<void, std::string>{};
 }
 
+void SettingsApp::subscribe_brightness_events()
+{
+    if (device_ui_state_.display_backlight_supported && device_ui_state_.backlight_output_id && context_ != nullptr) {
+        auto brightness_state = std::make_shared<BrightnessCallbackState>();
+        brightness_state->open = true;
+        brightness_state->output_valid = true;
+        brightness_state->output_id = *device_ui_state_.backlight_output_id;
+        brightness_callbacks_ = brightness_state;
+        auto timer = context_->timer().start_periodic(BRIGHTNESS_UI_TIMER_NAME, BRIGHTNESS_UI_POLL_INTERVAL_MS);
+        if (!timer) {
+            BROOKESIA_LOGE("Failed to start Settings brightness event timer: %1%", timer.error());
+        } else {
+            {
+                std::lock_guard lock(brightness_state->mutex);
+                brightness_state->timer_id = *timer;
+            }
+            const auto brightness_callback = [brightness_state](const std::string &, const service::EventItemMap &items) {
+                const auto *output_id = std::get_if<double>(find_event_item(items, "OutputId"));
+                const auto *output_name = std::get_if<std::string>(find_event_item(items, "OutputName"));
+                const auto *brightness = std::get_if<double>(find_event_item(items, "Brightness"));
+                if (!output_id || !output_name || !brightness) {
+                    return;
+                }
+                const auto watched_output = static_cast<uint32_t>(std::lround(*output_id));
+                const auto level = clamp_percent(*brightness);
+                std::lock_guard lock(brightness_state->mutex);
+                if (brightness_state->open && brightness_state->output_valid &&
+                        brightness_state->output_id == watched_output) {
+                    brightness_state->pending_brightness = level;
+                    brightness_state->sync_queued = true;
+                }
+            };
+            auto brightness_connection = DisplayHelper::subscribe_event(
+                                             DisplayHelper::EventId::BacklightBrightnessChanged,
+                                             brightness_callback
+                                         );
+            if (brightness_connection.connected()) {
+                device_event_connections_.push_back(std::move(brightness_connection));
+            } else {
+                BROOKESIA_LOGW("Failed to subscribe Device brightness event");
+                (void)context_->timer().stop(*timer);
+                std::lock_guard lock(brightness_state->mutex);
+                brightness_state->timer_id = system::core::INVALID_TIMER_ID;
+            }
+        }
+    }
+
+}
+
 void SettingsApp::subscribe_device_events()
 {
     if (!SETTINGS_HARDWARE_OPERATIONS_ENABLED) {
@@ -660,75 +653,7 @@ void SettingsApp::subscribe_device_events()
         return;
     }
 
-    if (device_ui_state_.display_backlight_supported) {
-        const auto brightness_state = brightness_callbacks_;
-        const auto brightness_callback = [brightness_state](const std::string &, const service::EventItemMap &items) {
-            const auto *output_id = std::get_if<double>(find_event_item(items, "OutputId"));
-            const auto *output_name = std::get_if<std::string>(find_event_item(items, "OutputName"));
-            const auto *brightness = std::get_if<double>(find_event_item(items, "Brightness"));
-            if (!output_id || !output_name || !brightness) {
-                return;
-            }
-            const auto watched_output = static_cast<uint32_t>(std::lround(*output_id));
-            const auto level = clamp_percent(*brightness);
-            system::core::AppContext *app_context = nullptr;
-            uint64_t ticket = 0;
-            {
-                std::lock_guard lock(brightness_state->mutex);
-                if (!brightness_state->open || !brightness_state->output_valid ||
-                        (brightness_state->output_id != watched_output) || (brightness_state->epoch == 0) ||
-                        (brightness_state->context == nullptr)) {
-                    return;
-                }
-                brightness_state->pending_brightness = level;
-                brightness_state->pending_epoch = brightness_state->epoch;
-                if (brightness_state->sync_queued) {
-                    return;
-                }
-                brightness_state->sync_queued = true;
-                ticket = ++brightness_state->schedule_ticket;
-                brightness_state->active_ticket = ticket;
-                app_context = brightness_state->context;
-            }
-            char timer_name[48];
-            std::snprintf(
-                timer_name, sizeof(timer_name), "%s:%llu", BRIGHTNESS_UI_TIMER_NAME,
-                static_cast<unsigned long long>(ticket)
-            );
-            auto timer = app_context->timer().start_delayed(timer_name, 1);
-            system::core::TimerId rejected_timer = system::core::INVALID_TIMER_ID;
-            {
-                std::lock_guard lock(brightness_state->mutex);
-                if (!timer || !brightness_state->open || (brightness_state->active_ticket != ticket)) {
-                    if (brightness_state->active_ticket == ticket) {
-                        brightness_state->sync_queued = false;
-                        brightness_state->active_ticket = 0;
-                        brightness_state->timer_id = system::core::INVALID_TIMER_ID;
-                    }
-                    if (timer && !brightness_state->open) {
-                        rejected_timer = timer.value();
-                    }
-                } else {
-                    brightness_state->timer_id = timer.value();
-                }
-            }
-            if (rejected_timer != system::core::INVALID_TIMER_ID) {
-                (void)app_context->timer().stop(rejected_timer);
-            }
-            if (!timer) {
-                BROOKESIA_LOGW("Failed to schedule Settings brightness UI update: %1%", timer.error());
-            }
-        };
-        auto brightness_connection = DisplayHelper::subscribe_event(
-                                         DisplayHelper::EventId::BacklightBrightnessChanged,
-                                         brightness_callback
-                                     );
-        if (brightness_connection.connected()) {
-            device_event_connections_.push_back(std::move(brightness_connection));
-        } else {
-            BROOKESIA_LOGW("Failed to subscribe Device brightness event");
-        }
-    }
+    subscribe_brightness_events();
 
     if (device_ui_state_.audio_player_supported) {
         if (context_ == nullptr) {
@@ -827,6 +752,17 @@ void SettingsApp::subscribe_device_events()
 
 void SettingsApp::disconnect_device_events()
 {
+    system::core::TimerId brightness_timer = system::core::INVALID_TIMER_ID;
+    {
+        std::lock_guard lock(brightness_callbacks_->mutex);
+        brightness_callbacks_->open = false;
+        brightness_callbacks_->output_valid = false;
+        brightness_callbacks_->sync_queued = false;
+        brightness_timer = std::exchange(brightness_callbacks_->timer_id, system::core::INVALID_TIMER_ID);
+    }
+    if (context_ != nullptr && brightness_timer != system::core::INVALID_TIMER_ID) {
+        (void)context_->timer().stop(brightness_timer);
+    }
     if (sound_ui_mailbox_) {
         sound_ui_mailbox_->close();
         sound_ui_mailbox_.reset();
@@ -839,6 +775,9 @@ void SettingsApp::disconnect_device_events()
     }
     settings_tone_active_ = false;
     settings_tone_deadline_ = {};
+    for (auto &connection : device_event_connections_) {
+        connection.disconnect_without_wait();
+    }
     device_event_connections_.clear();
 }
 

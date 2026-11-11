@@ -24,6 +24,8 @@ struct Executor {
     esp_gsp_handle_t handle = nullptr;
     std::shared_ptr<const DesktopBundle> bundle;
     std::shared_ptr<DesktopDisplay> display;
+    std::shared_ptr<void> callback_owner;
+    std::shared_ptr<const void> bundle_owner;
 };
 std::mutex executors_mutex;
 std::map<esp_gsp_handle_t, std::shared_ptr<Executor>> executors;
@@ -118,34 +120,42 @@ public:
     std::shared_ptr<const Bundle> bundle;
 };
 
-Session::Session() : impl_(std::make_unique<Impl>()) {}
+Session::Session() : impl_(std::make_shared<Impl>()) {}
 Session::~Session()
 {
-    if (!stop()) {
-        std::terminate();
+    if (impl_ && impl_->executor && impl_->executor->owner == std::this_thread::get_id()) {
+        auto executor = impl_->executor;
+        executor->stopping = true;
+        executor->thread.detach();
+        impl_->executor.reset();
+        return;
     }
+    (void)stop();
 }
 
 bool Session::start(const esp_gsp_config_t &config, const DisplayLease &display,
-                    EventCallback on_event, void *user_ctx)
+                    EventCallback on_event, void *user_ctx, std::shared_ptr<void> callback_owner,
+                    std::shared_ptr<const void> bundle_owner)
 {
-    return start_impl(config, {}, display, on_event, user_ctx);
+    return start_impl(config, {}, display, on_event, user_ctx, std::move(callback_owner), std::move(bundle_owner));
 }
 
 bool Session::start(std::shared_ptr<const Bundle> bundle, const DisplayLease &display,
-                    EventCallback on_event, void *user_ctx)
+                    EventCallback on_event, void *user_ctx, std::shared_ptr<void> callback_owner)
 {
     if (!bundle) {
         return false;
     }
     const auto config = bundle->config();
-    return start_impl(config, std::move(bundle), display, on_event, user_ctx);
+    return start_impl(config, std::move(bundle), display, on_event, user_ctx, std::move(callback_owner), {});
 }
 
 bool Session::start_impl(const esp_gsp_config_t &config, std::shared_ptr<const Bundle> owned_bundle,
-                         const DisplayLease &display, EventCallback on_event, void *user_ctx)
+                         const DisplayLease &display, EventCallback on_event, void *user_ctx,
+                         std::shared_ptr<void> callback_owner, std::shared_ptr<const void> bundle_owner)
 {
-    if (running() || !display.desktop || !config.bundle || config.bundle_size == 0) {
+    if (running() || !display.desktop || !config.bundle || config.bundle_size == 0 ||
+            (user_ctx != nullptr && !callback_owner) || (!owned_bundle && !bundle_owner)) {
         return false;
     }
     auto bundle = find_desktop_bundle({reinterpret_cast<const std::byte *>(config.bundle), config.bundle_size});
@@ -155,6 +165,8 @@ bool Session::start_impl(const esp_gsp_config_t &config, std::shared_ptr<const B
     auto executor = std::make_shared<Executor>();
     executor->bundle = std::move(bundle);
     executor->display = display.desktop;
+    executor->callback_owner = std::move(callback_owner);
+    executor->bundle_owner = std::move(bundle_owner);
     auto ready = std::make_shared<std::promise<bool>>();
     auto result = ready->get_future();
     executor->thread = std::thread([executor, ready, on_event, user_ctx] {

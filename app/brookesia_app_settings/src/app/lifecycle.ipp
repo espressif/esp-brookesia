@@ -216,7 +216,6 @@ std::expected<void, std::string> SettingsApp::on_start(system::core::AppContext 
     apply_wifi_enabled_preference_to_service();
     log_start_profile("wifi_preference", stage_started_at, start_profile_started_at);
 
-    arm_ui_epoch();
     stage_started_at = SteadyClock::now();
     result = refresh_device_state(context);
     log_start_profile("refresh_device_state", stage_started_at, start_profile_started_at);
@@ -427,15 +426,8 @@ std::expected<void, std::string> SettingsApp::on_timer(
         }
         return refresh_wifi_summary_state(context);
     }
-    constexpr std::string_view brightness_timer_prefix = BRIGHTNESS_UI_TIMER_NAME;
-    if (name.starts_with(brightness_timer_prefix) && (name.size() > brightness_timer_prefix.size()) &&
-            (name[brightness_timer_prefix.size()] == ':')) {
-        const auto suffix = name.substr(brightness_timer_prefix.size() + 1);
-        uint64_t ticket = 0;
-        const auto parsed = std::from_chars(suffix.data(), suffix.data() + suffix.size(), ticket);
-        if (parsed.ec == std::errc()) {
-            apply_scheduled_brightness(context, ticket);
-        }
+    if (name == BRIGHTNESS_UI_TIMER_NAME) {
+        apply_scheduled_brightness(context, timer_id);
         return {};
     }
     if (name == WIFI_SCAN_RETRY_TIMER_NAME) {

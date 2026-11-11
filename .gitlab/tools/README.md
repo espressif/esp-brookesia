@@ -18,7 +18,7 @@ To audit an ordinary completed build, pass its output directory:
 python3 examples/system/common/check_build_isolation.py examples/system/super/build
 ```
 
-The audit checks `<build-dir>/dependencies/local_manifests.sha256` against the local override manifests and final Kconfig configuration. If it reports a missing or stale stamp, rerun `idf.py -B <build-dir> reconfigure`, resolve any configuration failure, and rebuild before auditing again. The regression tests cover when a successful stamp is written; implementation details are in [the shared CMake setup](../../examples/system/common.cmake) and [dependency-state helper](../../examples/system/common/component_manager.py).
+The audit checks `<build-dir>/dependencies/local_manifests.sha256` against the local override manifests and final Kconfig configuration. If it reports a missing or stale stamp, rerun `idf.py -B <build-dir> reconfigure`, resolve any configuration failure, and rebuild before auditing again.
 
 ## `check_public_header_hygiene.py`
 

@@ -55,8 +55,9 @@ public:
     /**
      * @brief Optional generated `esp_gsp_config_t` for an embedded GSP bundle.
      *
-     * Core uses this when the GUI root is a GSP bundle. The pointed-to config
-     * must stay valid until the app is uninstalled.
+     * Core uses this when the GUI root is a GSP bundle. The config and all
+     * referenced data must remain valid for the lifetime of the app object.
+     * Core retains the app until any deferred GSP cleanup has completed.
      */
     virtual const void *gui_runtime_config() const;
 

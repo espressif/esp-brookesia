@@ -615,8 +615,8 @@ std::expected<void, std::string> System::Impl::ensure_gsp_loaded(AppRecord &reco
     const auto *panel = static_cast<esp_brookesia::hal::display::PanelIface *>(gsp_panel_);
     const auto *touch = static_cast<esp_brookesia::hal::display::TouchIface *>(gsp_touch_);
     if (!config_.gsp_desktop_display &&
-            (!gsp_panel_owner_ || (gsp_panel_owner_.get().get() != panel) ||
-             !gsp_touch_owner_ || (gsp_touch_owner_.get().get() != touch))) {
+            (!gsp_panel_owner_ || (gsp_panel_owner_->get().get() != panel) ||
+             !gsp_touch_owner_ || (gsp_touch_owner_->get().get() != touch))) {
         auto held = hold_gsp_display_devices();
         if (!held) {
             return held;
@@ -666,29 +666,34 @@ std::expected<void, std::string> System::Impl::ensure_gsp_loaded(AppRecord &reco
         record.gsp_host = std::make_unique<gui::gsp::AppHost>();
     }
     if (record.gsp_epoch == nullptr) {
-        record.gsp_epoch = std::make_unique<std::atomic<uint64_t>>(0);
+        record.gsp_epoch = std::make_shared<std::atomic<uint64_t>>(0);
     }
-    if (record.gsp_event_target.gate == nullptr) {
-        record.gsp_event_target.gate = std::make_shared<AppRecord::GspCallbackGate>();
+    if (!record.gsp_event_target) {
+        record.gsp_event_target = std::make_shared<AppRecord::GspEventTarget>();
+        record.gsp_event_target->gate = std::make_shared<AppRecord::GspCallbackGate>();
     }
     {
-        std::lock_guard lock(record.gsp_event_target.gate->mutex);
-        record.gsp_event_target.gate->impl = this;
+        std::lock_guard lock(record.gsp_event_target->gate->mutex);
+        record.gsp_event_target->gate->impl = this;
     }
-    record.gsp_event_target.app_id = record.info.app_id;
-    record.gsp_event_target.epoch = record.gsp_epoch.get();
+    record.gsp_event_target->app_id = record.info.app_id;
+    record.gsp_event_target->epoch = record.gsp_epoch;
     const gui::gsp::DisplayLease display{
         .panel = static_cast<hal::display::PanelIface *>(gsp_panel_),
         .touch = static_cast<hal::display::TouchIface *>(gsp_touch_),
         .desktop = config_.gsp_desktop_display,
+        .lifetime = std::make_shared<std::pair<decltype(gsp_panel_owner_), decltype(gsp_touch_owner_)>>(
+                    gsp_panel_owner_, gsp_touch_owner_),
     };
     record.gsp_epoch->fetch_add(1, std::memory_order_release);
     auto started = runtime_config != nullptr
-                   ? record.gsp_host->start(*runtime_config, display, &System::Impl::forward_gsp_event, &record.gsp_event_target)
+                   ? record.gsp_host->start(*runtime_config, display, &System::Impl::forward_gsp_event,
+                                            record.gsp_event_target.get(), record.gsp_event_target, record.native_app)
                    : runtime_bundle
                    ? record.gsp_host->start(std::move(runtime_bundle), display, &System::Impl::forward_gsp_event,
-                                            &record.gsp_event_target)
-                   : record.gsp_host->start(bytes, display, &System::Impl::forward_gsp_event, &record.gsp_event_target);
+                                            record.gsp_event_target.get(), record.gsp_event_target)
+                   : record.gsp_host->start(bytes, display, &System::Impl::forward_gsp_event,
+                                            record.gsp_event_target.get(), record.gsp_event_target);
     if (!started) {
         if (!record.gsp_host->running()) {
             record.gsp_host.reset();
@@ -1244,18 +1249,18 @@ std::expected<void, std::string> System::Impl::hold_gsp_display_devices()
     gsp_touch_owner_.reset();
     for (auto &handle : esp_brookesia::hal::acquire_interfaces<esp_brookesia::hal::display::PanelIface>()) {
         if (handle.get().get() == panel) {
-            gsp_panel_owner_ = std::move(handle);
+            gsp_panel_owner_ = std::make_shared<hal::InterfaceHandle<hal::display::PanelIface>>(std::move(handle));
             break;
         }
     }
     for (auto &handle : esp_brookesia::hal::acquire_interfaces<esp_brookesia::hal::display::TouchIface>()) {
         if (handle.get().get() == touch) {
-            gsp_touch_owner_ = std::move(handle);
+            gsp_touch_owner_ = std::make_shared<hal::InterfaceHandle<hal::display::TouchIface>>(std::move(handle));
             break;
         }
     }
-    if (!gsp_panel_owner_ || (gsp_panel_owner_.get().get() != panel) ||
-            !gsp_touch_owner_ || (gsp_touch_owner_.get().get() != touch)) {
+    if (!gsp_panel_owner_ || (gsp_panel_owner_->get().get() != panel) ||
+            !gsp_touch_owner_ || (gsp_touch_owner_->get().get() != touch)) {
         gsp_panel_owner_.reset();
         gsp_touch_owner_.reset();
         return std::unexpected("GSP display devices are not held HAL panel and touch instances");
@@ -1281,11 +1286,11 @@ void System::Impl::detach_gsp_callbacks()
 {
 #if CONFIG_BROOKESIA_GUI_BACKEND_GSP
     for (const auto &record : snapshot_app_records()) {
-        if (record->gsp_event_target.gate == nullptr) {
+        if (!record->gsp_event_target || !record->gsp_event_target->gate) {
             continue;
         }
-        std::lock_guard lock(record->gsp_event_target.gate->mutex);
-        record->gsp_event_target.gate->impl = nullptr;
+        std::lock_guard lock(record->gsp_event_target->gate->mutex);
+        record->gsp_event_target->gate->impl = nullptr;
     }
 #endif
 }
@@ -1400,7 +1405,7 @@ void System::Impl::dispatch_gsp_event(AppId app_id, const esp_gsp_event_t *event
         if (!result) {
             BROOKESIA_LOGW("GSP runtime action failed: app_id(%1%), error(%2%)", app_id, result.error());
         }
-    });
+    }, false);
     if (!posted) {
         BROOKESIA_LOGW("Failed to post GSP action: app_id(%1%), error(%2%)", app_id, posted.error());
     }

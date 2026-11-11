@@ -234,6 +234,9 @@ public:
     std::expected<void, std::string> post_system_app_task(std::function<void()> task) {
         tasks.push_back(std::move(task)); return {};
     }
+    std::expected<void, std::string> post_system_app_task_queued(std::function<void()> task) {
+        tasks.push_back(std::move(task)); return {};
+    }
     std::expected<uint64_t, std::string> post_system_app_delayed_task(int, std::function<void()> task) {
         if (std::exchange(fail_next_delayed_task, false)) { return std::unexpected("injected post failure"); }
         const auto id = next_task_id++; delayed_tasks.emplace(id, std::move(task)); return id;
