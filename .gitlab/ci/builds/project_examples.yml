@@ -85,6 +85,7 @@ build_examples_service_http:
     - .build_template
     - .build_idf_release_version_general
     - .rules:build:examples_service_http
+  timeout: 3 hour
   variables:
     EXAMPLE_DIR: examples/service/http
 # service/storage
@@ -101,6 +102,7 @@ build_examples_service_wifi:
     - .build_template
     - .build_idf_release_version_general
     - .rules:build:examples_service_wifi
+  timeout: 3 hour
   variables:
     EXAMPLE_DIR: examples/service/wifi
 
