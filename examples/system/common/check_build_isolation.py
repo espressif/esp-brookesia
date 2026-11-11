@@ -37,7 +37,9 @@ def check_build(build):
         return any(directory.name in (name, f"espressif__{name}", f"lvgl__{name}") for directory in component_dirs)
 
     commands = (build / "compile_commands.json").read_text()
-    link_map = next(build.glob("example_system_*.map")).read_text()
+    map_path = next(build.glob("example_system_*.map"), None)
+    assert map_path is not None, f"Missing example_system_*.map link map in {build}"
+    link_map = map_path.read_text()
     stage = build / "littlefs_stage"
     if gsp:
         assert has_component("brookesia_gui_gsp") and has_component("esp-gsp")

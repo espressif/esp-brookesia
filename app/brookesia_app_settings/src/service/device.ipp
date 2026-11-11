@@ -4,21 +4,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-std::expected<void, std::string> SettingsApp::load_backlight_state()
+void SettingsApp::load_backlight_state()
 {
     device_ui_state_.display_service_ready = false;
     device_ui_state_.display_backlight_supported = false;
     device_ui_state_.backlight_output_id.reset();
     device_ui_state_.backlight_output_name.clear();
     if (!SETTINGS_HARDWARE_OPERATIONS_ENABLED) {
-        return {};
+        return;
     }
 
     bind_display_service();
     device_ui_state_.display_service_ready = display_service_binding_.is_valid() && DisplayHelper::is_running();
     if (!device_ui_state_.display_service_ready) {
         BROOKESIA_LOGW("Display service is not ready; brightness controls will stay disabled");
-        return {};
+        return;
     }
 
     std::vector<DisplayHelper::OutputInfo> outputs;
@@ -29,12 +29,12 @@ std::expected<void, std::string> SettingsApp::load_backlight_state()
     if (!outputs_result) {
         BROOKESIA_LOGW("Failed to get Display outputs: %1%", outputs_result.error());
         device_ui_state_.display_service_ready = false;
-        return {};
+        return;
     }
     if (!BROOKESIA_DESCRIBE_FROM_JSON(outputs_result.value(), outputs)) {
         BROOKESIA_LOGW("Failed to parse Display outputs");
         device_ui_state_.display_service_ready = false;
-        return {};
+        return;
     }
     for (const auto &output : outputs) {
         if (!output.backlight.has_value()) {
@@ -47,7 +47,7 @@ std::expected<void, std::string> SettingsApp::load_backlight_state()
     }
     if (!device_ui_state_.display_backlight_supported || !device_ui_state_.backlight_output_id.has_value()) {
         BROOKESIA_LOGW("Display service does not expose a backlight-bound output");
-        return {};
+        return;
     }
 
     auto brightness_result = DisplayHelper::call_function_sync<double>(
@@ -58,14 +58,13 @@ std::expected<void, std::string> SettingsApp::load_backlight_state()
     if (!brightness_result) {
         BROOKESIA_LOGW("Display backlight brightness is unavailable: %1%", brightness_result.error());
         device_ui_state_.display_backlight_supported = false;
-        return {};
+        return;
     }
     device_ui_state_.brightness = clamp_percent(*brightness_result);
     BROOKESIA_LOGI(
         "Settings backlight: output(%1%:%2%), brightness(%3%)",
         *device_ui_state_.backlight_output_id, device_ui_state_.backlight_output_name, device_ui_state_.brightness
     );
-    return {};
 }
 
 std::string SettingsApp::brightness_status_text() const
@@ -132,10 +131,7 @@ std::expected<void, std::string> SettingsApp::refresh_device_state(system::core:
     bind_device_service();
     bind_display_service();
     bind_audio_service();
-    auto backlight = load_backlight_state();
-    if (!backlight) {
-        return backlight;
-    }
+    load_backlight_state();
 
     if (auto audio_result = load_audio_state(); !audio_result) {
         BROOKESIA_LOGW("Failed to load audio state: %1%", audio_result.error());

@@ -152,7 +152,7 @@ private:
         system::core::AppContext &context,
         std::string_view action
     );
-    std::expected<void, std::string> load_backlight_state();
+    void load_backlight_state();
     void shutdown_brightness_callbacks();
     void apply_scheduled_brightness(system::core::AppContext &context, uint64_t timer_id);
     std::string page_title_text(std::string_view page) const;

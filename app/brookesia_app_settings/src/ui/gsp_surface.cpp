@@ -691,11 +691,7 @@ std::expected<void, std::string> SettingsApp::start_gsp_pages(system::core::AppC
     restart_in_progress_ = false;
     restart_iface_ = hal::acquire_first_interface<hal::system::GeneralIface>();
     device_ui_state_ = DeviceUiState{};
-    auto loaded = load_backlight_state();
-    if (!loaded) {
-        shutdown_brightness_callbacks();
-        return loaded;
-    }
+    load_backlight_state();
     auto audio = load_audio_state();
     if (!audio) {
         shutdown_brightness_callbacks();
@@ -972,10 +968,7 @@ std::expected<void, std::string> SettingsApp::handle_gsp_action(
         return context.system_service().stop_app(context.app_id());
     }
     if ((scene == GSP_SETTINGS_SCENE_SETTINGS_HOME) && (id == GSP_SETTINGS_HOME_ACT_ID_OPEN_DISPLAY)) {
-        auto loaded = load_backlight_state();
-        if (!loaded) {
-            return loaded;
-        }
+        load_backlight_state();
         return open_page(detail::PAGE_DISPLAY);
     }
     if ((scene == GSP_SETTINGS_SCENE_SETTINGS_DISPLAY) && (id == GSP_SETTINGS_DISPLAY_ACT_ID_HEADER_BACK)) {
