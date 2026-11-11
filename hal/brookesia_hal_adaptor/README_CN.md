@@ -29,9 +29,11 @@
 
 打开共享 I2S 时钟的 codec 前，音频处理器按录音接口声明的格式统一播放采样率、位深和声道。codec 和处理器元数据均使用这一实际格式，调用者请求的播放配置保持不变。若播放需要特定的共享时钟格式，请在初始化前设置录音格式。
 
+打开 `PlaybackIface` 后会保留一个使用 8 KiB 内部内存栈的清理任务，直到播放关闭。如果无法创建该任务，`open()` 会失败。从播放回调调用的 `close()` 会异步完成；清理完成前重新打开可能失败。
+
 ## 音视频依赖与配置
 
-音频处理器使用 av_processor 0.7.0 及兼容的 GMF/ESP-SR 依赖组合，包含旧 P4 / IDF 6 语音库。依赖版本和补丁来源记录在 [SOURCE.md](SOURCE.md) 与 [idf_component.yml](idf_component.yml)；[依赖补丁参考](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/hal/adaptor.html#hal-adaptor-dependency-patches)列出按功能应用的补丁及失败行为。media_lib_sal 1.0.2 已包含 ESP-IDF 6 TLS 修复，替代原有本地补丁。
+音频处理器使用 av_processor 0.7.0 及兼容的 GMF/ESP-SR 依赖组合，包含旧 P4 / IDF 6 语音库。依赖版本和补丁来源记录在 [SOURCE.md](SOURCE.md) 与 [idf_component.yml](idf_component.yml)；[依赖补丁参考](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/hal/adaptor.html#hal-adaptor-dependency-patches)列出按功能应用的补丁及失败行为。media_lib_sal 1.0.2 支持 ESP-IDF 6 TLS 接口。
 
 仅使用音频的工程须在依赖解析前通过 `sdkconfig.defaults` 或已有 sdkconfig 设置 `CONFIG_VIDEO_PROCESSOR_ENABLE=n`，同时关闭 HAL 的摄像头、编码器和解码器实现。av_processor 0.7.0 上游默认启用视频。启用 HAL 视频编码器或解码器时，会同时启用其必需的 av_processor 视频管线。无摄像头板级配置（`esp_sensair_shuttle`、`esp_box_3`、`esp_vocat_board_v1_0`、`esp_vocat_board_v1_2`、`rymcu_bigsmart`、`esp32_s3_touch_amoled_*`）以及 Audio/Console 示例的 ESP32-C5 profile 默认设置 `CONFIG_VIDEO_PROCESSOR_ENABLE=n`；带摄像头的板级配置（`esp32_p4_function_ev`、`esp32_p4x_function_ev`、`esp32_s31_korvo1`、`esp32_s3_korvo2_v3`、`esp_mosaico_*`）保留视频能力。
 

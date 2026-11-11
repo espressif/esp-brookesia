@@ -12,7 +12,7 @@ Settings keeps the same application identity and device service preferences acro
 
 | Interface | Available pages |
 | --- | --- |
-| JSON / LVGL | The existing Settings screens, including Wi-Fi connection setup |
+| JSON / LVGL | Settings screens, including Wi-Fi connection setup |
 | GSP | Home, My device, brightness, Wi-Fi, sound, language, theme, and time zone on a 1024 × 600 display |
 
 The GSP Wi-Fi page supports turning Wi-Fi on or off, scanning, refreshing, and browsing nearby networks. Each network shows its signal strength and security status. The page also reports the current connection and handles scanning, empty results, and service errors.
@@ -29,7 +29,7 @@ Password input uses the System Core keyboard and supports printable ASCII charac
 
 **Sound** controls playback volume (0–100) and mute through AudioPlayback. The service saves these settings and restores them at startup. When the host provides a test clip, **Test sound** plays it at the current volume without changing mute. Unavailable controls and failed updates are shown on the page.
 
-GSP supports **English** and **Simplified Chinese**, including Wi-Fi status messages and keyboard controls, and **Light** and **Dark** themes across its pages. Language and theme follow the existing LVGL behavior: select an option to save it, then choose **Restart now** or **Later**. The current interface stays active until restart; pending selections remain visible when Settings is reopened.
+GSP supports **English** and **Simplified Chinese**, including Wi-Fi status messages and keyboard controls, and **Light** and **Dark** themes across its pages. To change language or theme, select an option and choose **Restart now** or **Later**. The current interface stays active until restart; pending selections remain visible when Settings is reopened.
 
 When the host configures GSP display and touch devices, System Core restores the appearance preferences and provides the system home, keyboard, and message dialogs. **My device** displays OS and board information, hardware capabilities, and current network status. **Time zone** offers common time zones and refreshes the SNTP state while visible. Advanced diagnostics remain in the JSON/LVGL interface.
 

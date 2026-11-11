@@ -30,11 +30,9 @@ the envelope and must not be passed directly to `esp_gsp_create()`.
 For a compressed ordinary compiler bundle, `AppHost` expands the exact GSPB
 into one 64-byte-aligned PSRAM allocation, checks the complete zlib stream,
 length, and CRC, and retains those bytes until stop succeeds. This saves Flash
-at the cost of the active expanded bundle size in PSRAM (about 1.0 MB for the
-current Settings bundle). The generated component directories and separate
-dynamic font remain unchanged. Uncompressed and deployable bundles retain
-their existing paths; compression is currently used only for ordinary generated
-configs, whose `AppHost::bundle()` remains null as before.
+but requires PSRAM for the expanded bundle during the session. Generated
+component directories and dynamic fonts remain separate. Compression applies to
+ordinary generated configs; `AppHost::bundle()` returns null for these configs.
 
 `brookesia_gsp_prepare_theme` prepares light/dark scenes before bundle compilation.
 The helper resolves `brookesia_gui_gsp/DejaVuSans.ttf` against this component's

@@ -35,9 +35,9 @@ deactivate
 
 同时具备核心测试前提时，可改用 `--suite all`。依赖测试覆盖真实 av_processor 头文件下的播放/录音格式、播放优先级、回调及打开失败回滚，以及补丁应用、组件别名、重复配置、释放错误、帧模式停止和 UYVY/YUYV 协商。依赖由参数显式传入；运行器不会下载依赖或修改工程中的组件副本。
 
-共享 I2S 用例执行实际 codec 库的配对、格式检查、`set_fmt` 和 `esp_codec_dev_open` 函数，仅将驱动、OS 和模拟 codec 控制替换为桩。覆盖 16/48 kHz、默认 16/16 kHz、声道和位深不一致，检查驱动格式与 manager 元数据相符；负向对照复现修复前被吞掉的拒绝，并要求同一回归能够拒绝该实现。这不验证物理 I2S 时钟或音质。
+共享 I2S 用例执行 codec 库的配对、格式检查、`set_fmt` 和 `esp_codec_dev_open` 函数，并使用驱动、OS 和模拟 codec 控制桩。用例覆盖 16/48 kHz、默认 16/16 kHz、声道和位深不一致，并检查驱动格式与 manager 元数据是否相符；不验证物理 I2S 时钟或音质。
 
-这些用例已在 Board Manager 0.5.15、esp_video 2.4.1、esp_capture 1.0.2 和 av_processor 0.7.0 上验证。升级 Board Manager 时，应使用候选工程解析出的依赖运行测试，检查补丁或 API 差异，再执行核心回归和实机测试。编译失败应作为兼容性问题处理，不应跳过对应测试。
+使用 Board Manager 0.5.15、esp_video 2.4.1、esp_capture 1.0.2 和 av_processor 0.7.0 运行依赖用例。升级 Board Manager 时，使用候选工程解析出的依赖运行用例，检查补丁及 API 差异，再执行核心回归和实机测试。
 
 依赖组还执行实际 HAL CMake 注册块及 ESP-DL 官方生成器，覆盖 local/managed 组件别名、P4/S3/S31/C5、额外模型需求并集及 SR 版本边界。这些检查不验证模型推理结果、音质或硬件时延。
 

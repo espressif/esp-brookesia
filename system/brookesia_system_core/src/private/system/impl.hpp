@@ -385,6 +385,7 @@ public:
     std::map<std::string, AppId> manifest_id_to_app_;
     std::map<KeyboardRequestId, KeyboardRequestRecord> keyboard_requests_;
     std::map<MessageDialogRequestId, MessageDialogRequestRecord> message_dialog_requests_;
+    size_t modal_result_notification_depth_ = 0;
     std::vector<MessageDialogRequestId> queued_message_dialog_requests_;
     std::optional<MessageDialogRequestId> active_message_dialog_request_id_;
     std::map<std::string, AppId> image_resource_owners_;

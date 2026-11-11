@@ -99,7 +99,7 @@ idf.py -B build-p4-v1 -D IDF_TARGET=esp32p4 -D SDKCONFIG_DEFAULTS=sdkconfig.defa
 
 核对 `build-p4-v1/sdkconfig` 中的 `CONFIG_ESP_BOARD_NAME="esp32_p4_function_ev"`、`CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y` 和 `CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ=360`。后续 menuconfig、构建和烧录均保留 `-B build-p4-v1`。仅修改旧输出的 revision 和 CPU 频率，不会替换其中的板型及外设选择。
 
-在 ESP-IDF commit [`8d7d8aef58829a3afc0859ff76305decce45ed55`](https://github.com/espressif/esp-idf/blob/8d7d8aef58829a3afc0859ff76305decce45ed55/components/esp_hw_support/port/esp32p4/rtc_clk.c) 中，revision <3 的时钟路径接受 360/180/90 MHz，其他值会触发 abort。若在进入 `app_main` 前于时钟初始化中止，请核对这些配置并按实际板型重新构建。不要强制烧录要求 revision ≥3 的 P4X 固件。
+revision <3 的时钟初始化支持 360、180 或 90 MHz。若进入 `app_main` 前在时钟初始化阶段中止，请核对板型和频率配置后重新构建。不要强制烧录要求 revision ≥3 的 P4X 固件。
 
 完整配置包含录音、AFE/唤醒词、播放和视频。依赖组合请参阅 [HAL 音视频兼容说明](../../../hal/brookesia_hal_adaptor/README_CN.md#音视频依赖与配置)；添加 `.espdl` 模型前请完成[额外模型需求登记](../../../hal/brookesia_hal_adaptor/README_CN.md#额外-esp-dl-模型)。
 

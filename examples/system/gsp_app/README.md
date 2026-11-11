@@ -7,7 +7,7 @@ This example runs on the ESP32-P4 Function EV Board, on the 1024×600 screen. It
 Two backend profiles are supported:
 
 - **GSP**, the default. Launcher and Settings, including brightness, Wi-Fi, sound, language, and theme.
-- **LVGL**. The existing desktop and the original Settings screens.
+- **LVGL**. The LVGL desktop and Settings interface.
 
 The default P4 configuration targets chip revision v3.1 or later. P4 v1.3 needs the [older-P4 configuration](#p4-revision-v13) below.
 
@@ -97,7 +97,7 @@ Both profiles use `partitions_16m.csv`. The LVGL startup helpers are shared unde
 
 ### Filesystem resources
 
-The `littlefs_data` image is built from `<selected-build>/littlefs_stage`; this example no longer uses the source-tree `littlefs/` directory for that image.
+The `littlefs_data` image is built from `<selected-build>/littlefs_stage`.
 
 With GSP selected, the image contains the sound-check WAV, Settings translations used for the application name, and any GSP apps configured for preinstallation. GSP scenes and their fonts are supplied by GSP bundles; the image does not include the LVGL desktop (`system/super`), shared LVGL fonts (`system/fonts`), or the Settings LVGL screens. With LVGL selected, the image includes the desktop resources and the complete Settings package.
 
@@ -113,22 +113,7 @@ For an existing checkout that disabled **Audio Device → Audio Processor**, ena
 
 ## Try it
 
-After startup, the public System Core home lists installed applications and provides a **Settings** entry.
-
-```text
-Settings
-Display
-move the brightness slider
-Back
-Exit
-Settings
-```
-
-**Back** returns to the Settings home page. **Exit** returns to the launcher. Opening Settings again keeps the brightness you set.
-
-Open **Sound**, **Language**, or **Theme** from the Settings home page. Theme is also accessible from Display.
-
-With LVGL, the board shows the startup screen and then the desktop. Open Settings from there. Brightness uses the same display service.
+After startup, open **Settings** from the launcher. Use **Display** to adjust brightness, or open **Sound**, **Language**, or **Theme**. **Back** returns to the Settings home page, and **Exit** returns to the launcher. On LVGL, open Settings from the desktop.
 
 ## Installable apps
 
@@ -161,13 +146,7 @@ The P4 board uses its Wi-Fi companion chip through ESP-Hosted. If the service is
 
 ## Brightness
 
-The slider is a percent from 0 to 100, and that percent is saved.
-
-Closing Settings leaves the display service running. Opening Settings again reads the current percent. It does not write a new one.
-
-A reboot brings back the saved percent, then turns the backlight on. The first boot, with nothing saved, starts at 90.
-
-The panel lamp uses a narrower range than 0–100, so a hardware log can show a different number. The slider shows the saved percent.
+The brightness slider ranges from 0 to 100 percent. The display service saves the selected value and restores it at startup; the default is 90 percent when no value has been saved. The hardware backlight range may differ from the displayed percentage.
 
 ## Sound
 
@@ -181,28 +160,16 @@ Choose **English** or **Chinese (Simplified)** in Language, or **Light** or **Da
 
 After restart, the selected language and theme apply to the launcher and all Settings pages, including Wi-Fi status and the password keyboard. Appearance selection does not change saved brightness, sound, or Wi-Fi settings. The keyboard continues to accept printable ASCII passwords; changing its labels does not enable Chinese input.
 
-## Remaining interface differences
+## Time synchronization
 
-The host binds the SNTP service for as long as it runs, as Super does, so the wall clock is set from the network once Wi-Fi is up, whichever app opens first. Without a saved Wi-Fi network the clock stays unset and apps such as Clock show 1970.
+The system keeps the SNTP service bound while it runs and synchronizes the clock when Wi-Fi connects. Without a network connection, the clock can remain unset; applications such as Clock may show 1970.
+
+## Interface capabilities
 
 System Core provides the GSP system home and public keyboard/message dialogs; this example configures the devices and starts the system. Settings includes My device, time zone with live SNTP state, and selection-based saved-network removal. Advanced diagnostics remain in LVGL. Both interfaces use the same system preferences and hardware services.
 
 ## Diagnostics
 
-Normal startup goes straight to the launcher. The checks below are for development and are off by default. Enable them under **Brookesia system GSP example** in menuconfig.
-
-| Option | What it does |
-| --- | --- |
-| **Open and close Settings repeatedly at startup to log heap use** | Opens and closes Settings 22 times, 2 to warm up and 20 measured, and logs memory before the launcher appears |
-| **Log heap across short start and exit cycles of the installed GSP JS app** | Does the same for the installed Device Control app with 5 cycles |
-| **Let USB callers inject touches and print the screen** | Adds a `GspProbe` service with `Tap`, `Drag`, `Component`, and `Frame`, callable through `brookesia-usb call`. `Frame` prints the framebuffers to the console after the USB command ends. Startup and app installation are unchanged |
-| **Run Settings Wi-Fi hardware acceptance probe at startup** | Uses real scans and simulated touches to exercise refresh, scan cancellation, reopening, and Wi-Fi toggles, and logs memory over 20 cycles. It also shows synthetic empty and failed scan results and multilingual names |
-| **Run Settings sound and appearance checks instead of scan checks** | Available with the Wi-Fi probe. Checks page navigation, the test tone, mute restoration, and memory, and adds temporary serial commands `touch X Y`, `frame`, and `state` |
-| **Run password and connection checks instead of scan checks** | Available with the Wi-Fi probe. Tests password entry and connecting to a network |
-| **Run LVGL hardware acceptance probe at startup** | For the LVGL interface: checks desktop navigation, Settings, brightness, Wi-Fi, sound, language, and theme, captures screens, and logs memory over 20 cycles. **Run LVGL password and connection checks instead of desktop checks** adds the connection test |
+Optional heap, interface, and connectivity checks are available under **Brookesia system GSP example** in menuconfig and are disabled by default. Enabling **Let USB callers inject touches and print the screen** adds a `GspProbe` service with `Tap`, `Drag`, `Component`, and `Frame` calls. `Frame` writes the framebuffer to the serial console.
 
 The connection checks need a dedicated personal test network. When the serial console reports that it is ready, send one JSON object with `ssid` and `password` fields. The firmware does not echo the credentials, so turn local echo off in your serial sender. A successful connection is saved by the normal Wi-Fi service.
-
-To also change the brightness from the service at startup, set `RUN_BRIGHTNESS_PROBE` to `true` in `main/main_gsp.cpp`. The probe writes the previous percent back afterwards.
-
-Look at the panel to confirm the screens. The serial log records service state and memory.

@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.8.4 - 2026-11-11
+
+### Bug Fixes:
+
+- fix(http): keep service event callbacks safe when the App Store stops or is uninstalled.
+
 ## v0.8.3 - 2026-10-27
 
 ### Enhancements:

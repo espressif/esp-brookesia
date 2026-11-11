@@ -53,7 +53,7 @@ an accepted request ID before renderer startup. The ID can be used to cancel a
 pending request. Message dialogs share the same FIFO with native/system requests;
 cancelled pending dialogs are not displayed. If display fails after acceptance,
 the normal close event completes that ID once and the App retains the actual
-error. This does not change the synchronous display path on ESP.
+error. On ESP, these calls display the interface synchronously.
 
 ## USB Host Bridge
 

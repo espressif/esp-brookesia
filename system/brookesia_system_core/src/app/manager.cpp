@@ -1391,6 +1391,9 @@ std::expected<KeyboardRequestId, std::string> System::show_app_keyboard(
     auto show_result = on_show_app_keyboard(app_id, request_id, options);
     if (!show_result) {
         impl_->keyboard_requests_.erase(request_id);
+        if (!impl_->active_message_dialog_request_id_ && impl_->queued_message_dialog_requests_.empty()) {
+            System::on_message_dialog_idle();
+        }
         return std::unexpected(show_result.error());
     }
     return request_id;
@@ -1425,11 +1428,20 @@ std::expected<void, std::string> System::hide_app_keyboard(AppId app_id, Keyboar
         .confirmed = false,
         .text = {},
     };
-    if (record.handler) {
-        record.handler(result);
+    {
+        ++impl_->modal_result_notification_depth_;
+        lib_utils::FunctionGuard finish_notification([this]() {
+            --impl_->modal_result_notification_depth_;
+        });
+        if (record.handler) {
+            record.handler(result);
+        }
+        if (impl_->system_service_) {
+            impl_->system_service_->publish_keyboard_closed(result);
+        }
     }
-    if (impl_->system_service_) {
-        impl_->system_service_->publish_keyboard_closed(result);
+    if (!impl_->active_message_dialog_request_id_ && impl_->queued_message_dialog_requests_.empty()) {
+        System::on_message_dialog_idle();
     }
     return {};
 }
@@ -1467,11 +1479,17 @@ std::expected<void, std::string> System::complete_app_keyboard(
         .confirmed = confirmed,
         .text = std::move(text),
     };
-    if (record.handler) {
-        record.handler(result);
-    }
-    if (impl_->system_service_) {
-        impl_->system_service_->publish_keyboard_closed(result);
+    {
+        ++impl_->modal_result_notification_depth_;
+        lib_utils::FunctionGuard finish_notification([this]() {
+            --impl_->modal_result_notification_depth_;
+        });
+        if (record.handler) {
+            record.handler(result);
+        }
+        if (impl_->system_service_) {
+            impl_->system_service_->publish_keyboard_closed(result);
+        }
     }
     return {};
 }
@@ -1663,6 +1681,9 @@ std::expected<MessageDialogRequestId, std::string> System::enqueue_message_dialo
     if (!show_result) {
         impl_->active_message_dialog_request_id_.reset();
         impl_->message_dialog_requests_.erase(request_id);
+        if (impl_->queued_message_dialog_requests_.empty()) {
+            System::on_message_dialog_idle();
+        }
         return std::unexpected(show_result.error());
     }
 
@@ -1726,6 +1747,10 @@ void System::remove_queued_message_dialog(MessageDialogRequestId request_id)
 
 void System::publish_message_dialog_closed(MessageDialogResult result, MessageDialogResultHandler handler)
 {
+    ++impl_->modal_result_notification_depth_;
+    lib_utils::FunctionGuard finish_notification([this]() {
+        --impl_->modal_result_notification_depth_;
+    });
     if (handler) {
         handler(result);
     }
@@ -1770,6 +1795,9 @@ std::expected<void, std::string> System::close_message_dialog(
             if (impl_->should_defer_gui_task(SYSTEM_GUI_INPUT_TASK_GROUP)) {
                 auto post_result = impl_->post_gui_input_task([this, owner_app_id, request_id]() {
                     on_hide_message_dialog(owner_app_id, request_id);
+                    if (!impl_->active_message_dialog_request_id_ && impl_->queued_message_dialog_requests_.empty()) {
+                        System::on_message_dialog_idle();
+                    }
                 });
                 if (!post_result) {
                     BROOKESIA_LOGW(

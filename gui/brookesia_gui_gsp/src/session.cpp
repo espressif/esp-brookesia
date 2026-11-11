@@ -227,7 +227,7 @@ bool Session::stop()
         }
     }
 
-    BROOKESIA_LOGE("GSP session remains owned after stop failure");
+    BROOKESIA_LOGE("GSP session remains owned after stop failure: result(%1%)", static_cast<int>(result));
     return false;
 }
 

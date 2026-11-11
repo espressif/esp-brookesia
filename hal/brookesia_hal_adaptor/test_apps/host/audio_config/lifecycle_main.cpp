@@ -197,33 +197,40 @@ static void check_deferred_close_worker_failure()
                     AudioProcessorConfig{}
                 );
     AudioPlaybackImpl playback(core);
-    std::promise<void> attempted_close;
+    inject_deferred_close_failure = true;
+    assert(!playback.open(nullptr));
+    assert(!playback.is_opened() && !core->is_opened());
+    assert(playback.open(nullptr));
+    playback.close();
+    assert(!core->is_opened());
+}
+
+static void check_destroy_from_callback()
+{
+    auto core = std::make_shared<AudioProcessorCore>(
+                    std::make_shared<audio::CodecPlayerIface>(), std::make_shared<audio::Recorder>(),
+                    AudioProcessorConfig{}
+                );
+    auto playback = std::make_unique<AudioPlaybackImpl>(core);
+    std::promise<void> destroyed;
     std::promise<void> finish_callback;
     auto finish = finish_callback.get_future().share();
-    assert(playback.open([&](audio::PlayState) {
-        playback.close();
-        attempted_close.set_value();
+    assert(playback->open([&](audio::PlayState) {
+        playback.reset();
+        destroyed.set_value();
         finish.wait();
     }));
-    inject_deferred_close_failure = true;
     std::thread event([]() {
         captured_playback.event_cb(AUDIO_PLAY_STATE_PLAYING, captured_playback.event_cb_ctx);
     });
-    assert(attempted_close.get_future().wait_for(std::chrono::seconds(1)) == std::future_status::ready);
-    assert(!playback.is_opened() && core->is_opened());
-    assert(core->retained_after_close_failure_ && !playback.open(nullptr));
-
-    // An external retry still drains the callback before releasing the SDK.
-    auto close = std::async(std::launch::async, [&]() {
-        playback.close();
-    });
-    assert(close.wait_for(std::chrono::milliseconds(20)) == std::future_status::timeout);
+    assert(destroyed.get_future().wait_for(std::chrono::seconds(1)) == std::future_status::ready);
+    assert(!playback && core->is_opened());
     finish_callback.set_value();
     event.join();
-    close.get();
-    assert(!core->is_opened() && !core->retained_after_close_failure_);
-    assert(playback.open(nullptr));
-    playback.close();
+    for (int i = 0; i < 100 && core->is_opened(); ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    assert(!core->is_opened());
 }
 
 static void check_close_reentrant_callback_destruction()
@@ -258,6 +265,7 @@ static int run_main()
     check_close_from_callback();
     check_close_from_another_thread();
     check_deferred_close_worker_failure();
+    check_destroy_from_callback();
     check_close_reentrant_callback_destruction();
     std::cout << "PASS: production audio lifecycle, synchronous stop callback, concurrent reopen, "
               "callback drain with HAL access, open rollback and destruction (fake SDK I/O)\n";

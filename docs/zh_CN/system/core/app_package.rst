@@ -137,7 +137,7 @@ GSP 包必须使用 GSP descriptor 并安装到 GSP 固件，不能装进 LVGL �
 
 上述约束适用于通过 HostBridge 访问 service 的 runtime app。Native app 属于可信固件代码，其直接使用 C++ service 接口的行为不受 manifest 限制。
 
-``.bpk`` 先在 ``apps/.installing/`` 下解包并校验，期间不改动已安装内容。替换已安装 app 时，旧目录移到该暂存目录的 ``previous/``，其 ``cache``、``data`` 和 ``files`` 带入新副本，新版本注册成功且更新已提交后才删除旧目录：先写入临时文件 ``committing``，再重命名为 ``committed``。注册失败，或提交失败且 ``committed`` 不存在时，新副本被移开，旧版本移回并重新注册。启动时，含 ``previous/`` 但没有 ``committed`` 的暂存目录视为未完成的更新，同样恢复旧版本；只有 ``committed`` 存在且新副本就位时才删除 ``previous/``。只要其中任何文件无法查询或移动，就原样保留该暂存目录。其他残留的暂存目录会被清理；加载失败的已安装 app 会被跳过并给出警告，不会阻止系统启动。卸载会删除 app 目录及其数据。
+``.bpk`` 先在 ``apps/.installing/`` 下解包并校验，再替换已安装的应用。更新会保留应用的 ``cache``、``data`` 和 ``files`` 目录。注册或提交失败时，系统会在条件允许时恢复旧版本；中断的更新会在启动时恢复。若无法查询或移动所需文件，系统会保留相应暂存目录以供恢复。加载失败的已安装应用会被跳过并给出警告，不会阻止系统启动。卸载会删除应用目录及其数据。
 
 .. _system-core-app_package-sec-04:
 

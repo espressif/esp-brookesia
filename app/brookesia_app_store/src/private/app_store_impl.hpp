@@ -14,11 +14,18 @@
 namespace esp_brookesia::app::app_store {
 
 struct AppStoreApp::Impl {
+    struct HttpEventMailbox {
+        std::mutex mutex;
+        bool open = true;
+        std::vector<PendingHttpEvent> events;
+    };
+
     system::core::AppContext *context = nullptr;
     service::ServiceBinding http_binding;
     service::ServiceBinding device_binding;
     service::ServiceBinding storage_binding;
     std::vector<esp_brookesia::lib_utils::scoped_connection> http_event_connections;
+    std::shared_ptr<HttpEventMailbox> http_event_mailbox;
     gui::ScopedConnection primary_action_connection;
     gui::ScopedConnection local_delete_action_connection;
     std::vector<StoreEntry> entries;
@@ -31,7 +38,6 @@ struct AppStoreApp::Impl {
     std::vector<std::filesystem::path> local_package_scan_dirs;
     std::vector<LocalPackageScanCandidate> local_package_scan_candidates;
     std::vector<LocalPackageEntry> local_package_scan_results;
-    std::vector<PendingHttpEvent> pending_http_events;
     std::unordered_map<std::string, VisibleItemRef> instance_to_entry;
     std::unordered_map<std::string, size_t> local_package_by_manifest_id;
     std::unordered_set<std::string> installed_manifest_ids;
@@ -95,7 +101,6 @@ struct AppStoreApp::Impl {
     bool startup_cache_load_in_progress = false;
     bool local_package_scan_in_progress = false;
     bool local_package_scan_refresh_view = false;
-    std::mutex pending_http_events_mutex;
 };
 
 } // namespace esp_brookesia::app::app_store

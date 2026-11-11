@@ -63,6 +63,8 @@ struct MessageDialogResult {
     MessageDialogButtonRole button_role; MessageDialogCloseReason reason;
 };
 using MessageDialogResultHandler = std::function<void(MessageDialogResult)>;
+struct KeyboardResult { int request_id; int app_id; bool confirmed; std::string text; };
+using KeyboardResultHandler = std::function<void(KeyboardResult)>;
 namespace lib_utils {
 struct FunctionGuard {
     std::function<void()> cleanup;
@@ -128,7 +130,10 @@ struct Host {
     }
     ~Host() { assert(!alive); }
 };
-struct FakeService { void publish_message_dialog_closed(MessageDialogResult) {} };
+struct FakeService {
+    void publish_message_dialog_closed(MessageDialogResult) {}
+    void publish_keyboard_closed(KeyboardResult) {}
+};
 enum class AppState { Running, Stopped, Error };
 struct AppRecord {
     struct Info {
@@ -161,6 +166,7 @@ public:
             MessageDialogOptions options;
             MessageDialogResultHandler handler;
         };
+        struct KeyboardRequestRecord { int request_id; int app_id; KeyboardResultHandler handler; };
         struct Config {
             void *gsp_desktop_display = nullptr;
         } config_;
@@ -176,9 +182,12 @@ public:
         int runtime_lifecycle_calls = 0;
         int next_message_dialog_request_id_ = 1;
         std::map<int, MessageDialogRequestRecord> message_dialog_requests_;
+        std::map<int, KeyboardRequestRecord> keyboard_requests_;
+        size_t modal_result_notification_depth_ = 0;
         std::optional<int> active_message_dialog_request_id_;
         std::vector<int> queued_message_dialog_requests_;
         FakeService *system_service_ = nullptr;
+        bool should_schedule_app_task() { return false; }
         bool should_defer_gui_task(const char *) { return false; }
         std::expected<void, std::string> post_gui_input_task(std::function<void()> f) { f(); return {}; }
         std::expected<AppRecord *, std::string> get_record(int app_id) {
@@ -214,16 +223,19 @@ public:
     int started_shells = 0;
     bool fail_stop_app = false;
     bool retain_session_on_stop_failure = false;
+    bool fail_next_delayed_task = false;
     TestOwner() { impl_->app_records_.try_emplace(42); }
     bool is_blocking_runtime_service_call_context() const { return false; }
     std::expected<void, std::string> on_show_message_dialog(int, int, const MessageDialogOptions &);
     void on_hide_message_dialog(int, int);
-    void on_message_dialog_idle() {}
+    void on_hide_app_keyboard(int, int);
+    void on_message_dialog_idle();
     std::expected<void, std::string> hide_app_keyboard(int, int);
     std::expected<void, std::string> post_system_app_task(std::function<void()> task) {
         tasks.push_back(std::move(task)); return {};
     }
     std::expected<uint64_t, std::string> post_system_app_delayed_task(int, std::function<void()> task) {
+        if (std::exchange(fail_next_delayed_task, false)) { return std::unexpected("injected post failure"); }
         const auto id = next_task_id++; delayed_tasks.emplace(id, std::move(task)); return id;
     }
     void cancel_system_app_delayed_task(uint64_t id) { delayed_tasks.erase(id); }
@@ -276,6 +288,7 @@ public:
     uint64_t modal_resume_retry_task_id_ = 0;
     uint64_t modal_resume_generation_ = 0;
     unsigned modal_resume_attempts_ = 0;
+    bool modal_resume_fallback_pending_ = false;
     int keyboard_request_id_ = 0;
     int keyboard_owner_ = 0;
     AppContext *context_ = nullptr;
@@ -306,10 +319,23 @@ std::expected<void, std::string> TestOwner::on_show_message_dialog(
     if (shell->closing_modals_) { return std::unexpected("closing"); }
     ++shown; return {};
 }
-void TestOwner::on_hide_message_dialog(int, int) {}
-std::expected<void, std::string> TestOwner::hide_app_keyboard(int, int)
+void TestOwner::on_hide_message_dialog(int, int)
 {
-    shell->keyboard_request_id_ = 0; return {};
+    shell->dialog_request_id_ = 0;
+    if (!has_queued_message_dialogs()) { shell->resume_suspended_app(); }
+}
+void TestOwner::on_message_dialog_idle()
+{
+    if (!shell->closing_modals_ && shell->dialog_request_id_ == 0 && shell->keyboard_request_id_ == 0 &&
+            !has_queued_message_dialogs()) {
+        shell->resume_suspended_app();
+        shell->finish_pending_modal_resume_fallback();
+    }
+}
+void TestOwner::on_hide_app_keyboard(int, int)
+{
+    shell->keyboard_request_id_ = 0;
+    shell->resume_suspended_app();
 }
 int main()
 {
@@ -459,6 +485,55 @@ int main()
     app.gsp_suspended = true;
     app.native_app.reset();
     app.context = nullptr;
+    bool resumed_before_completion = false;
+    auto normal_request = owner.enqueue_message_dialog(42, true, {}, [&](MessageDialogResult) {
+        resumed_before_completion = !app.gsp_suspended;
+    });
+    assert(normal_request);
+    shell.dialog_request_id_ = *normal_request;
+    shell.suspended_app_id_ = 42;
+    assert(owner.close_message_dialog(42, *normal_request, -1, MessageDialogCloseReason::Closed, true, true));
+    assert(resumed_before_completion && app.gsp_host);
+
+    app.gsp_host.reset();
+    app.gsp_suspended = true;
+    bool completion_before_fallback = false;
+    auto failure_request = owner.enqueue_message_dialog(42, true, {}, [&](MessageDialogResult) {
+        owner.on_message_dialog_idle();
+        completion_before_fallback = (app.info.state == AppState::Running && owner.stopped_apps == 3);
+    });
+    assert(failure_request);
+    shell.dialog_request_id_ = *failure_request;
+    owner.impl_->load_failures = 1;
+    owner.fail_next_delayed_task = true;
+    shell.suspended_app_id_ = 42;
+    auto failure_closed = owner.close_message_dialog(42, *failure_request, -1,
+                          MessageDialogCloseReason::Closed, true, true);
+    assert(failure_closed && completion_before_fallback);
+    assert(owner.stopped_apps == 4 && owner.started_shells == 3);
+    assert(app.info.state == AppState::Stopped && !app.gsp_suspended && shell.suspended_app_id_ == 0);
+    assert(owner.delayed_tasks.empty() && owner.impl_->message_dialog_requests_.empty());
+
+    app.info.state = AppState::Running;
+    app.gsp_suspended = true;
+    bool keyboard_completion_before_fallback = false;
+    owner.impl_->keyboard_requests_.emplace(77, TestOwner::Impl::KeyboardRequestRecord{
+        77, 42, [&](KeyboardResult) {
+            owner.on_message_dialog_idle();
+            keyboard_completion_before_fallback = (app.info.state == AppState::Running && owner.stopped_apps == 4);
+        }
+    });
+    shell.keyboard_request_id_ = 77;
+    shell.keyboard_owner_ = 42;
+    owner.impl_->load_failures = 1;
+    owner.fail_next_delayed_task = true;
+    shell.suspended_app_id_ = 42;
+    assert(owner.hide_app_keyboard(42, 77));
+    assert(keyboard_completion_before_fallback && owner.stopped_apps == 5 && owner.started_shells == 4);
+    assert(owner.impl_->keyboard_requests_.empty() && owner.delayed_tasks.empty());
+
+    app.info.state = AppState::Running;
+    app.gsp_suspended = true;
     owner.impl_->load_failures = 1;
     shell.suspended_app_id_ = 42;
     shell.resume_suspended_app();
@@ -490,8 +565,11 @@ def main():
         '    void stop_clock_timer()',
         '    void cancel_modal_resume_retry()',
         '    void resume_suspended_app()',
+        '    void finish_pending_modal_resume_fallback()',
+        '    void fallback_suspended_app()',
     ]
     manager_methods = [
+        'std::expected<void, std::string> System::hide_app_keyboard(',
         'std::expected<MessageDialogRequestId, std::string> System::enqueue_message_dialog(',
         'std::expected<void, std::string> System::show_next_message_dialog()',
         'void System::remove_queued_message_dialog(',

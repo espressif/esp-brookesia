@@ -7,7 +7,7 @@
 支持两种 backend 配置：
 
 - **GSP**，默认。启动页与设置，包括亮度、Wi-Fi、声音、语言和主题。
-- **LVGL**。原来的桌面，以及原来的设置界面。
+- **LVGL**。LVGL 桌面和设置界面。
 
 默认 P4 配置面向芯片 revision v3.1 或更新版本。P4 v1.3 请使用下方的[旧版 P4 配置](#p4-revision-v13)。
 
@@ -97,7 +97,7 @@ idf.py -B build-gsp build
 
 ### 文件系统资源
 
-`littlefs_data` 镜像由 `<所选构建目录>/littlefs_stage` 生成；本示例不再使用源码树中的 `littlefs/` 目录生成该镜像。
+`littlefs_data` 镜像由 `<所选构建目录>/littlefs_stage` 生成。
 
 选择 GSP 时，镜像包含声音测试 WAV、Settings 应用名称所需的翻译文件，以及配置为预装的 GSP 应用。GSP 场景及其字体由 GSP bundle 提供；镜像不包含 LVGL 桌面（`system/super`）、LVGL 公共字体（`system/fonts`）和 Settings 的 LVGL 页面。选择 LVGL 时，镜像会包含桌面资源和完整的 Settings 包。
 
@@ -113,22 +113,7 @@ GSP 编译场景在 Flash 中采用无损压缩。打开应用时，场景包解
 
 ## 实际操作
 
-启动完成后，System Core 公共主页列出已安装应用，并提供 **Settings** 入口。
-
-```text
-Settings
-Display
-拖动亮度滑块
-Back
-Exit
-Settings
-```
-
-**Back** 回到设置首页。**Exit** 回到启动页。再次打开设置，亮度仍是刚才调的值。
-
-设置首页可进入**声音**、**语言**和**主题**，显示页也提供主题入口。
-
-选择 LVGL 时，板子先显示启动画面，然后进入桌面。从桌面打开设置。亮度走同一个显示服务。
+启动完成后，从启动页打开 **Settings**。通过**显示**调节亮度，或进入**声音**、**语言**和**主题**页面。**Back** 返回设置首页，**Exit** 返回启动页。使用 LVGL 时，从桌面打开设置。
 
 ## 可安装应用
 
@@ -161,13 +146,7 @@ P4 开发板通过 ESP-Hosted 使用配套 Wi-Fi 芯片。若提示服务不可�
 
 ## 亮度
 
-滑块是 0 到 100 的百分比，这个百分比会被保存。
-
-退出设置不会关掉显示服务。再次打开时读取当前百分比，不会写成一个新的固定值。
-
-重启后会恢复上次保存的百分比，然后把背光打开。还没有保存过时，第一次启动是 90。
-
-灯的硬件范围比 0 到 100 窄，所以硬件日志里的数字可能和滑块不同。滑块上的数字是保存的百分比。
+亮度滑块的范围为 0% 至 100%。显示服务会保存所选值并在启动时恢复；没有保存值时默认为 90%。硬件背光范围可能与界面显示的百分比不同。
 
 ## 声音
 
@@ -183,28 +162,14 @@ P4 开发板通过 ESP-Hosted 使用配套 Wi-Fi 芯片。若提示服务不可�
 
 ## 校时
 
-宿主和 Super 一样,在运行期间一直持有 SNTP 服务,所以 Wi-Fi 连上后无论先打开哪个 App,系统时间都会通过网络校准。没有已保存的 Wi-Fi 网络时时间不会设置,时钟等 App 会显示 1970 年。
+系统运行期间会持有 SNTP 服务，并在 Wi-Fi 连接后通过网络校准时间。没有网络连接时，时间可能尚未设置，时钟等应用可能显示 1970 年。
 
-## 尚存的界面差异
+## 界面功能
 
 System Core 提供 GSP 系统主页及公共键盘、消息框；本示例配置设备并启动系统。Settings 提供我的设备、带实时 SNTP 状态的时区页和按目标选择的已保存网络删除。高级调试仍由 LVGL 提供，两套界面共用系统偏好和硬件服务。
 
 ## 诊断
 
-正常启动会直接进入启动页。下面的检查用于开发，默认关闭，可在 menuconfig 的 **Brookesia system GSP example** 下开启。
-
-| 选项 | 作用 |
-| --- | --- |
-| **Open and close Settings repeatedly at startup to log heap use** | 打开并关闭设置 22 次，其中 2 次预热、20 次计量，在启动页出现前记录内存 |
-| **Log heap across short start and exit cycles of the installed GSP JS app** | 对已安装的 Device Control 应用做同样的检查，共 5 轮 |
-| **Let USB callers inject touches and print the screen** | 增加 `GspProbe` 服务，提供 `Tap`、`Drag`、`Component` 和 `Frame`，可通过 `brookesia-usb call` 调用。`Frame` 在 USB 命令结束后把帧缓冲输出到串口。启动流程和应用安装不变 |
-| **Run Settings Wi-Fi hardware acceptance probe at startup** | 使用真实扫描和模拟触摸，覆盖刷新、取消扫描、重新进入和 Wi-Fi 开关，并记录 20 轮内存。还会显示合成的空结果、扫描失败和多语言名称 |
-| **Run Settings sound and appearance checks instead of scan checks** | 需先开启 Wi-Fi 探针。检查页面导航、试听、静音恢复和内存，并提供临时串口命令 `touch X Y`、`frame`、`state` |
-| **Run password and connection checks instead of scan checks** | 需先开启 Wi-Fi 探针。测试密码输入和连接网络 |
-| **Run LVGL hardware acceptance probe at startup** | 面向 LVGL 界面：检查桌面导航、设置、亮度、Wi-Fi、声音、语言和主题，采集画面并记录 20 轮内存。再开启 **Run LVGL password and connection checks instead of desktop checks** 可加入连接测试 |
+menuconfig 的 **Brookesia system GSP example** 提供可选的堆内存、界面和连接检查，默认关闭。开启 **Let USB callers inject touches and print the screen** 后，可通过 `GspProbe` 服务调用 `Tap`、`Drag`、`Component` 和 `Frame`；`Frame` 会将帧缓冲输出到串口。
 
 连接检查需要一个专用的个人测试网络。串口提示就绪后，发送一行包含 `ssid` 和 `password` 字段的 JSON。固件不会回显凭据，发送端也请关闭本地回显。成功连接后，凭据由正常的 Wi-Fi 服务保存。
-
-如果还想在启动时从服务侧改一次亮度，把 `main/main_gsp.cpp` 里的 `RUN_BRIGHTNESS_PROBE` 设为 `true`，探针结束后会把原来的百分比写回去。
-
-请在屏幕上确认显示效果，串口日志记录服务状态和内存数据。

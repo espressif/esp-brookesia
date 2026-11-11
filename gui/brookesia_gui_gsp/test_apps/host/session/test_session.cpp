@@ -212,6 +212,20 @@ void test_destructor_terminates_when_stop_fails()
     assert(WEXITSTATUS(status) == 77);
 }
 
+void test_destructor_retries_transient_stop_timeout()
+{
+    reset();
+    PanelIface panel;
+    TouchIface touch;
+    esp_gsp_config_t config{};
+    {
+        Session session;
+        assert(session.start(config, lease_for(panel, touch), nullptr, nullptr));
+        stop_timeouts_left = 1;
+    }
+    assert(stops == 2);
+}
+
 void test_compressed_app_host_owns_one_expansion_until_stop()
 {
     reset();
@@ -430,6 +444,7 @@ int main()
     test_rejects_missing_display_and_second_start();
     test_event_registration_failure_stops();
     test_stop_timeout_keeps_bundle_until_retry();
+    test_destructor_retries_transient_stop_timeout();
     test_destructor_terminates_when_stop_fails();
     test_compressed_app_host_owns_one_expansion_until_stop();
     test_compressed_app_host_rejects_invalid_envelopes();

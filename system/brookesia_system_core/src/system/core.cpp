@@ -683,6 +683,7 @@ public:
             if (!completed) {
                 BROOKESIA_LOGW("Failed to complete GSP message dialog: %1%", completed.error());
             }
+            finish_pending_modal_resume_fallback();
             return {};
         }
 
@@ -701,6 +702,7 @@ public:
                 if (!completed) {
                     BROOKESIA_LOGW("Failed to complete GSP keyboard request: %1%", completed.error());
                 }
+                finish_pending_modal_resume_fallback();
             };
             if (id == GSP_SUPER_KEYBOARD_ACT_ID_CANCEL || id == GSP_SUPER_KEYBOARD_ACT_ID_CONFIRM) {
                 finish_keyboard(id == GSP_SUPER_KEYBOARD_ACT_ID_CONFIRM);
@@ -1168,6 +1170,7 @@ public:
                 (void)owner_.complete_app_message_dialog(
                     owner_id, request_id, -1, MessageDialogCloseReason::Timeout
                 );
+                finish_pending_modal_resume_fallback();
             }
                              );
             if (scheduled) {
@@ -1218,6 +1221,7 @@ public:
                 (void)owner_.complete_app_message_dialog(
                     owner_id, request_id, -1, MessageDialogCloseReason::Timeout
                 );
+                finish_pending_modal_resume_fallback();
             }
                              );
             if (scheduled) {
@@ -1292,10 +1296,22 @@ public:
         }
     }
 
+    void finish_pending_modal_resume_fallback()
+    {
+        if (!modal_resume_fallback_pending_ || closing_modals_ || owner_.impl_->modal_result_notification_depth_ != 0 ||
+                dialog_request_id_ != INVALID_MESSAGE_DIALOG_REQUEST_ID ||
+                keyboard_request_id_ != INVALID_KEYBOARD_REQUEST_ID || owner_.has_queued_message_dialogs() ||
+                suspended_app_id_ == INVALID_APP_ID) {
+            return;
+        }
+        fallback_suspended_app();
+    }
+
 private:
     void cancel_modal_resume_retry()
     {
         ++modal_resume_generation_;
+        modal_resume_fallback_pending_ = false;
         if (modal_resume_retry_task_id_ != 0) {
             owner_.cancel_system_app_delayed_task(modal_resume_retry_task_id_);
             modal_resume_retry_task_id_ = 0;
@@ -1306,7 +1322,8 @@ private:
     {
         if (closing_modals_ || dialog_request_id_ != INVALID_MESSAGE_DIALOG_REQUEST_ID ||
                 keyboard_request_id_ != INVALID_KEYBOARD_REQUEST_ID || owner_.has_queued_message_dialogs() ||
-                suspended_app_id_ == INVALID_APP_ID || modal_resume_retry_task_id_ != 0) {
+                suspended_app_id_ == INVALID_APP_ID || modal_resume_retry_task_id_ != 0 ||
+                modal_resume_fallback_pending_) {
             return;
         }
         const auto app_id = suspended_app_id_;
@@ -1334,16 +1351,22 @@ private:
                 }
                 shell->modal_resume_retry_task_id_ = 0;
                 shell->resume_suspended_app();
+                shell->finish_pending_modal_resume_fallback();
             });
             if (retry) {
                 modal_resume_retry_task_id_ = *retry;
-            } else {
-                BROOKESIA_LOGE("Failed to schedule GSP resume retry: %1%", retry.error());
+                return;
             }
-            return;
+            BROOKESIA_LOGE("Failed to schedule GSP resume retry: %1%", retry.error());
         }
 
-        // Run fallback from the delayed app task, after the dialog/keyboard request has completed.
+        // The request owner must receive its result before its app can be stopped.
+        modal_resume_fallback_pending_ = true;
+    }
+
+    void fallback_suspended_app()
+    {
+        const auto app_id = suspended_app_id_;
         cancel_modal_resume_retry();
         std::expected<void, std::string> stopped;
         {
@@ -1580,6 +1603,7 @@ private:
     uint64_t modal_resume_retry_task_id_ = 0;
     uint64_t modal_resume_generation_ = 0;
     unsigned modal_resume_attempts_ = 0;
+    bool modal_resume_fallback_pending_ = false;
     size_t launcher_page_ = 0;
     std::array<AppId, GSP_LAUNCHER_SLOT_COUNT> slot_apps_{};
     AppId settings_app_id_ = INVALID_APP_ID;
@@ -1988,6 +2012,7 @@ void System::on_message_dialog_idle()
 #if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
     if (auto *shell = as_gsp_shell(impl_->gsp_shell_app_); shell != nullptr) {
         shell->handle_message_dialog_idle();
+        shell->finish_pending_modal_resume_fallback();
     }
 #endif
 }

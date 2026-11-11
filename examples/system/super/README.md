@@ -99,7 +99,7 @@ idf.py -B build-p4-v1 -D IDF_TARGET=esp32p4 -D SDKCONFIG_DEFAULTS=sdkconfig.defa
 
 Check `build-p4-v1/sdkconfig` for `CONFIG_ESP_BOARD_NAME="esp32_p4_function_ev"`, `CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y`, and `CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ=360`. Keep `-B build-p4-v1` on subsequent menuconfig, build, and flash commands. Changing only the revision and CPU frequency in an old output does not replace its board and peripheral selections.
 
-In ESP-IDF commit [`8d7d8aef58829a3afc0859ff76305decce45ed55`](https://github.com/espressif/esp-idf/blob/8d7d8aef58829a3afc0859ff76305decce45ed55/components/esp_hw_support/port/esp32p4/rtc_clk.c), the revision <3 clock path accepts 360/180/90 MHz and aborts for other values. If startup aborts in clock initialization before `app_main`, check these settings and rebuild for the board. Do not force-flash P4X firmware requiring revision ≥3.
+For revision <3, clock initialization accepts 360, 180, or 90 MHz. If startup aborts during clock initialization before `app_main`, check the selected board and frequency, then rebuild. Do not force-flash P4X firmware requiring revision ≥3.
 
 The full configuration includes recording, AFE/wake-word processing, playback, and video. See the [HAL audio/video compatibility notes](../../../hal/brookesia_hal_adaptor/README.md#audiovideo-dependencies-and-configuration) for the dependency combination and [additional-model registration](../../../hal/brookesia_hal_adaptor/README.md#additional-esp-dl-models) before adding `.espdl` models.
 

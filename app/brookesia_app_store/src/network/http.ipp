@@ -201,51 +201,9 @@ void AppStoreApp::handle_request_progress(double request_id, const boost::json::
     (void)refresh_entry(*context_, *index);
 }
 
-void AppStoreApp::schedule_http_event_processing(
-    system::core::AppContext &context,
-    PendingHttpEventType type,
-    double request_id,
-    const boost::json::object &response_json
-)
-{
-    bool process_now = false;
-    {
-        std::lock_guard lock(pending_http_events_mutex_);
-        pending_http_events_.push_back(PendingHttpEvent{
-            .type = type,
-            .request_id = request_id,
-            .response = response_json,
-        });
-        if (http_event_timer_id_ != system::core::INVALID_TIMER_ID) {
-            return;
-        }
-
-        // HTTP service events are emitted on SvcHttp threads. Defer heavy
-        // filesystem/UI/install work to the app task to keep the HTTP worker stack small.
-        auto timer = context.timer().start_delayed(HTTP_EVENT_TIMER_NAME, HTTP_EVENT_PROCESS_DELAY_MS);
-        if (timer) {
-            http_event_timer_id_ = *timer;
-            return;
-        }
-
-        BROOKESIA_LOGW("Failed to schedule App Store HTTP event processing: %1%", timer.error());
-        process_now = true;
-    }
-
-    if (process_now) {
-        process_pending_http_events(context);
-    }
-}
-
 void AppStoreApp::stop_http_event_timer(system::core::AppContext &context)
 {
-    system::core::TimerId timer_id = system::core::INVALID_TIMER_ID;
-    {
-        std::lock_guard lock(pending_http_events_mutex_);
-        timer_id = http_event_timer_id_;
-        http_event_timer_id_ = system::core::INVALID_TIMER_ID;
-        pending_http_events_.clear();
-    }
+    const auto timer_id = std::exchange(http_event_timer_id_, system::core::INVALID_TIMER_ID);
     if (timer_id != system::core::INVALID_TIMER_ID && !context.timer().stop(timer_id)) {
         BROOKESIA_LOGW("Failed to stop App Store HTTP event timer: %1%", timer_id);
     }
@@ -253,14 +211,21 @@ void AppStoreApp::stop_http_event_timer(system::core::AppContext &context)
 
 void AppStoreApp::process_pending_http_events(system::core::AppContext &context)
 {
-    (void)context;
+    auto mailbox = http_event_mailbox_;
+    if (!mailbox) {
+        return;
+    }
     std::vector<PendingHttpEvent> events;
     {
-        std::lock_guard lock(pending_http_events_mutex_);
-        events.swap(pending_http_events_);
+        std::lock_guard lock(mailbox->mutex);
+        events.swap(mailbox->events);
     }
 
+    const auto generation = async_generation_;
     for (const auto &event : events) {
+        if (context_ != &context || async_generation_ != generation) {
+            break;
+        }
         switch (event.type) {
         case PendingHttpEventType::Progress:
             handle_request_progress(event.request_id, event.response);
@@ -273,6 +238,9 @@ void AppStoreApp::process_pending_http_events(system::core::AppContext &context)
             break;
         case PendingHttpEventType::Canceled:
             handle_request_canceled(event.request_id, event.response);
+            break;
+        case PendingHttpEventType::GeneralStateChanged:
+            handle_http_general_state_changed(event.state);
             break;
         default:
             break;

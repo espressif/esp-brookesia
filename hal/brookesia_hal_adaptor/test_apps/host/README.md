@@ -35,9 +35,9 @@ deactivate
 
 Use `--suite all` instead when the core-suite prerequisites are also available. The dependency tests check playback/recording formats, playback priority, callbacks, and open-failure rollback against real av_processor headers, as well as patch application, component aliases, repeated configuration, release errors, frame-mode stop, and UYVY/YUYV negotiation. Dependencies are supplied explicitly; the runner never downloads them or changes the project copies.
 
-The shared-I2S cases execute the resolved codec library's pairing, format checks, `set_fmt`, and `esp_codec_dev_open` functions with driver/OS and analogue codec stubs. They cover 16/48 kHz, default 16/16 kHz, channel and bit-depth mismatches, and verify that driver formats agree with the manager metadata. A negative control reproduces the pre-fix swallowed rejection and must fail the same regression. This does not validate physical I2S clocks or audio quality.
+The shared-I2S cases execute the resolved codec library's pairing, format checks, `set_fmt`, and `esp_codec_dev_open` functions with driver/OS and analogue codec stubs. They cover 16/48 kHz, default 16/16 kHz, and channel and bit-depth mismatches, and verify that driver formats agree with the manager metadata. They do not validate physical I2S clocks or audio quality.
 
-These cases were validated with Board Manager 0.5.15, esp_video 2.4.1, esp_capture 1.0.2, and av_processor 0.7.0. When upgrading Board Manager, run against the candidate project's resolved dependencies, review any patch/API differences, then rerun the core suite and hardware tests. Compilation failures are compatibility findings, not a reason to skip a case.
+Run the dependency cases with Board Manager 0.5.15, esp_video 2.4.1, esp_capture 1.0.2, and av_processor 0.7.0. When upgrading Board Manager, run them against the candidate project's resolved dependencies, review patch and API differences, then run the core suite and hardware tests.
 
 The dependency suite also executes the production HAL CMake registration and the official ESP-DL generator for local/managed aliases, P4/S3/S31/C5, additional model requirement unions, and the SR version boundary. These checks do not validate inference output, audio quality, or hardware latency.
 

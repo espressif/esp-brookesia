@@ -146,11 +146,10 @@ def run_lifecycle(build, audio, here, sdk, codec_includes, codec_object):
                   'void AudioProcessorCore::disable_playback_callback()',
                   'void AudioProcessorCore::wait_playback_callbacks()',
                   'bool AudioProcessorCore::inside_playback_callback()',
-                  'void AudioProcessorCore::retain_after_deferred_close_failure(',
-                  'void AudioProcessorCore::release_after_deferred_close_failure()',
                   'bool AudioProcessorCore::open_common(', 'void AudioProcessorCore::close_common()',
                   'void AudioProcessorCore::on_playback_event(', 'AudioPlaybackImpl::AudioPlaybackImpl(',
                   'AudioPlaybackImpl::~AudioPlaybackImpl()', 'bool AudioPlaybackImpl::open(',
+                  'void AudioPlaybackImpl::run_close_worker(',
                   'void AudioPlaybackImpl::close()')
     source = (audio / 'processor_impl.cpp').read_text()
     current = converter_bodies + ''.join(function(source, signature) for signature in signatures) + '''
@@ -159,7 +158,7 @@ bool AudioPlaybackImpl::pause() { return false; }
 bool AudioPlaybackImpl::resume() { return false; }
 bool AudioPlaybackImpl::stop() { return false; }
 '''
-    start_worker = 'boost::thread(std::move(finish_close)).detach();'
+    start_worker = 'boost::thread(&AudioPlaybackImpl::run_close_worker, lifecycle, core).detach();'
     if current.count(start_worker) != 1:
         raise AssertionError('Cannot inject the deferred close worker failure')
     current = current.replace(start_worker, '''if (inject_deferred_close_failure.exchange(false)) {

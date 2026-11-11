@@ -15,7 +15,7 @@
 ### Bug Fixes:
 
 - fix(audio): align playback codec format and processor metadata with the recorder for shared I2S clocks.
-- fix(audio): drain playback callbacks before lifecycle cleanup and defer close requested from a playback callback.
+- fix(audio): drain playback callbacks and preallocate a cleanup worker so callback-initiated close can complete safely.
 - fix(deps): omit video dependencies from audio-only builds and enable pipelines for HAL video codecs.
 - fix(adc): adapt Board Manager and codec ADC integrations to ESP-IDF 6 channel-count APIs.
 - fix(display): select the correct DPI frame callback across ESP-IDF 6.0 and 6.1.

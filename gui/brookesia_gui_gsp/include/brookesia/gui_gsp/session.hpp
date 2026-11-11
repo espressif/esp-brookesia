@@ -40,9 +40,10 @@ struct DisplayLease {
  *
  * @note Serialize lifecycle calls on an application task. Do not call stop()
  *       or destroy the session from a GSP event, timer, or render callback.
- *       If stop() fails, keep this session, the callback context, and borrowed
- *       display and bundle resources alive, then retry from the application task.
- *       Destruction terminates the process if the UI cannot be stopped safely.
+ *       The caller must ensure stop() succeeds before releasing the callback
+ *       context or borrowed display and bundle resources. If stop() fails,
+ *       keep the session and those resources alive and retry from the application
+ *       task. Destruction terminates the process if the UI cannot be stopped safely.
  */
 class Session {
 public:

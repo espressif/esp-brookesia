@@ -36,8 +36,6 @@ public:
     void disable_playback_callback();
     void wait_playback_callbacks();
     bool inside_playback_callback() const;
-    void retain_after_deferred_close_failure(std::shared_ptr<AudioProcessorCore> self);
-    void release_after_deferred_close_failure();
     bool is_opened() const
     {
         return is_opened_;
@@ -99,7 +97,6 @@ private:
         PlaybackCallbackFrame *previous;
     };
     inline static thread_local PlaybackCallbackFrame *playback_callback_frame_ = nullptr;
-    std::shared_ptr<AudioProcessorCore> retained_after_close_failure_;
 #if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
     audio::EncoderIface::Callbacks encoder_callbacks_;
 #endif
@@ -143,8 +140,9 @@ private:
         bool opening = false;
         bool closing = false;
         bool acquired = false;
-        bool close_failed = false;
+        bool worker_active = false;
     };
+    static void run_close_worker(std::shared_ptr<Lifecycle> lifecycle, std::shared_ptr<AudioProcessorCore> core);
     inline static thread_local Lifecycle *active_close_lifecycle_ = nullptr;
     std::shared_ptr<AudioProcessorCore> core_;
     std::shared_ptr<Lifecycle> lifecycle_ = std::make_shared<Lifecycle>();

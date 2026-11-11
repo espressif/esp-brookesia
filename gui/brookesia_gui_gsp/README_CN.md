@@ -22,10 +22,9 @@ bundle 在固件中的原始字节替换为无损 zlib 封装。生成配置中�
 压缩封装，必须交给 `AppHost`，不能直接传给 `esp_gsp_create()`。
 
 对普通编译 bundle，`AppHost` 将完整 GSPB 直接解压到一个 64 字节对齐的 PSRAM
-分配中，校验压缩流、长度与 CRC，并保留到成功停止。它节省 Flash，但活动会话会占用
-完整 bundle 大小的 PSRAM（当前 Settings 约 1.0 MB）。生成的组件目录与独立动态
-字体保持不变。未压缩及可部署 bundle 继续走原路径；目前仅普通生成配置使用压缩，
-其 `AppHost::bundle()` 和以往一样为空。
+分配中，校验压缩流、长度与 CRC，并保留到成功停止。压缩可以节省 Flash，但会话期间
+需要 PSRAM 存放解压后的 bundle。生成的组件目录与动态字体仍独立保存。压缩适用于普通
+生成配置；这类配置的 `AppHost::bundle()` 返回空指针。
 
 `brookesia_gsp_prepare_theme` 在 bundle 编译前生成明暗主题场景，将
 `brookesia_gui_gsp/DejaVuSans.ttf` 解析为本组件的字体资源，使用方无需引用示例
