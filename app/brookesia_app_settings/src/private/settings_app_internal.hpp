@@ -672,6 +672,7 @@ struct SettingsApp::Impl {
     bool settings_tone_active = false;
     detail::SteadyTimePoint settings_tone_deadline{};
     uint64_t sound_control_generation = 0;
+    detail::SteadyTimePoint sound_control_deadline{};
     WifiUiState wifi_ui_state;
     WifiPageState wifi_page;
     std::shared_ptr<WifiUiMailbox> wifi_ui_mailbox;
@@ -792,6 +793,7 @@ struct SettingsApp::Impl {
 #define settings_tone_active_ impl_->settings_tone_active
 #define settings_tone_deadline_ impl_->settings_tone_deadline
 #define sound_control_generation_ impl_->sound_control_generation
+#define sound_control_deadline_ impl_->sound_control_deadline
 #define current_theme_id_ impl_->current_theme_id
 #define debug_entry_click_count_ impl_->debug_entry_click_count
 #define debug_entry_last_click_at_ impl_->debug_entry_last_click_at

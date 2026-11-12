@@ -16,6 +16,11 @@
 - feat(build): add optional zlib bundle compression with validated PSRAM decompression on ESP.
 - feat(build): share theme preparation and common font resources across consuming components.
 
+### Bug Fixes:
+
+- fix(host): publish the current host atomically before event registration and clear it after cleanup.
+- fix(linux): report exited bridge sessions as stopped and join their threads before restart or destruction.
+
 ### Documentation:
 
 - docs(lifecycle): document borrowed-device lifetimes and cleanup after failed starts or stops.

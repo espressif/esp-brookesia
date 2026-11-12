@@ -24,6 +24,8 @@ def extract(source, signature, suffix='}'):
 
 PREAMBLE = r'''
 #include <atomic>
+#include <chrono>
+#include <string>
 #include <cassert>
 #include <deque>
 #include <functional>
@@ -33,13 +35,59 @@ PREAMBLE = r'''
 namespace boost {
 using mutex = std::mutex;
 template<typename T> using lock_guard = std::lock_guard<T>;
+template<typename T> using unique_lock = std::unique_lock<T>;
 }
-namespace service { struct FunctionResult { int value = 0; }; }
+namespace esp_brookesia::lib_utils { struct scoped_connection {}; }
+namespace detail { using SteadyTimePoint = std::chrono::steady_clock::time_point; }
+namespace service { struct FunctionResult { int value = 0; bool success = true; }; }
+#define BROOKESIA_DESCRIBE_TO_STR(...) "Connect"
+struct WifiHelper {
+    enum class FunctionId { SetConnectAp, TriggerGeneralAction };
+    enum class GeneralAction { Connect };
+    static inline bool inline_callbacks = true;
+    static inline int calls = 0;
+    static inline std::deque<std::function<void()>> pending;
+    template<class Handler> static bool call_function_async(FunctionId, const std::string &, Handler handler) {
+        ++calls;
+        if (inline_callbacks) handler(service::FunctionResult{});
+        else pending.push_back([handler] { handler(service::FunctionResult{}); });
+        return true;
+    }
+    template<class Handler> static bool call_function_async(FunctionId id, const std::string &ssid,
+                                                            const std::string &, Handler handler) {
+        return call_function_async(id, ssid, handler);
+    }
+};
+
 struct SettingsApp { int value = 0; };
 '''
 
 TESTS = r'''
+void check_connect_chain(bool inline_callbacks, bool cancel) {
+    WifiHelper::inline_callbacks = inline_callbacks;
+    WifiHelper::calls = 0;
+    auto operation = std::make_shared<WifiConnectOperation>();
+    operation->ssid = "test";
+    operation->password = "password";
+    /* CONNECT_CALLBACKS */
+    save_handler(service::FunctionResult{});
+    if (cancel) {
+        std::lock_guard lock(operation->mutex);
+        operation->valid = false;
+    }
+    while (!WifiHelper::pending.empty()) {
+        auto pending = std::move(WifiHelper::pending.front());
+        WifiHelper::pending.pop_front();
+        pending();
+    }
+    assert(operation->password.empty());
+    if (cancel) assert(WifiHelper::calls == 1);
+    else assert(WifiHelper::calls == 2 && operation->phase == WifiConnectOperation::Phase::WaitingForConnection);
+}
 int main() {
+    check_connect_chain(true, false);
+    check_connect_chain(false, false);
+    check_connect_chain(false, true);
     auto mailbox = std::make_shared<WifiUiMailbox>();
     SettingsApp app;
     auto deliver = make_wifi_ui_result_handler(mailbox, [&app](service::FunctionResult &&result) {
@@ -75,16 +123,19 @@ int main() {
 
 def main():
     source = (ROOT / 'app/brookesia_app_settings/src/private/settings_app_internal.hpp').read_text()
-    program = PREAMBLE + extract(source, 'struct WifiUiMailbox', ';')
+    program = PREAMBLE + extract(source, 'struct WifiConnectOperation', ';') + extract(source, 'struct WifiUiMailbox', ';')
     program += '\ntemplate<typename Handler>\n' + extract(source, 'auto make_wifi_ui_result_handler(') + TESTS
+    wifi = (ROOT / 'app/brookesia_app_settings/src/service/wifi.ipp').read_text()
+    callbacks = '\n'.join(extract(wifi, declaration) + ';' for declaration in (
+        '    const auto set_target_handler =', '    const auto save_handler ='))
+    program = program.replace('/* CONNECT_CALLBACKS */', callbacks)
     with tempfile.TemporaryDirectory(prefix='settings-wifi-callback-') as temporary:
         source_path = Path(temporary) / 'test.cpp'
         binary = Path(temporary) / 'test'
         source_path.write_text(program)
         subprocess.run([os.environ.get('CXX', 'g++-13'), '-std=c++23', '-pthread', '-Wall', '-Wextra', '-Werror',
                         '-fsanitize=address', '-fno-omit-frame-pointer', str(source_path), '-o', str(binary)], check=True)
-        env = dict(os.environ, ASAN_OPTIONS='detect_leaks=0')
-        subprocess.run([str(binary)], check=True, env=env, timeout=10)
+        subprocess.run([str(binary)], check=True, timeout=10)
     print('Settings Wi-Fi callback lifetime tests passed')
 
 

@@ -24,7 +24,6 @@ namespace {
 
 constexpr const char *KEY_VOLUME = "Volume";
 constexpr const char *KEY_MUTE = "Mute";
-constexpr uint32_t CONTROL_SAVE_TIMEOUT_MS = 500;
 
 std::expected<std::string, std::string> make_storage_namespace(std::string_view raw_namespace)
 {
@@ -81,14 +80,18 @@ std::expected<void, std::string> AudioPlayback::function_set_volume(double volum
     }
 
     const auto target_volume = volume_result.value();
-    if (target_volume != desired_volume_) {
-        desired_volume_ = target_volume;
-        if (!apply_control_state_to_hal()) {
-            BROOKESIA_LOGW("Failed to apply audio volume to HAL immediately, target state retained");
-        }
-        publish_volume_changed();
+    if (target_volume == desired_volume_) {
+        return {};
     }
-    return save_volume_data();
+    desired_volume_ = target_volume;
+    if (!apply_control_state_to_hal()) {
+        BROOKESIA_LOGW("Failed to apply audio volume to HAL immediately, target state retained");
+    }
+    publish_volume_changed();
+    if (auto saved = save_volume_data(); !saved) {
+        BROOKESIA_LOGW("Audio volume applied but persistence was not submitted: %1%", saved.error());
+    }
+    return {};
 }
 
 std::expected<double, std::string> AudioPlayback::function_get_volume()
@@ -111,14 +114,18 @@ std::expected<void, std::string> AudioPlayback::function_set_mute(bool enable)
         return std::unexpected("Audio player interface is not available");
     }
 
-    if (enable != desired_mute_) {
-        desired_mute_ = enable;
-        if (!apply_control_state_to_hal()) {
-            BROOKESIA_LOGW("Failed to apply audio mute state to HAL immediately, target state retained");
-        }
-        publish_mute_changed();
+    if (enable == desired_mute_) {
+        return {};
     }
-    return save_mute_data();
+    desired_mute_ = enable;
+    if (!apply_control_state_to_hal()) {
+        BROOKESIA_LOGW("Failed to apply audio mute state to HAL immediately, target state retained");
+    }
+    publish_mute_changed();
+    if (auto saved = save_mute_data(); !saved) {
+        BROOKESIA_LOGW("Audio mute applied but persistence was not submitted: %1%", saved.error());
+    }
+    return {};
 }
 
 std::expected<bool, std::string> AudioPlayback::function_get_mute()
@@ -257,13 +264,14 @@ std::expected<void, std::string> AudioPlayback::save_volume_data()
     if (!key_result) {
         return std::unexpected(key_result.error());
     }
-    auto result = StorageHelper::save_key_value(
-                      namespace_result.value(), key_result.value(), desired_volume_, CONTROL_SAVE_TIMEOUT_MS
-                  );
-    if (!result) {
-        return std::unexpected("Failed to save audio volume: " + result.error());
+    const auto completion = [](FunctionResult && result) {
+        if (!result.success) {
+            BROOKESIA_LOGW("Failed to persist audio volume: %1%", result.error_message);
+        }
+    };
+    if (!StorageHelper::save_key_value_async(namespace_result.value(), key_result.value(), desired_volume_, completion)) {
+        return std::unexpected("Failed to submit audio volume persistence");
     }
-    BROOKESIA_LOGI("Saved '%1%' to Storage", KEY_VOLUME);
     return {};
 }
 
@@ -283,13 +291,14 @@ std::expected<void, std::string> AudioPlayback::save_mute_data()
     if (!key_result) {
         return std::unexpected(key_result.error());
     }
-    auto result = StorageHelper::save_key_value(
-                      namespace_result.value(), key_result.value(), desired_mute_, CONTROL_SAVE_TIMEOUT_MS
-                  );
-    if (!result) {
-        return std::unexpected("Failed to save audio mute: " + result.error());
+    const auto completion = [](FunctionResult && result) {
+        if (!result.success) {
+            BROOKESIA_LOGW("Failed to persist audio mute: %1%", result.error_message);
+        }
+    };
+    if (!StorageHelper::save_key_value_async(namespace_result.value(), key_result.value(), desired_mute_, completion)) {
+        return std::unexpected("Failed to submit audio mute persistence");
     }
-    BROOKESIA_LOGI("Saved '%1%' to Storage", KEY_MUTE);
     return {};
 }
 

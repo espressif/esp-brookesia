@@ -453,6 +453,10 @@ public:
     bool get_connected_ssid(std::string &ssid) const
     {
         ssid.clear();
+        if (connected_ && !active_ssid_.empty()) {
+            ssid = active_ssid_;
+            return true;
+        }
 #if !BROOKESIA_HAL_LINUX_WIFI_BACKEND_STUB
         if (network_manager_available_) {
             const auto device = get_first_wifi_device();
@@ -460,14 +464,30 @@ public:
                 return false;
             }
             int exit_code = 0;
-            const auto output = run_command("nmcli -t -f IN-USE,SSID device wifi list ifname " +
-                                            shell_quote(device) + " --rescan no", &exit_code);
+            const auto connection_output = run_command("nmcli -t -f GENERAL.CON-UUID device show " +
+                                           shell_quote(device), &exit_code);
+            if (exit_code != 0) {
+                return false;
+            }
+            std::string uuid;
+            for (const auto &line : split_lines(connection_output)) {
+                const auto fields = split_nmcli_line(line);
+                if (fields.size() == 2 && fields[0] == "GENERAL.CON-UUID" && fields[1] != "--") {
+                    uuid = fields[1];
+                    break;
+                }
+            }
+            if (uuid.empty()) {
+                return false;
+            }
+            const auto output = run_command("nmcli -t -f 802-11-wireless.ssid connection show --active uuid " +
+                                            shell_quote(uuid), &exit_code);
             if (exit_code != 0) {
                 return false;
             }
             for (const auto &line : split_lines(output)) {
                 const auto fields = split_nmcli_line(line);
-                if (fields.size() >= 2 && fields[0] == "*" && !fields[1].empty()) {
+                if (fields.size() == 2 && fields[0] == "802-11-wireless.ssid" && !fields[1].empty()) {
                     ssid = fields[1];
                     return true;
                 }
@@ -475,11 +495,7 @@ public:
             return false;
         }
 #endif
-        if (connected_) {
-            ssid = active_ssid_;
-            return !ssid.empty();
-        }
-        return true;
+        return false;
     }
 
     const wifi::ConnectApInfoList &get_connected_ap_infos() const

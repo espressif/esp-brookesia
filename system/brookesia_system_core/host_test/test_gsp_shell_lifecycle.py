@@ -297,6 +297,7 @@ public:
     AppContext *context_ = nullptr;
     int clock_timer_id_ = 0;
     service::Connection sntp_event_connection_;
+    /* MODAL_START_FAILURE */
 '''
 
 TAIL = r'''
@@ -418,6 +419,17 @@ int main()
     app.gsp_suspended = true;
     app.native_app = std::make_shared<NativeApp>();
     app.context = &context;
+    shell.suspended_app_id_ = 42;
+    shell.modal_host_ = std::make_unique<Host>();
+    shell.modal_host_->fail_stop = true;
+    assert(!shell.modal_start_failure());
+    assert(shell.modal_host_ && app.gsp_suspended && owner.delayed_tasks.size() == 1);
+    shell.modal_host_->fail_stop = false;
+    owner.run_delayed();
+    assert(!shell.modal_host_ && !app.gsp_suspended && shell.suspended_app_id_ == 0);
+    app.gsp_suspended = true;
+    app.gsp_host.reset();
+    app.native_app->resume_calls = 0;
     owner.impl_->load_failures = 1;
     shell.suspended_app_id_ = 42;
     shell.resume_suspended_app();
@@ -546,6 +558,25 @@ int main()
     stale_retry();
     assert(owner.delayed_tasks.empty() && owner.impl_->load_calls == loads_before_switch);
     std::cout << "F4: native/runtime resume retries, fallback, and app-switch cancellation\n";
+    app.info.state = AppState::Running;
+    app.gsp_suspended = true;
+    app.gsp_host.reset();
+    owner.fail_stop_app = false;
+    owner.impl_->load_failures = 0;
+    shell.suspended_app_id_ = 42;
+    shell.modal_resume_attempts_ = 3;
+    shell.modal_host_ = std::make_unique<Host>();
+    shell.modal_host_->fail_stop = true;
+    shell.resume_suspended_app();
+    shell.finish_pending_modal_resume_fallback();
+    assert(shell.modal_host_ && shell.modal_resume_fallback_pending_ && owner.delayed_tasks.size() == 1);
+    owner.run_delayed();
+    assert(shell.modal_host_ && shell.suspended_app_id_ == 42 && owner.delayed_tasks.size() == 1);
+    shell.modal_host_->fail_stop = false;
+    owner.run_delayed();
+    assert(!shell.modal_host_ && shell.suspended_app_id_ == 0 && !shell.modal_resume_fallback_pending_);
+    assert(app.info.state == AppState::Stopped && owner.delayed_tasks.empty());
+    std::cout << "F5: failed modal cleanup retains ownership and retries through fallback\n";
 }
 '''
 
@@ -583,6 +614,12 @@ def main():
         extract(shell_source, m).replace('GspSystemShellApp', 'Shell').replace('std::weak_ptr<IApp>', 'std::weak_ptr<Shell>')
         for m in shell_methods
     ) + TAIL
+    modal = extract(shell_source, '    std::expected<esp_gsp_handle_t, std::string> ensure_modal_or_shell_handle()')
+    failure = extract(modal, '        if (!started)')
+    failure_method = ('std::expected<void, std::string> modal_start_failure() { '
+                      'std::expected<void, std::string> started = std::unexpected("injected start failure");\n' +
+                      failure + '\nreturn {}; }')
+    program = program.replace('/* MODAL_START_FAILURE */', failure_method)
     program += '\n'.join(extract(manager_source, m).replace('System::', 'TestOwner::')
                          .replace('Impl::MessageDialogRequestRecord', 'TestOwner::Impl::MessageDialogRequestRecord')
                          for m in manager_methods)

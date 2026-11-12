@@ -19,6 +19,9 @@ Linux 下启用 `BROOKESIA_BUILD_GUI_GSP`，并用 `ESP_GSP_ROOT` 指定官方 E
 GSPC schema-2 API sidecar；大小、CRC 和元数据校验会拒绝不匹配的产物，包本身仍由
 官方渲染器校验。
 
+桥接轮询失败后，`running()` 会在桥接和渲染进程关闭后返回 false。后续启动、停止
+或析构会等待已退出的桥接线程结束并回收它。
+
 Session 调用和事件轮询在同一桥接线程执行。启动会话会创建渲染进程；停止时先完成
 已接受的调用，再释放桥接和子进程。`browser_url()` 标识当前预览文档，包括会话
 fragment 在内的 URL 发生变化后，使用方应重新创建预览文档。系统启动方式及支持

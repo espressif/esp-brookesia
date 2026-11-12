@@ -20,6 +20,7 @@ struct Executor {
     std::thread thread;
     std::atomic<bool> stopping{false};
     std::atomic<bool> failed{false};
+    std::atomic<bool> exited{false};
     std::thread::id owner;
     esp_gsp_handle_t handle = nullptr;
     std::shared_ptr<const DesktopBundle> bundle;
@@ -158,6 +159,10 @@ bool Session::start_impl(const esp_gsp_config_t &config, std::shared_ptr<const B
             (user_ctx != nullptr && !callback_owner) || (!owned_bundle && !bundle_owner)) {
         return false;
     }
+    // A failed bridge can exit without an explicit stop; join it before replacing the executor.
+    if (!stop()) {
+        return false;
+    }
     auto bundle = find_desktop_bundle({reinterpret_cast<const std::byte *>(config.bundle), config.bundle_size});
     if (!bundle) {
         return false;
@@ -180,6 +185,7 @@ bool Session::start_impl(const esp_gsp_config_t &config, std::shared_ptr<const B
                 display.failure = "Cannot connect the official GSP simulator bridge";
             }
             display.stop();
+            executor->exited.store(true, std::memory_order_release);
             ready->set_value(false);
             return;
         }
@@ -226,6 +232,7 @@ bool Session::start_impl(const esp_gsp_config_t &config, std::shared_ptr<const B
         }
         gsp_sim_bridge_close(executor->handle);
         display.stop();
+        executor->exited.store(true, std::memory_order_release);
     });
     if (!result.get()) {
         executor->stopping = true;
@@ -258,7 +265,7 @@ bool Session::stop()
 
 bool Session::running() const
 {
-    return impl_ && impl_->executor != nullptr;
+    return impl_ && impl_->executor && !impl_->executor->exited.load(std::memory_order_acquire);
 }
 esp_gsp_handle_t Session::handle() const
 {

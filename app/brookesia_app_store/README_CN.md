@@ -6,6 +6,8 @@
 
 `brookesia_app_store` 是用于运行时应用包发现与安装的内置原生应用商店。
 
+HTTP 事件缓冲最多跟踪 16 个 App Store 请求，保留 33 条待处理事件，并限制响应负载预算为 768 KiB。无关请求会被过滤，进度事件会合并。响应超过预算时，相关请求会被取消并报告失败，调用方可以重试。
+
 更多信息请参考 [ESP-Brookesia 编程指南](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/app/store.html)。
 
 ## 如何使用

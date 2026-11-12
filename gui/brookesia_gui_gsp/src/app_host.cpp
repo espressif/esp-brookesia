@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include <atomic>
 #include <cstring>
 #include <utility>
 
@@ -44,7 +45,12 @@ namespace esp_brookesia::gui::gsp {
 
 namespace {
 
-AppHost *s_current = nullptr;
+std::atomic<AppHost *> s_current{nullptr};
+
+void clear_current(AppHost *host)
+{
+    s_current.compare_exchange_strong(host, nullptr, std::memory_order_acq_rel);
+}
 #if defined(CONFIG_BROOKESIA_GSP_COMPRESS_COMPILED_BUNDLES) && CONFIG_BROOKESIA_GSP_COMPRESS_COMPILED_BUNDLES
 constexpr char COMPRESSED_MAGIC[] = "BGZ1";
 constexpr size_t COMPRESSED_HEADER_SIZE = 16;
@@ -136,9 +142,7 @@ AppHost::AppHost()
 
 AppHost::~AppHost()
 {
-    if (s_current == this) {
-        s_current = nullptr;
-    }
+    clear_current(this);
 }
 
 std::expected<void, std::string> AppHost::start(
@@ -171,16 +175,16 @@ std::expected<void, std::string> AppHost::start(
 
     impl_->bundle = std::move(bundle);
     impl_->event_user_ctx = user_ctx;
+    s_current.store(this, std::memory_order_release);
     if (!impl_->session.start(impl_->bundle, display, on_event, user_ctx, std::move(callback_owner))) {
         if (impl_->session.running()) {
-            s_current = this;
             return std::unexpected("GSP session event registration failed and the session is still running");
         }
+        clear_current(this);
         impl_->bundle.reset();
         impl_->event_user_ctx = nullptr;
         return std::unexpected("Failed to start GSP session");
     }
-    s_current = this;
     return {};
 }
 
@@ -218,16 +222,16 @@ std::expected<void, std::string> AppHost::start(
         };
         auto owners = std::make_shared<ConfigOwners>(impl_->owned_bytes, std::move(bundle_owner));
         impl_->event_user_ctx = user_ctx;
+        s_current.store(this, std::memory_order_release);
         if (!impl_->session.start(expanded_config, display, on_event, user_ctx, std::move(callback_owner), owners)) {
             if (impl_->session.running()) {
-                s_current = this;
                 return std::unexpected("GSP session event registration failed and the session is still running");
             }
+            clear_current(this);
             impl_->owned_bytes.reset();
             impl_->event_user_ctx = nullptr;
             return std::unexpected("Failed to start GSP session with expanded compiler bundle");
         }
-        s_current = this;
         return {};
     }
 #endif
@@ -236,19 +240,7 @@ std::expected<void, std::string> AppHost::start(
     }
     auto loaded = Bundle::load(bytes);
     if (loaded) {
-        impl_->bundle = std::move(loaded.value());
-        impl_->event_user_ctx = user_ctx;
-        if (!impl_->session.start(impl_->bundle, display, on_event, user_ctx, std::move(callback_owner))) {
-            if (impl_->session.running()) {
-                s_current = this;
-                return std::unexpected("GSP session event registration failed and the session is still running");
-            }
-            impl_->bundle.reset();
-            impl_->event_user_ctx = nullptr;
-            return std::unexpected("Failed to start GSP session");
-        }
-        s_current = this;
-        return {};
+        return start(std::move(*loaded), display, on_event, user_ctx, std::move(callback_owner));
     }
 
 #if defined(BROOKESIA_GUI_GSP_DESKTOP)
@@ -258,36 +250,28 @@ std::expected<void, std::string> AppHost::start(
     // Retain the supplied config when self-describing metadata is absent.
     BROOKESIA_LOGW("GSP deployable open failed (%1%); using the compiler config in place", loaded.error());
     impl_->event_user_ctx = user_ctx;
+    s_current.store(this, std::memory_order_release);
     if (!impl_->session.start(config, display, on_event, user_ctx, std::move(callback_owner), std::move(bundle_owner))) {
         if (impl_->session.running()) {
-            s_current = this;
             return std::unexpected("GSP session event registration failed and the session is still running");
         }
+        clear_current(this);
         impl_->event_user_ctx = nullptr;
         return std::unexpected("Failed to start GSP session");
     }
-    s_current = this;
     return {};
 #endif
 }
 
 std::expected<void, std::string> AppHost::stop()
 {
-    if (!running()) {
-        impl_->bundle.reset();
-        impl_->owned_bytes.reset();
-        impl_->event_user_ctx = nullptr;
-        return {};
-    }
     if (!impl_->session.stop()) {
         return std::unexpected("Failed to stop GSP session");
     }
     impl_->bundle.reset();
     impl_->owned_bytes.reset();
     impl_->event_user_ctx = nullptr;
-    if (s_current == this) {
-        s_current = nullptr;
-    }
+    clear_current(this);
     return {};
 }
 
@@ -303,7 +287,7 @@ esp_gsp_handle_t AppHost::handle() const
 
 AppHost *AppHost::current()
 {
-    return s_current;
+    return s_current.load(std::memory_order_acquire);
 }
 
 const std::shared_ptr<const Bundle> &AppHost::bundle() const

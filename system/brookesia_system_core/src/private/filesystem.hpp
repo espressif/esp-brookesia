@@ -31,6 +31,18 @@ inline constexpr const char *APP_PREVIOUS_VERSION_DIR = "previous";
 inline constexpr const char *APP_REJECTED_VERSION_DIR = "rejected";
 inline constexpr const char *APP_INSTALL_COMMITTING_FILE = "committing";
 inline constexpr const char *APP_INSTALL_COMMITTED_FILE = "committed";
+inline constexpr const char *APP_INSTALL_TARGET_FILE = "target";
+inline constexpr const char *APP_INSTALL_TRANSACTION_FILE = ".install-transaction";
+
+inline bool is_safe_app_directory_name(std::string_view name)
+{
+    return !name.empty() && name.size() <= 255 && name != "." && name != ".." &&
+           name != APP_INSTALL_STAGING_DIR && name != APP_PREVIOUS_VERSION_DIR &&
+           name != APP_REJECTED_VERSION_DIR && name != APP_INSTALL_COMMITTING_FILE &&
+           name != APP_INSTALL_COMMITTED_FILE && name != APP_INSTALL_TARGET_FILE &&
+           name != APP_INSTALL_TRANSACTION_FILE && name.find('/') == std::string_view::npos &&
+           name.find('\\') == std::string_view::npos && name.find('\0') == std::string_view::npos;
+}
 
 enum class PathState {
     Missing,

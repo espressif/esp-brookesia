@@ -866,6 +866,10 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
         if (!gui_result)
         {
             log_gui_profile("root_load_failed", root_started_at);
+            auto unloaded = impl_->unload_gui(record);
+            if (!unloaded) {
+                return std::unexpected(gui_result.error() + "; cleanup failed: " + unloaded.error());
+            }
             impl_->unregister_app_gui_resources(record);
             return gui_result;
         }

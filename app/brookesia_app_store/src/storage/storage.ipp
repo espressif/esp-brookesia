@@ -88,6 +88,8 @@ void AppStoreApp::disconnect_http_events()
         std::lock_guard lock(mailbox->mutex);
         mailbox->open = false;
         mailbox->events.clear();
+        mailbox->requests.clear();
+        mailbox->pending_bytes = 0;
     }
     for (auto &connection : http_event_connections_) {
         connection.disconnect_without_wait();
@@ -112,50 +114,34 @@ void AppStoreApp::subscribe_http_events()
     http_event_timer_id_ = *timer;
     http_event_mailbox_ = std::move(mailbox);
     const std::weak_ptr<Impl::HttpEventMailbox> weak_mailbox = http_event_mailbox_;
-    auto enqueue = [weak_mailbox](PendingHttpEvent event) {
-        auto mailbox = weak_mailbox.lock();
-        if (!mailbox) {
-            return;
+    auto enqueue = [weak_mailbox](PendingHttpEventType type, double id,
+                                 const boost::json::object *response, const std::string *state = nullptr) {
+        if (auto mailbox = weak_mailbox.lock()) {
+            mailbox->enqueue(type, id, response, state);
         }
-        std::lock_guard lock(mailbox->mutex);
-        if (!mailbox->open) {
-            return;
-        }
-        if (event.type == PendingHttpEventType::Progress) {
-            for (auto it = mailbox->events.rbegin(); it != mailbox->events.rend(); ++it) {
-                if (it->request_id == event.request_id && it->type != PendingHttpEventType::GeneralStateChanged) {
-                    if (it->type == PendingHttpEventType::Progress) {
-                        *it = std::move(event);
-                        return;
-                    }
-                    break;
-                }
-            }
-        }
-        mailbox->events.push_back(std::move(event));
     };
     auto on_progress = [enqueue](
                            const std::string &, double request_id, const boost::json::object & progress_json
     ) {
-        enqueue({.type = PendingHttpEventType::Progress, .request_id = request_id, .response = progress_json});
+        enqueue(PendingHttpEventType::Progress, request_id, &progress_json);
     };
     auto on_completed = [enqueue](
                             const std::string &, double request_id, const boost::json::object & response_json
     ) {
-        enqueue({.type = PendingHttpEventType::Completed, .request_id = request_id, .response = response_json});
+        enqueue(PendingHttpEventType::Completed, request_id, &response_json);
     };
     auto on_failed = [enqueue](
                          const std::string &, double request_id, const boost::json::object & response_json
     ) {
-        enqueue({.type = PendingHttpEventType::Failed, .request_id = request_id, .response = response_json});
+        enqueue(PendingHttpEventType::Failed, request_id, &response_json);
     };
     auto on_canceled = [enqueue](
                            const std::string &, double request_id, const boost::json::object & response_json
     ) {
-        enqueue({.type = PendingHttpEventType::Canceled, .request_id = request_id, .response = response_json});
+        enqueue(PendingHttpEventType::Canceled, request_id, &response_json);
     };
     auto on_general_state_changed = [enqueue](const std::string &, const std::string & state) {
-        enqueue({.type = PendingHttpEventType::GeneralStateChanged, .state = state});
+        enqueue(PendingHttpEventType::GeneralStateChanged, 0, nullptr, &state);
     };
 
     http_event_connections_.push_back(HttpHelper::subscribe_event(HttpHelper::EventId::RequestProgress, on_progress));

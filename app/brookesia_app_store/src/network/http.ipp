@@ -216,9 +216,38 @@ void AppStoreApp::process_pending_http_events(system::core::AppContext &context)
         return;
     }
     std::vector<PendingHttpEvent> events;
+    std::vector<uint64_t> overflowed;
     {
         std::lock_guard lock(mailbox->mutex);
-        events.swap(mailbox->events);
+        for (const auto &[id, overflow] : mailbox->requests) {
+            if (overflow) {
+                overflowed.push_back(id);
+                events.push_back({.type = PendingHttpEventType::Failed, .request_id = static_cast<double>(id),
+                                  .response = {{"error_message", "HTTP event mailbox response budget exceeded"}}});
+            }
+        }
+        for (auto it = mailbox->events.begin(); it != mailbox->events.end();) {
+            const auto request = mailbox->requests.find(it->request_id);
+            if (it->type != PendingHttpEventType::GeneralStateChanged && request == mailbox->requests.end()) {
+                ++it;
+                continue;
+            }
+            mailbox->pending_bytes -= it->memory_bytes;
+            if (request == mailbox->requests.end() || !request->second) {
+                events.push_back(std::move(*it));
+            }
+            it = mailbox->events.erase(it);
+        }
+        for (const auto &event : events) {
+            if (event.type != PendingHttpEventType::Progress && event.type != PendingHttpEventType::GeneralStateChanged) {
+                mailbox->requests.erase(event.request_id);
+            }
+        }
+    }
+    for (const auto id : overflowed) {
+        if (!HttpHelper::call_function_async(HttpHelper::FunctionId::CancelRequest, static_cast<double>(id))) {
+            BROOKESIA_LOGW("Failed to cancel App Store request after event overflow: %1%", id);
+        }
     }
 
     const auto generation = async_generation_;
@@ -1153,13 +1182,29 @@ bool AppStoreApp::submit_http_request_async(
 )
 {
     (void)context;
+    auto mailbox = http_event_mailbox_;
+    if (!mailbox || !mailbox->begin_submission()) {
+        BROOKESIA_LOGW("App Store HTTP request capacity is unavailable");
+        return false;
+    }
+    const std::weak_ptr<Impl::HttpEventMailbox> weak_mailbox = mailbox;
     const auto generation = async_generation_;
     auto result_handler = [
                               this,
                               generation,
+                              weak_mailbox,
                               success_handler = std::move(success_handler),
                               failure_handler = std::move(failure_handler)
                           ](service::FunctionResult && result) mutable {
+        auto active = weak_mailbox.lock();
+        const auto request_id = HttpHelper::process_function_result<double>(result);
+        if (!active || !active->finish_submission(request_id ?
+                std::optional<uint64_t>(static_cast<uint64_t>(*request_id)) : std::nullopt)) {
+            if (request_id && !HttpHelper::call_function_async(HttpHelper::FunctionId::CancelRequest, *request_id)) {
+                BROOKESIA_LOGW("Failed to cancel App Store request after its mailbox closed: %1%", *request_id);
+            }
+            return;
+        }
         handle_http_request_submit_result(
             generation,
             std::move(success_handler),
@@ -1168,11 +1213,15 @@ bool AppStoreApp::submit_http_request_async(
         );
     };
 
-    return HttpHelper::call_function_async(
+    const bool submitted = HttpHelper::call_function_async(
                HttpHelper::FunctionId::RequestAsync,
                BROOKESIA_DESCRIBE_TO_JSON(request).as_object(),
                service::ServiceBase::FunctionResultHandler(std::move(result_handler))
            );
+    if (!submitted) {
+        mailbox->finish_submission(std::nullopt);
+    }
+    return submitted;
 }
 
 void AppStoreApp::handle_http_request_submit_result(

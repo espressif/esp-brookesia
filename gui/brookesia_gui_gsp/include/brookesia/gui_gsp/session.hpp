@@ -99,7 +99,10 @@ public:
     bool stop();
 
     /**
-     * @brief Whether a UI handle is currently owned by this session.
+     * @brief Whether the UI session is still active.
+     *
+     * On Linux, bridge failure reports false after bridge and renderer cleanup.
+     * The next start(), stop(), or destruction joins the exited bridge thread.
      */
     bool running() const;
 

@@ -101,7 +101,8 @@ int main() {
     posting.get();
     stopping.get();
     assert(scheduler->pending);
-    scheduler->pending();
+    auto pending = std::exchange(scheduler->pending, {});
+    pending();
     FakeImpl::post_service_event(state, 1, "service", "event", "{}");
     assert(calls == 0);
 }

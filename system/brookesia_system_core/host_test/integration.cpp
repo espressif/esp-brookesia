@@ -723,7 +723,8 @@ bool create_interrupted_update(const std::filesystem::path &storage_root)
     const auto installing = storage_root / "apps" / ".installing";
     const auto previous = installing / "interrupted-update-1" / "previous";
     const auto staged = installing / "interrupted-update-1" / INTERRUPTED_APP_ID;
-    return write_text_file(previous / "manifest.json", make_runtime_manifest(INTERRUPTED_APP_ID, "1.0.0")) &&
+    return write_text_file(installing / "interrupted-update-1" / "target", std::string(INTERRUPTED_APP_ID)) &&
+           write_text_file(previous / "manifest.json", make_runtime_manifest(INTERRUPTED_APP_ID, "1.0.0")) &&
            write_text_file(previous / "res" / "profile.json", "{}") &&
            write_text_file(previous / "data" / "keep.txt", "survived-interrupted-update") &&
            write_text_file(staged / "manifest.json", make_runtime_manifest(INTERRUPTED_APP_ID, "2.0.0")) &&
@@ -744,11 +745,13 @@ bool create_unfinished_update(
     const auto staging = storage_root / "apps" / ".installing" / (std::string(app_id) + "-1");
     const auto previous = staging / "previous";
     const auto install_dir = storage_root / "apps" / app_id;
-    bool ok = write_text_file(previous / "manifest.json", make_runtime_manifest(app_id, "1.0.0")) &&
+    bool ok = write_text_file(staging / "target", std::string(app_id)) &&
+              write_text_file(previous / "manifest.json", make_runtime_manifest(app_id, "1.0.0")) &&
               write_text_file(previous / "res" / "profile.json", "{}") &&
               write_text_file(previous / "data" / "keep.txt", "old-data");
     if (target != TargetState::Missing) {
-        ok = ok && write_text_file(install_dir / "manifest.json", make_runtime_manifest(app_id, "2.0.0"));
+        ok = ok && write_text_file(install_dir / "manifest.json", make_runtime_manifest(app_id, "2.0.0")) &&
+             write_text_file(install_dir / ".install-transaction", staging.filename().generic_string());
     }
     if (target == TargetState::Complete) {
         ok = ok && write_text_file(install_dir / "res" / "profile.json", "{}") &&
@@ -758,6 +761,21 @@ bool create_unfinished_update(
         ok = ok && write_text_file(staging / "committed", "");
     }
     return ok;
+}
+
+bool create_unverified_updates(const std::filesystem::path &storage_root)
+{
+    const auto apps = storage_root / "apps";
+    const auto staging = apps / ".installing";
+    return write_text_file(staging / "traversal-1" / "target", "../outside") &&
+           write_text_file(staging / "traversal-1" / "previous" / "manifest.json",
+                           make_runtime_manifest("../outside", "1.0.0")) &&
+           write_text_file(staging / "mismatched-1" / "target", "mismatched") &&
+           write_text_file(staging / "mismatched-1" / "previous" / "manifest.json",
+                           make_runtime_manifest(STAGED_APP_ID, "1.0.0")) &&
+           create_unfinished_update(storage_root, "unowned", TargetState::Complete, false) &&
+           write_text_file(apps / "unowned" / ".install-transaction", "another-update") &&
+           write_text_file(storage_root / "outside" / "keep.txt", "outside-data");
 }
 
 bool create_broken_installed_app(const std::filesystem::path &storage_root)
@@ -808,6 +826,7 @@ bool only_unchecked_staging_left(const std::filesystem::path &installing_root)
     const std::set<std::string> expected = {
         std::string(UNCHECKED_BACKUP_APP_ID) + "-1",
         std::string(UNCHECKED_TARGET_APP_ID) + "-1",
+        "traversal-1", "mismatched-1", "unowned-1",
     };
     std::set<std::string> names;
     std::error_code error;
@@ -1139,6 +1158,10 @@ bool run_restart_tests(const std::filesystem::path &storage_root)
     auto init_result = restarted.init(make_test_config(storage_root));
     bool passed = require(init_result.has_value(), init_result ? "" : "Restart init failed: " + init_result.error());
     if (passed) {
+        passed &= require(read_text_file(storage_root / "outside" / "keep.txt") == "outside-data",
+                          "Recovery modified a path outside the app root");
+        passed &= require(read_text_file(apps_root / "unowned" / "data" / "keep.txt") == "new-data",
+                          "Recovery replaced an unrelated installed directory");
         const auto fault_app = find_app(restarted, MARKER_FAULT_APP_ID);
         passed &= require(fault_app && fault_app->manifest.version == "1.0.0",
                           "Restart did not restore the version kept by the failed rollback");
@@ -1386,7 +1409,8 @@ bool run_tests()
                 create_unfinished_update(temporary_directory.get_path(), UNCHECKED_BACKUP_APP_ID,
                                          TargetState::Missing, false) &&
                 create_unfinished_update(temporary_directory.get_path(), UNCHECKED_TARGET_APP_ID,
-                                         TargetState::Complete, false),
+                                         TargetState::Complete, false) &&
+                create_unverified_updates(temporary_directory.get_path()),
                 "Failed to create unfinished updates"
             )) {
         return false;

@@ -13,6 +13,8 @@
 
 ### Bug Fixes:
 
+- fix(wifi): allow inline service completions without locking the connect operation twice.
+- fix(sound): retain requested control values while pending and recover from missing completions.
 - fix(wifi): keep page controls available when the connected SSID cannot be queried.
 - fix(sntp): deliver Settings state updates through the app mailbox without retaining the app in service callbacks.
 - fix(display): deliver brightness updates safely while Settings is stopping.

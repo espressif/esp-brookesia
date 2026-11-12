@@ -19,3 +19,38 @@ check_readme_links:
   allow_failure: true
   script:
     - python ${CI_PROJECT_DIR}/.gitlab/tools/check_readme_links.py
+
+check_host_regressions:
+  extends:
+    - .pre_check_template
+  image: ubuntu:24.04
+  before_script:
+    - apt-get update
+    - DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3 g++-13 cmake make libboost-json-dev libboost-thread-dev zlib1g-dev
+  variables:
+    CXX: g++-13
+  script:
+    - python3 system/brookesia_system_core/host_test/test_host_event_shutdown.py
+    - python3 system/brookesia_system_core/host_test/test_gsp_shell_lifecycle.py
+    - python3 system/brookesia_system_core/host_test/test_gsp_failure_cleanup.py
+    - python3 app/brookesia_app_settings/host_test/test_wifi_callback_lifetime.py
+    - python3 app/brookesia_app_settings/host_test/test_sound_control.py
+    - python3 app/brookesia_app_store/host_test/test_http_event_lifetime.py --sanitizer address
+    - python3 hal/brookesia_hal_linux/host_test/test_connected_ssid.py
+    - python3 service/media/brookesia_service_audio/test_apps/host/test_control_persistence.py
+    - python3 gui/brookesia_gui_gsp/test_apps/host/session/test_desktop_session.py
+    - cmake -S gui/brookesia_gui_gsp/test_apps/host/session -B build_host_gsp
+    - cmake --build build_host_gsp -j2
+    - ctest --test-dir build_host_gsp --output-on-failure
+  rules:
+    - changes:
+        - .gitlab/ci/pre/check.yml
+        - .gitlab-ci.yml
+        - app/brookesia_app_settings/**/*
+        - app/brookesia_app_store/**/*
+        - gui/brookesia_gui_gsp/**/*
+        - hal/brookesia_hal_linux/**/*
+        - service/media/brookesia_service_audio/**/*
+        - service/framework/brookesia_service_helper/**/*
+        - system/brookesia_system_core/**/*
+        - utils/brookesia_lib_utils/**/*

@@ -1299,6 +1299,7 @@ public:
     void finish_pending_modal_resume_fallback()
     {
         if (!modal_resume_fallback_pending_ || closing_modals_ || owner_.impl_->modal_result_notification_depth_ != 0 ||
+                modal_resume_retry_task_id_ != 0 ||
                 dialog_request_id_ != INVALID_MESSAGE_DIALOG_REQUEST_ID ||
                 keyboard_request_id_ != INVALID_KEYBOARD_REQUEST_ID || owner_.has_queued_message_dialogs() ||
                 suspended_app_id_ == INVALID_APP_ID) {
@@ -1327,7 +1328,10 @@ private:
             return;
         }
         const auto app_id = suspended_app_id_;
-        auto resumed = owner_.resume_gsp_session_after_modal(app_id);
+        auto resumed = stop_modal_session();
+        if (resumed) {
+            resumed = owner_.resume_gsp_session_after_modal(app_id);
+        }
         if (resumed) {
             cancel_modal_resume_retry();
             modal_resume_attempts_ = 0;
@@ -1368,6 +1372,31 @@ private:
     {
         const auto app_id = suspended_app_id_;
         cancel_modal_resume_retry();
+        auto modal_stopped = stop_modal_session();
+        if (!modal_stopped) {
+            BROOKESIA_LOGE("Failed to stop GSP modal during fallback: %1%", modal_stopped.error());
+            modal_resume_fallback_pending_ = true;
+            const auto generation = ++modal_resume_generation_;
+            const std::weak_ptr<IApp> weak_shell = owner_.impl_->gsp_shell_app_;
+            auto retry_cleanup = [weak_shell, generation]() {
+                auto shell_owner = weak_shell.lock();
+                if (!shell_owner) {
+                    return;
+                }
+                auto *shell = static_cast<GspSystemShellApp *>(shell_owner.get());
+                if (shell->modal_resume_generation_ == generation) {
+                    shell->modal_resume_retry_task_id_ = 0;
+                    shell->finish_pending_modal_resume_fallback();
+                }
+            };
+            auto retry = owner_.post_system_app_delayed_task(1000, std::move(retry_cleanup));
+            if (retry) {
+                modal_resume_retry_task_id_ = *retry;
+            } else {
+                BROOKESIA_LOGE("Failed to schedule GSP modal cleanup retry: %1%", retry.error());
+            }
+            return;
+        }
         std::expected<void, std::string> stopped;
         {
             const bool was_launching = owner_.impl_->gsp_launching_app_;
@@ -1494,12 +1523,11 @@ private:
         const std::shared_ptr<const void> config_owner(config, [](const void *) {});
         auto started = modal_host_->start(*config, lease, on_modal_event, gate_ptr, modal_gate_, config_owner);
         if (!started) {
-            if (modal_host_->running()) {
-                return std::unexpected(started.error());
-            }
-            detach_modal_callbacks();
-            modal_host_.reset();
+            auto stopped = stop_modal_session();
             resume_suspended_app();
+            if (!stopped) {
+                return std::unexpected(started.error() + "; cleanup failed: " + stopped.error());
+            }
             return std::unexpected(started.error());
         }
         const auto handle = modal_host_->handle();

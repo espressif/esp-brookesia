@@ -24,15 +24,6 @@ namespace {
 
 constexpr uint32_t STORAGE_FS_TIMEOUT_MS = 5000;
 
-bool is_safe_app_directory_name(std::string_view name)
-{
-    return !name.empty() &&
-           name != "." &&
-           name != ".." &&
-           (name.find('/') == std::string_view::npos) &&
-           (name.find('\\') == std::string_view::npos);
-}
-
 std::optional<AppInfo> find_app_by_manifest_id(const System &system, std::string_view manifest_id)
 {
     for (const auto &app : system.list_apps()) {
@@ -1245,6 +1236,17 @@ std::expected<AppId, std::string> System::install_runtime_app_package(
     if (!backend_result) {
         cleanup_staging();
         return std::unexpected(backend_result.error());
+    }
+
+    auto target_written = service::helper::Storage::fs_write_text(
+                              (staging_parent / APP_INSTALL_TARGET_FILE).generic_string(),
+                              package_manifest->id, STORAGE_FS_TIMEOUT_MS);
+    auto transaction_written = target_written ? service::helper::Storage::fs_write_text(
+                                   (staged_app_dir / APP_INSTALL_TRANSACTION_FILE).generic_string(),
+                                   staging_parent.filename().generic_string(), STORAGE_FS_TIMEOUT_MS) : target_written;
+    if (!transaction_written) {
+        cleanup_staging();
+        return std::unexpected("Failed to record runtime app install target: " + transaction_written.error());
     }
 
     if (installed) {

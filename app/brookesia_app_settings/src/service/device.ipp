@@ -545,19 +545,23 @@ std::expected<void, std::string> SettingsApp::drain_sound_events(system::core::A
         control_result_generation = mailbox->control_result_generation;
     }
     bool changed = false;
-    if (volume) {
+    if (volume && !device_ui_state_.sound_pending) {
         device_ui_state_.volume = clamp_percent(*volume);
         changed = true;
     }
-    if (muted) {
+    if (muted && !device_ui_state_.sound_pending) {
         device_ui_state_.muted = *muted;
         changed = true;
     }
-    if (control_result_pending && control_result_generation == sound_control_generation_) {
+    const bool control_completed = control_result_pending && control_result_generation == sound_control_generation_;
+    const bool control_timed_out = device_ui_state_.sound_pending && SteadyClock::now() >= sound_control_deadline_;
+    if (control_completed || control_timed_out) {
         device_ui_state_.sound_pending = false;
-        if (control_result_success) {
+        sound_control_deadline_ = {};
+        if (control_completed && control_result_success) {
             device_ui_state_.sound_error.clear();
         } else {
+            ++sound_control_generation_;
             device_ui_state_.sound_error = "sound.update_failed";
             ensure_message_dialog(
                 context, localized_text(current_locale_, "sound.update_failed"),
@@ -771,6 +775,8 @@ void SettingsApp::disconnect_device_events()
     }
     settings_tone_active_ = false;
     settings_tone_deadline_ = {};
+    sound_control_deadline_ = {};
+    ++sound_control_generation_;
     for (auto &connection : device_event_connections_) {
         connection.disconnect_without_wait();
     }
@@ -863,6 +869,9 @@ void SettingsApp::set_volume(system::core::AppContext &context, int volume)
         return;
     }
     const int clamped_volume = std::clamp(volume, 0, 100);
+    if (clamped_volume == device_ui_state_.volume) {
+        return;
+    }
     const auto generation = ++sound_control_generation_;
     const std::weak_ptr<SoundUiMailbox> weak_mailbox = sound_ui_mailbox_;
     device_ui_state_.sound_pending = true;
@@ -888,6 +897,10 @@ void SettingsApp::set_volume(system::core::AppContext &context, int volume)
         BROOKESIA_LOGW("Failed to submit audio volume change");
         device_ui_state_.sound_pending = false;
         device_ui_state_.sound_error = "sound.update_failed";
+        sound_control_deadline_ = {};
+    } else {
+        device_ui_state_.volume = clamped_volume;
+        sound_control_deadline_ = SteadyClock::now() + std::chrono::milliseconds(DEVICE_SERVICE_TIMEOUT_MS);
     }
     if (auto refresh_result = refresh_sound_state(context); !refresh_result) {
         BROOKESIA_LOGW("Failed to refresh audio volume UI: %1%", refresh_result.error());
@@ -906,6 +919,9 @@ void SettingsApp::set_mute(system::core::AppContext &context, bool muted)
         if (auto refresh_result = refresh_sound_state(context); !refresh_result) {
             BROOKESIA_LOGW("Failed to refresh audio mute UI: %1%", refresh_result.error());
         }
+        return;
+    }
+    if (muted == device_ui_state_.muted) {
         return;
     }
     const auto generation = ++sound_control_generation_;
@@ -932,6 +948,10 @@ void SettingsApp::set_mute(system::core::AppContext &context, bool muted)
         BROOKESIA_LOGW("Failed to submit audio mute change");
         device_ui_state_.sound_pending = false;
         device_ui_state_.sound_error = "sound.update_failed";
+        sound_control_deadline_ = {};
+    } else {
+        device_ui_state_.muted = muted;
+        sound_control_deadline_ = SteadyClock::now() + std::chrono::milliseconds(DEVICE_SERVICE_TIMEOUT_MS);
     }
     if (auto refresh_result = refresh_sound_state(context); !refresh_result) {
         BROOKESIA_LOGW("Failed to refresh audio mute UI: %1%", refresh_result.error());

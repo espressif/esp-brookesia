@@ -139,6 +139,8 @@ This enforcement applies to runtime apps that access services through the HostBr
 
 A ``.bpk`` is unpacked and validated under ``apps/.installing/`` before replacing an installed app. Updates retain the app's ``cache``, ``data``, and ``files`` directories. If registration or commit fails, the system restores the previous version when possible; interrupted updates are recovered at startup. If required files cannot be checked or moved, the affected staging directory is preserved for recovery. An installed app that fails to load is skipped with a warning rather than stopping system startup. Uninstalling removes the app directory, including its data.
 
+Recovery accepts only a safe application directory name matching the staged install target. It moves an existing target aside only when the target carries the same install transaction marker. Unverifiable staging directories, including older backups without target metadata, are preserved for inspection; they do not replace other installed applications.
+
 .. _system-core-app_package-sec-04:
 
 Resource Descriptor

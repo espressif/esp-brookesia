@@ -209,6 +209,7 @@ private:
         double request_id = 0;
         boost::json::object response{};
         std::string state{};
+        size_t memory_bytes = 0;
     };
 
     struct DeferredOperation {

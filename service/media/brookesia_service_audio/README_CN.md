@@ -8,6 +8,8 @@
 
 播放调用方可将 `PlayUrlConfig::only_if_idle` 与 `interrupt=false` 一同设置，使播放器忙碌时直接拒绝请求而不排队。该选项默认为 false，保留现有播放行为。
 
+音量和静音控制在应用目标状态后异步提交持久化。控制返回成功不代表该值已保存、能在重启后恢复；存储不可用或写入失败会记录日志。值未改变时不重复写入。
+
 更多信息请参考 [ESP-Brookesia 编程指南](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/service/audio.html)。
 
 ## DataFlow 集成

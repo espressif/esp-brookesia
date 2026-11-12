@@ -5,8 +5,11 @@
  */
 #pragma once
 
+#include <algorithm>
 #include <deque>
 #include <mutex>
+#include <optional>
+#include <unordered_map>
 
 #include "brookesia/app_store.hpp"
 #include "brookesia/service_manager/service/manager.hpp"
@@ -15,9 +18,151 @@ namespace esp_brookesia::app::app_store {
 
 struct AppStoreApp::Impl {
     struct HttpEventMailbox {
+        static constexpr size_t MAX_REQUESTS = 16;
+        static constexpr size_t MAX_EVENTS = 2 * MAX_REQUESTS + 1;
+        static constexpr size_t MAX_BYTES = 768 * 1024;
         std::mutex mutex;
         bool open = true;
         std::vector<PendingHttpEvent> events;
+        std::unordered_map<uint64_t, bool> requests;
+        size_t pending_submissions = 0;
+        size_t pending_bytes = 0;
+        bool early_event_overflow = false;
+
+        static size_t json_bytes(const boost::json::value &value, unsigned depth = 0)
+        {
+            if (depth > 32) {
+                return MAX_BYTES + 1;
+            }
+            size_t bytes = sizeof(value);
+            if (value.is_string()) {
+                return bytes + value.as_string().size();
+            }
+            if (value.is_object()) {
+                for (const auto &item : value.as_object()) {
+                    bytes += sizeof(item) + item.key().size() + json_bytes(item.value(), depth + 1);
+                    if (bytes > MAX_BYTES) {
+                        break;
+                    }
+                }
+            } else if (value.is_array()) {
+                for (const auto &item : value.as_array()) {
+                    bytes += json_bytes(item, depth + 1);
+                    if (bytes > MAX_BYTES) {
+                        break;
+                    }
+                }
+            }
+            return bytes;
+        }
+
+        bool begin_submission()
+        {
+            std::lock_guard lock(mutex);
+            if (!open || requests.size() + pending_submissions >= MAX_REQUESTS) {
+                return false;
+            }
+            ++pending_submissions;
+            return true;
+        }
+
+        bool finish_submission(std::optional<uint64_t> id)
+        {
+            std::lock_guard lock(mutex);
+            if (!open) {
+                return false;
+            }
+            --pending_submissions;
+            if (id) {
+                // A very fast response may precede RequestAsync's result. Keep a bounded grace queue until
+                // the id is known; if it overflowed, fail this request explicitly rather than leave it pending.
+                const auto is_terminal = [id](const auto & event) {
+                    return event.request_id == *id && event.type != PendingHttpEventType::Progress;
+                };
+                const bool terminal_queued = std::any_of(events.begin(), events.end(), is_terminal);
+                requests.emplace(*id, early_event_overflow && !terminal_queued);
+            }
+            if (pending_submissions == 0) {
+                const auto discard_unowned = [this](const auto & event) {
+                    if (event.type == PendingHttpEventType::GeneralStateChanged || requests.contains(event.request_id)) {
+                        return false;
+                    }
+                    pending_bytes -= event.memory_bytes;
+                    return true;
+                };
+                std::erase_if(events, discard_unowned);
+                early_event_overflow = false;
+            }
+            return true;
+        }
+
+        void enqueue(PendingHttpEventType type, double id, const boost::json::object *response,
+                     const std::string *state = nullptr)
+        {
+            std::lock_guard lock(mutex);
+            if (!open) {
+                return;
+            }
+            const bool general = type == PendingHttpEventType::GeneralStateChanged;
+            const auto request = requests.find(id);
+            if (!general && request == requests.end() && pending_submissions == 0) {
+                return;
+            }
+            for (auto it = events.begin(); it != events.end(); ++it) {
+                if ((general && it->type == type) || (!general && it->type != PendingHttpEventType::GeneralStateChanged &&
+                                                      it->request_id == id)) {
+                    if (!general && it->type != PendingHttpEventType::Progress) {
+                        return;
+                    }
+                    pending_bytes -= it->memory_bytes;
+                    events.erase(it);
+                    break;
+                }
+            }
+            size_t bytes = sizeof(PendingHttpEvent);
+            if (response != nullptr) {
+                for (const auto &item : *response) {
+                    bytes += sizeof(item) + item.key().size() + json_bytes(item.value());
+                    if (bytes > MAX_BYTES) {
+                        break;
+                    }
+                }
+            }
+            if (state != nullptr) {
+                bytes += state->size();
+            }
+            const auto full = [&] { return events.size() >= MAX_EVENTS || bytes > MAX_BYTES - pending_bytes; };
+            // Progress and unclaimed events must not displace a known request's final result.
+            for (auto it = events.begin(); full() && it != events.end();) {
+                if (it->type == PendingHttpEventType::Progress ||
+                        (it->type != PendingHttpEventType::GeneralStateChanged && !requests.contains(it->request_id))) {
+                    early_event_overflow |= it->type != PendingHttpEventType::Progress;
+                    pending_bytes -= it->memory_bytes;
+                    it = events.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+            if (full()) {
+                if (!general && type != PendingHttpEventType::Progress) {
+                    if (request != requests.end()) {
+                        request->second = true;
+                    } else {
+                        early_event_overflow = true;
+                    }
+                }
+                return;
+            }
+            PendingHttpEvent event{.type = type, .request_id = id, .memory_bytes = bytes};
+            if (response != nullptr) {
+                event.response = *response;
+            }
+            if (state != nullptr) {
+                event.state = *state;
+            }
+            events.push_back(std::move(event));
+            pending_bytes += bytes;
+        }
     };
 
     system::core::AppContext *context = nullptr;

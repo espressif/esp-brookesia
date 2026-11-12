@@ -45,6 +45,7 @@ std::atomic_int stop_failure = ESP_GSP_OK;
 std::atomic_bool event_inflight = false;
 bool fail_start = false;
 bool fail_event = false;
+std::function<void()> registration_hook;
 int starts = 0;
 std::atomic_int stops = 0;
 std::atomic<esp_gsp_event_cb_t> event_callback = nullptr;
@@ -64,6 +65,7 @@ void reset()
     event_inflight = false;
     fail_start = false;
     fail_event = false;
+    registration_hook = {};
     starts = 0;
     stops = 0;
     event_callback = nullptr;
@@ -441,6 +443,31 @@ void test_app_host_destructor_retries_stop()
     assert(wait_until([] { return stops == 4 && frees == 1; }));
 }
 
+void test_current_published_before_callback_registration()
+{
+    reset();
+    PanelIface panel;
+    TouchIface touch;
+    std::array<char, 4> raw{'G', 'S', 'P', 'B'};
+    esp_gsp_config_t config{};
+    config.bundle = raw.data();
+    config.bundle_size = raw.size();
+    AppHost host;
+    bool observed = false;
+    registration_hook = [&] {
+        // Registration runs before start() returns, potentially on another core.
+        std::thread reader([&] { observed = AppHost::current() == &host; });
+        reader.join();
+    };
+    const auto callback = [](esp_gsp_handle_t, const esp_gsp_event_t *, void *) {};
+    assert(host.start(config, lease_for(panel, touch), callback, nullptr, {}, borrowed_config(config)));
+    assert(observed && AppHost::current() == &host);
+    assert(host.stop() && AppHost::current() == nullptr);
+    fail_start = true;
+    assert(!host.start(config, lease_for(panel, touch), callback, nullptr, {}, borrowed_config(config)));
+    assert(AppHost::current() == nullptr);
+}
+
 } // namespace
 
 extern "C" void *heap_caps_aligned_alloc(size_t alignment, size_t size, uint32_t caps)
@@ -518,6 +545,9 @@ extern "C" esp_err_t esp_gsp_esp_lcd_start(
 
 extern "C" esp_gsp_err_t esp_gsp_on_event(esp_gsp_handle_t, esp_gsp_event_cb_t callback, void *user_ctx)
 {
+    if (callback && registration_hook) {
+        registration_hook();
+    }
     if (fail_event) {
         return ESP_GSP_FAIL;
     }
@@ -563,5 +593,6 @@ int main()
     test_compressed_app_host_rejects_invalid_envelopes();
     test_compressed_app_host_failed_start_cleanup();
     test_app_host_destructor_retries_stop();
+    test_current_published_before_callback_registration();
     std::cout << "GSP session lifecycle tests passed\n";
 }

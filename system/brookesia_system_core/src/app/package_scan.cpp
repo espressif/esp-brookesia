@@ -11,6 +11,7 @@
 #include "private/system/impl.hpp"
 
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -38,25 +39,55 @@ bool rename_path(const std::filesystem::path &from, const std::filesystem::path 
     return renamed.has_value();
 }
 
+std::optional<std::string> read_install_target(const std::filesystem::path &staging_dir)
+{
+    const auto path = staging_dir / APP_INSTALL_TARGET_FILE;
+    auto info = service::helper::Storage::fs_stat(path.generic_string(), STORAGE_FS_TIMEOUT_MS);
+    if (!info || !info->exists || info->type != service::helper::Storage::FileType::File || info->size > 255) {
+        return std::nullopt;
+    }
+    auto target = service::helper::Storage::fs_read_text(path.generic_string(), STORAGE_FS_TIMEOUT_MS);
+    if (!target || !is_safe_app_directory_name(*target) ||
+            !staging_dir.filename().generic_string().starts_with(*target + "-")) {
+        return std::nullopt;
+    }
+    return std::move(*target);
+}
+
+bool is_install_transaction_target(const std::filesystem::path &install_dir, const std::filesystem::path &staging_dir)
+{
+    const auto path = install_dir / APP_INSTALL_TRANSACTION_FILE;
+    auto info = service::helper::Storage::fs_stat(path.generic_string(), STORAGE_FS_TIMEOUT_MS);
+    if (!info || !info->exists || info->type != service::helper::Storage::FileType::File || info->size > 512) {
+        return false;
+    }
+    auto transaction = service::helper::Storage::fs_read_text(path.generic_string(), STORAGE_FS_TIMEOUT_MS);
+    return transaction && *transaction == staging_dir.filename().generic_string();
+}
+
 // Returns true when the staging directory no longer holds anything needed to recover an app.
 bool restore_previous_version(
     const std::filesystem::path &app_root, const std::filesystem::path &staging_dir, std::string_view system_type
 )
 {
     const auto previous_dir = staging_dir / APP_PREVIOUS_VERSION_DIR;
+    const auto target = read_install_target(staging_dir);
     auto manifest = read_unpacked_app_manifest(previous_dir.generic_string(), system_type);
-    if (!manifest) {
-        BROOKESIA_LOGW("Keep unreadable previous version: path(%1%), error(%2%)", previous_dir.generic_string(),
-                       manifest.error());
+    if (!target || !manifest || manifest->id != *target) {
+        BROOKESIA_LOGW("Keep previous version with unverified install target: %1%", previous_dir.generic_string());
         return false;
     }
-    const auto install_dir = app_root / manifest->id;
+    const auto install_dir = app_root / *target;
     const auto install_state = query_path_state(install_dir);
     if (install_state == PathState::Unknown) {
         BROOKESIA_LOGW("Keep previous version of %1%: cannot check %2%", manifest->id, install_dir.generic_string());
         return false;
     }
     if (install_state == PathState::Exists) {
+        if (!is_install_transaction_target(install_dir, staging_dir)) {
+            BROOKESIA_LOGW("Keep previous version; target belongs to another install: %1%", install_dir.generic_string());
+            return false;
+        }
         const auto rejected_dir = staging_dir / APP_REJECTED_VERSION_DIR;
         if ((query_path_state(rejected_dir) != PathState::Missing) || !rename_path(install_dir, rejected_dir)) {
             BROOKESIA_LOGW("Keep previous version of %1%: cannot move the unconfirmed copy aside", manifest->id);
@@ -76,10 +107,10 @@ bool committed_target_present(
 )
 {
     const auto previous_dir = staging_dir / APP_PREVIOUS_VERSION_DIR;
+    const auto target = read_install_target(staging_dir);
     auto manifest = read_unpacked_app_manifest(previous_dir.generic_string(), system_type);
-    if (!manifest) {
-        BROOKESIA_LOGW("Keep unreadable previous version: path(%1%), error(%2%)", previous_dir.generic_string(),
-                       manifest.error());
+    if (!target || !manifest || manifest->id != *target || !is_install_transaction_target(app_root / *target, staging_dir)) {
+        BROOKESIA_LOGW("Keep previous version with unverified committed target: %1%", previous_dir.generic_string());
         return false;
     }
     const auto target_manifest = app_root / manifest->id / APP_MANIFEST_FILE;
@@ -98,7 +129,7 @@ void recover_interrupted_installs(const std::filesystem::path &app_root, std::st
         return;
     }
     for (const auto &entry : entries.value()) {
-        if (entry.info.type != service::helper::Storage::FileType::Directory) {
+        if (entry.info.type != service::helper::Storage::FileType::Directory || !is_safe_app_directory_name(entry.name)) {
             continue;
         }
         const auto staging_dir = installing_root / entry.name;

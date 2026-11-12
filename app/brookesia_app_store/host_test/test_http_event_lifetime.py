@@ -34,14 +34,16 @@ PREAMBLE = r'''
 #include <optional>
 #include <string>
 #include <thread>
+#include <unordered_map>
 #include <utility>
+#include "boost/json.hpp"
 #include <vector>
 #include "brookesia/lib_utils/signal.hpp"
 
 #define BROOKESIA_LOGE(...) ((void)0)
 #define BROOKESIA_LOGW(...) ((void)0)
 #define BROOKESIA_LOG_TRACE_GUARD_WITH_THIS() ((void)0)
-namespace boost::json { struct object { int value = 0; }; }
+
 namespace system_core {
 using TimerId = int;
 constexpr TimerId INVALID_TIMER_ID = 0;
@@ -61,6 +63,12 @@ using esp_brookesia::lib_utils::scoped_connection;
 using esp_brookesia::lib_utils::signal;
 constexpr auto HTTP_EVENT_TIMER_NAME = "http";
 constexpr int HTTP_EVENT_POLL_INTERVAL_MS = 100;
+namespace service {
+struct FunctionResult { bool success = true; double id = 0; };
+struct ServiceBase { using FunctionResultHandler = std::function<void(FunctionResult &&)>; };
+}
+template<class T> boost::json::value to_json(const T &) { return boost::json::object{}; }
+#define BROOKESIA_DESCRIBE_TO_JSON(v) to_json(v)
 
 struct HttpHelper {
     enum class EventId { RequestProgress, RequestCompleted, RequestFailed, RequestCanceled, GeneralStateChanged };
@@ -68,6 +76,26 @@ struct HttpHelper {
     using StateCallback = std::function<void(const std::string &, const std::string &)>;
     using RequestSignal = signal<void(const std::string &, double, const boost::json::object &)>;
     static inline RequestSignal progress, completed, failed, canceled;
+    enum class FunctionId { CancelRequest, RequestAsync };
+    struct HttpRequest {};
+    static inline bool defer_submission = false, reject_submission = false, early_completion = false;
+    static inline uint64_t next_id = 50000;
+    static inline std::vector<std::function<void()>> submissions;
+    template<class T> static std::expected<T, std::string> process_function_result(service::FunctionResult &result) {
+        if (!result.success) return std::unexpected("injected submit failure");
+        return static_cast<T>(result.id);
+    }
+    static bool call_function_async(FunctionId, const boost::json::object &, service::ServiceBase::FunctionResultHandler h) {
+        if (reject_submission) return false;
+        const double id = next_id++;
+        if (early_completion) completed("early", id, {});
+        auto deliver = [h, id] { h({true, id}); };
+        if (defer_submission) submissions.push_back(std::move(deliver));
+        else deliver();
+        return true;
+    }
+    static inline unsigned cancellations = 0;
+    static bool call_function_async(FunctionId, double) { ++cancellations; return true; }
     static inline signal<void(const std::string &, const std::string &)> state;
     static inline std::atomic_bool block_callback = false;
     static inline std::promise<void> *entered = nullptr;
@@ -91,6 +119,7 @@ struct HttpHelper {
     }
 };
 
+namespace service::helper { using Http = ::HttpHelper; }
 class AppStoreApp {
 public:
     enum class StartupLoadPhase { None };
@@ -98,11 +127,7 @@ public:
     enum class MessageDialogPurpose { None };
     /* PENDING_HTTP_EVENT_TYPES */
     struct Impl {
-        struct HttpEventMailbox {
-            std::mutex mutex;
-            bool open = true;
-            std::vector<PendingHttpEvent> events;
-        };
+        /* HTTP_MAILBOX */
     };
     system::core::AppContext *context_ = nullptr;
     std::vector<scoped_connection> http_event_connections_;
@@ -147,11 +172,17 @@ public:
     void release_storage_service() {}
     void reset_refresh_icon_state() {}
     std::expected<void, std::string> on_stop(system::core::AppContext &context);
+    using HttpRequestSubmitSuccessHandler = std::function<void(uint64_t)>;
+    using HttpRequestSubmitFailureHandler = std::function<void(std::string)>;
+    bool submit_http_request_async(system::core::AppContext &, HttpHelper::HttpRequest,
+                                   HttpRequestSubmitSuccessHandler, HttpRequestSubmitFailureHandler);
+    void handle_http_request_submit_result(uint64_t, HttpRequestSubmitSuccessHandler,
+                                           HttpRequestSubmitFailureHandler, service::FunctionResult &&);
     void disconnect_http_events();
     void subscribe_http_events();
     void stop_http_event_timer(system::core::AppContext &context);
     void process_pending_http_events(system::core::AppContext &context);
-    void handle_request_progress(double, const boost::json::object &v) { delivered.push_back("progress:" + std::to_string(v.value)); }
+    void handle_request_progress(double, const boost::json::object &v) { delivered.push_back("progress:" + std::to_string(v.at("value").as_int64())); }
     void handle_request_completed(double, const boost::json::object &) { delivered.push_back("completed"); }
     void handle_request_failed(double, const boost::json::object &) { delivered.push_back("failed"); }
     void handle_request_canceled(double, const boost::json::object &) { delivered.push_back("canceled"); }
@@ -167,14 +198,91 @@ int main()
         AppStoreApp app(context);
         app.subscribe_http_events();
         assert(app.http_available_ && app.http_event_connections_.size() == 5);
-        HttpHelper::progress("progress", 7, {1});
-        HttpHelper::progress("progress", 7, {2});
+        assert(app.http_event_mailbox_->begin_submission());
+        assert(app.http_event_mailbox_->finish_submission(7));
+        HttpHelper::progress("progress", 7, {{"value", 1}});
+        HttpHelper::progress("progress", 7, {{"value", 2}});
         HttpHelper::completed("completed", 7, {});
         HttpHelper::state("state", "Started");
         app.process_pending_http_events(context);
-        assert((app.delivered == std::vector<std::string>{"progress:2", "completed", "Started"}));
+        assert((app.delivered == std::vector<std::string>{"completed", "Started"}));
         assert(app.on_stop(context));
         assert(context.value.stops == 1);
+    }
+    {
+        AppStoreApp app(context);
+        app.subscribe_http_events();
+        auto mailbox = app.http_event_mailbox_;
+        assert(mailbox->begin_submission() && mailbox->finish_submission(7));
+        const boost::json::object huge{{"body", std::string(2 * mailbox->MAX_BYTES, 'x')}};
+        for (int id = 100; id < 20100; ++id) {
+            HttpHelper::completed("other app", id, huge);
+        }
+        assert(mailbox->events.empty() && mailbox->pending_bytes == 0);
+        for (int i = 0; i < 20000; ++i) {
+            HttpHelper::progress("progress", 7, {{"value", i}});
+            HttpHelper::state("state", "Started");
+        }
+        assert(mailbox->events.size() == 2 && mailbox->pending_bytes <= mailbox->MAX_BYTES);
+        HttpHelper::completed("completed", 7, {});
+        app.process_pending_http_events(context);
+        assert(std::count(app.delivered.begin(), app.delivered.end(), "completed") == 1);
+        assert(mailbox->requests.empty());
+
+        // A response that completes before RequestAsync returns must survive id registration.
+        assert(mailbox->begin_submission());
+        HttpHelper::completed("early", 8, {});
+        assert(mailbox->finish_submission(8));
+        app.process_pending_http_events(context);
+        assert(app.delivered.back() == "completed");
+
+        // Oversized owned responses fail explicitly, release admission and allow a retry.
+        assert(mailbox->begin_submission() && mailbox->finish_submission(9));
+        HttpHelper::completed("oversized", 9, huge);
+        assert(mailbox->events.empty() && mailbox->pending_bytes <= mailbox->MAX_BYTES);
+        app.process_pending_http_events(context);
+        assert(app.delivered.back() == "failed" && HttpHelper::cancellations == 1);
+        assert(mailbox->requests.empty());
+
+        const boost::json::object body{{"body", std::string(mailbox->MAX_BYTES / 8, 'x')}};
+        for (uint64_t id = 10; id < 10 + mailbox->MAX_REQUESTS; ++id) {
+            assert(mailbox->begin_submission() && mailbox->finish_submission(id));
+            HttpHelper::completed("budget", id, body);
+            assert(mailbox->events.size() <= mailbox->MAX_EVENTS && mailbox->pending_bytes <= mailbox->MAX_BYTES);
+        }
+        assert(!mailbox->begin_submission());
+        app.process_pending_http_events(context);
+        assert(mailbox->requests.empty() && mailbox->events.empty() && mailbox->pending_bytes == 0);
+        assert(mailbox->begin_submission() && mailbox->finish_submission(99));
+        HttpHelper::completed("retry", 99, {});
+        app.process_pending_http_events(context);
+        assert(app.delivered.back() == "completed");
+        assert(app.on_stop(context));
+    }
+    {
+        auto app = std::make_unique<AppStoreApp>(context);
+        app->subscribe_http_events();
+        bool accepted = false;
+        HttpHelper::early_completion = true;
+        assert(app->submit_http_request_async(context, {}, [&](uint64_t) { accepted = true; }, nullptr));
+        assert(accepted && app->http_event_mailbox_->requests.size() == 1);
+        app->process_pending_http_events(context);
+        assert(app->delivered.back() == "completed");
+        HttpHelper::early_completion = false;
+        HttpHelper::reject_submission = true;
+        assert(!app->submit_http_request_async(context, {}, nullptr, nullptr));
+        assert(app->http_event_mailbox_->pending_submissions == 0);
+        HttpHelper::reject_submission = false;
+        HttpHelper::defer_submission = true;
+        assert(app->submit_http_request_async(context, {}, [](uint64_t) { assert(false); }, nullptr));
+        const auto canceled_before = HttpHelper::cancellations;
+        assert(app->on_stop(context));
+        app.reset();
+        auto result = std::move(HttpHelper::submissions.back());
+        HttpHelper::submissions.clear();
+        result();
+        assert(HttpHelper::cancellations == canceled_before + 1);
+        HttpHelper::defer_submission = false;
     }
     {
         auto app = std::make_unique<AppStoreApp>(context);
@@ -185,7 +293,7 @@ int main()
         HttpHelper::entered = &entered;
         HttpHelper::release = release.get_future().share();
         HttpHelper::block_callback = true;
-        std::thread http([] { HttpHelper::progress("progress", 8, {3}); });
+        std::thread http([] { HttpHelper::progress("progress", 8, {{"value", 3}}); });
         entered.get_future().wait();
         signal<void()> stop_event;
         auto connection = stop_event.connect([&] { assert(app->on_stop(context)); app.reset(); });
@@ -216,6 +324,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--cxx', default=os.environ.get('CXX', 'g++-13'))
     parser.add_argument('--sanitizer', choices=('address', 'thread'))
+    parser.add_argument('--boost-root', default=os.environ.get('BOOST_ROOT'))
     args = parser.parse_args()
     component = ROOT / 'app/brookesia_app_store'
     header = (component / 'include/brookesia/app_store/app_store_app.hpp').read_text()
@@ -224,11 +333,14 @@ def main():
     lifecycle = (component / 'src/app/lifecycle.ipp').read_text()
     event_types = '\n'.join(extract(header, declaration) + ';' for declaration in (
         'enum class PendingHttpEventType {', 'struct PendingHttpEvent {'))
-    program = PREAMBLE.replace('/* PENDING_HTTP_EVENT_TYPES */', event_types)
+    impl = (component / 'src/private/app_store_impl.hpp').read_text()
+    mailbox = extract(impl, '    struct HttpEventMailbox {') + ';'
+    program = PREAMBLE.replace('/* PENDING_HTTP_EVENT_TYPES */', event_types).replace('/* HTTP_MAILBOX */', mailbox)
     program += '\n'.join(extract(storage, method) for method in (
         'void AppStoreApp::disconnect_http_events()', 'void AppStoreApp::subscribe_http_events()'))
     program += '\n'.join(extract(http, method) for method in (
-        'void AppStoreApp::stop_http_event_timer(', 'void AppStoreApp::process_pending_http_events('))
+        'void AppStoreApp::stop_http_event_timer(', 'void AppStoreApp::process_pending_http_events(',
+        'bool AppStoreApp::submit_http_request_async(', 'void AppStoreApp::handle_http_request_submit_result('))
     program += extract(lifecycle, 'std::expected<void, std::string> AppStoreApp::on_stop(')
     program += TAIL
     program = program.replace('system::core::', 'system_core::')
@@ -238,6 +350,9 @@ def main():
         source.write_text(program)
         command = [args.cxx, '-std=c++23', '-Wall', '-Wextra', '-Werror', '-pthread',
                    f'-I{ROOT / "utils/brookesia_lib_utils/include"}', str(source), '-o', str(binary)]
+        command.append('-lboost_json')
+        if args.boost_root:
+            command.extend([f'-I{args.boost_root}/include', f'-L{args.boost_root}/lib'])
         if args.sanitizer:
             command.extend([f'-fsanitize={args.sanitizer}', '-fno-omit-frame-pointer'])
         subprocess.run(command, check=True)

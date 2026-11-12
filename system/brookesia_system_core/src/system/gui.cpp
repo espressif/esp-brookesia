@@ -695,10 +695,9 @@ std::expected<void, std::string> System::Impl::ensure_gsp_loaded(AppRecord &reco
                    : record.gsp_host->start(bytes, display, &System::Impl::forward_gsp_event,
                                             record.gsp_event_target.get(), record.gsp_event_target);
     if (!started) {
-        if (!record.gsp_host->running()) {
-            record.gsp_host.reset();
-            record.gsp_event_target = {};
-            record.gsp_epoch->fetch_add(1, std::memory_order_release);
+        auto stopped = stop_gsp_session(record);
+        if (!stopped) {
+            return std::unexpected(started.error() + "; cleanup failed: " + stopped.error());
         }
         return started;
     }
@@ -717,16 +716,21 @@ std::expected<void, std::string> System::Impl::ensure_gsp_loaded(AppRecord &reco
             if (auto start = start_scenes.find(environment_.theme_id); start != start_scenes.end()) {
                 target_scene = start->second;
             }
-            record.gsp_current_scene = target_scene;
-            record.gsp_scene_known = true;
         }
         if (target_scene != 0) {
             if (esp_gsp_goto_scene(
                         record.gsp_host->handle(), target_scene, ESP_GSP_NO_TRANSITION
                     ) != ESP_GSP_OK) {
-                return std::unexpected("Failed to restore GSP scene " + std::to_string(target_scene));
+                auto error = "Failed to restore GSP scene " + std::to_string(target_scene);
+                auto stopped = stop_gsp_session(record);
+                if (!stopped) {
+                    error += "; cleanup failed: " + stopped.error();
+                }
+                return std::unexpected(std::move(error));
             }
         }
+        record.gsp_current_scene = target_scene;
+        record.gsp_scene_known = true;
     }
     BROOKESIA_LOGI("GSP app session started: manifest(%1%)", record.info.manifest.id);
     return {};

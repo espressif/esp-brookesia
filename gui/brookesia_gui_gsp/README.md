@@ -23,6 +23,9 @@ compiled bundle and its GSPC schema-2 API sidecar with `register_bundle()` befor
 opening a session. Size/CRC and metadata validation reject mismatched artifacts.
 The official renderer still validates the bundle itself.
 
+After bridge polling fails, `running()` returns false once the bridge and renderer
+have closed. A subsequent start, stop, or destruction joins the exited bridge thread.
+
 Session calls and event polling execute on one bridge thread. A session starts a
 renderer process, and stopping it drains accepted calls before releasing the
 bridge and child process. `browser_url()` identifies the current preview document;

@@ -431,8 +431,11 @@ void System::deinit()
                          );
     if (!shell_stopped) {
         BROOKESIA_LOGE("GSP modal stop failed; keeping system and HAL ownership: %1%", shell_stopped.error());
+        return;
     }
-    for (const auto &record_owner : impl_->snapshot_app_records()) {
+    const auto records = impl_->snapshot_app_records();
+    // Complete every fallible session stop before invoking irreversible uninstall callbacks.
+    for (const auto &record_owner : records) {
         auto &record = *record_owner;
         if (record.info.state == AppState::Running || record.info.state == AppState::Paused) {
             auto stop_result = stop_app(record.info.app_id);
@@ -442,6 +445,7 @@ void System::deinit()
                     record.info.app_id,
                     stop_result.error()
                 );
+                return;
             }
         }
         const AppId app_id = record.info.app_id;
@@ -458,8 +462,17 @@ void System::deinit()
                 "GSP stop failed while deinitializing system; keeping the app record: app_id(%1%)",
                 app_id
             );
-            continue;
+            return;
         }
+    }
+    if (impl_->any_gsp_session_running()) {
+        BROOKESIA_LOGE("GSP sessions remain active; keeping the system initialized for another stop attempt");
+        return;
+    }
+    for (const auto &record_owner : records) {
+        auto &record = *record_owner;
+        const AppId app_id = record.info.app_id;
+        auto *record_ptr = &record;
         if (record.native_app && record.context) {
             record.native_app->on_uninstall(*record.context);
         }
@@ -481,27 +494,12 @@ void System::deinit()
         std::unexpected("Failed to post app GUI cleanup task")
                               );
         if (!cleanup_result) {
-            if (impl_->gsp_session_running(record)) {
-                BROOKESIA_LOGE(
-                    "Failed to cleanup app GUI while deinitializing system; keeping the app record: app_id(%1%), error(%2%)",
-                    app_id,
-                    cleanup_result.error()
-                );
-                continue;
-            }
             BROOKESIA_LOGW(
                 "Failed to cleanup app GUI while deinitializing system: app_id(%1%), error(%2%)",
                 app_id,
                 cleanup_result.error()
             );
         }
-    }
-    if (!shell_stopped || impl_->any_gsp_session_running()) {
-        BROOKESIA_LOGE(
-            "GSP stop failed; system stays initialized so stop can be retried. "
-            "Display and touch devices stay owned until stop succeeds"
-        );
-        return;
     }
 #if CONFIG_BROOKESIA_GUI_BACKEND_GSP
     impl_->gsp_sntp_binding_.release();

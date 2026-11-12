@@ -690,7 +690,7 @@ std::expected<void, std::string> SettingsApp::connect_wifi_network(
     show_wifi_connected_card(WifiConnectedCardState::Connecting, network.ssid);
 
     const auto set_target_handler = [operation](service::FunctionResult && target) {
-        boost::lock_guard lock(operation->mutex);
+        boost::unique_lock lock(operation->mutex);
         if (!operation->valid) {
             return;
         }
@@ -711,18 +711,22 @@ std::expected<void, std::string> SettingsApp::connect_wifi_network(
                 operation->error = "wifi.start_failed";
             }
         };
-        // Keep the validity lock through submission so cancellation blocks later Connect submissions.
         operation->connected_event_armed = true;
         operation->connect_start_epoch = operation->connected_event_epoch;
+        // Wasm dispatch can invoke the completion before call_function_async returns.
+        lock.unlock();
         if (!WifiHelper::call_function_async(
                     WifiHelper::FunctionId::TriggerGeneralAction,
                     BROOKESIA_DESCRIBE_TO_STR(WifiHelper::GeneralAction::Connect), connect_handler)) {
-            operation->phase = WifiConnectOperation::Phase::Failed;
-            operation->error = "wifi.submit_connect_failed";
+            lock.lock();
+            if (operation->valid && operation->phase == WifiConnectOperation::Phase::SendingConnect) {
+                operation->phase = WifiConnectOperation::Phase::Failed;
+                operation->error = "wifi.submit_connect_failed";
+            }
         }
     };
     const auto save_handler = [operation, set_target_handler](service::FunctionResult && result) {
-        boost::lock_guard lock(operation->mutex);
+        boost::unique_lock lock(operation->mutex);
         if (!operation->valid) {
             return;
         }
@@ -734,18 +738,22 @@ std::expected<void, std::string> SettingsApp::connect_wifi_network(
             return;
         }
         operation->phase = WifiConnectOperation::Phase::SettingTarget;
+        const auto ssid_copy = operation->ssid;
         auto password_copy = operation->password;
         std::fill(operation->password.begin(), operation->password.end(), '\0');
         operation->password.clear();
-        // Keep the validity lock through submission so cancellation blocks later SetConnectAp submissions.
+        lock.unlock();
         const bool submitted = WifiHelper::call_function_async(
                                    WifiHelper::FunctionId::SetConnectAp,
-                                   operation->ssid, password_copy, set_target_handler);
+                                   ssid_copy, password_copy, set_target_handler);
         std::fill(password_copy.begin(), password_copy.end(), '\0');
         password_copy.clear();
         if (!submitted) {
-            operation->phase = WifiConnectOperation::Phase::Failed;
-            operation->error = "wifi.submit_target_failed";
+            lock.lock();
+            if (operation->valid && operation->phase == WifiConnectOperation::Phase::SettingTarget) {
+                operation->phase = WifiConnectOperation::Phase::Failed;
+                operation->error = "wifi.submit_target_failed";
+            }
         }
     };
     auto save_result = operation->connected_event_connection.connected() ?

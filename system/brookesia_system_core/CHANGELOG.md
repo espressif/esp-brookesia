@@ -17,6 +17,9 @@
 
 ### Bug Fixes:
 
+- fix(gsp): stop partially started app and modal sessions before restoring the foreground application.
+- fix(lifecycle): stop all sessions before uninstalling apps so deinit retries cannot repeat uninstall callbacks.
+- fix(app): validate recovery targets against install metadata and transaction ownership before moving directories.
 - fix(app): reject runtime packages whose declared GUI backend conflicts with their descriptor or the firmware.
 - fix(app): restore previous versions after failed updates and recover interrupted installations at startup.
 - fix(build): isolate staged backend resources while preserving simulator app data across rebuilds.
