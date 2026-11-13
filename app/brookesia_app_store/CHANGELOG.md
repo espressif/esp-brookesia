@@ -4,6 +4,7 @@
 
 ### Bug Fixes:
 
+- fix(http): isolate early result loss by request ID and deliver queued completions before overflow failures.
 - fix(http): filter unrelated requests and bound pending event count and response bytes with recoverable overflow errors.
 - fix(http): keep service event callbacks safe when the App Store stops or is uninstalled.
 

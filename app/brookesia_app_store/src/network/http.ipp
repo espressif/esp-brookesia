@@ -219,13 +219,6 @@ void AppStoreApp::process_pending_http_events(system::core::AppContext &context)
     std::vector<uint64_t> overflowed;
     {
         std::lock_guard lock(mailbox->mutex);
-        for (const auto &[id, overflow] : mailbox->requests) {
-            if (overflow) {
-                overflowed.push_back(id);
-                events.push_back({.type = PendingHttpEventType::Failed, .request_id = static_cast<double>(id),
-                                  .response = {{"error_message", "HTTP event mailbox response budget exceeded"}}});
-            }
-        }
         for (auto it = mailbox->events.begin(); it != mailbox->events.end();) {
             const auto request = mailbox->requests.find(it->request_id);
             if (it->type != PendingHttpEventType::GeneralStateChanged && request == mailbox->requests.end()) {
@@ -233,14 +226,26 @@ void AppStoreApp::process_pending_http_events(system::core::AppContext &context)
                 continue;
             }
             mailbox->pending_bytes -= it->memory_bytes;
-            if (request == mailbox->requests.end() || !request->second) {
-                events.push_back(std::move(*it));
-            }
+            events.push_back(std::move(*it));
             it = mailbox->events.erase(it);
         }
         for (const auto &event : events) {
             if (event.type != PendingHttpEventType::Progress && event.type != PendingHttpEventType::GeneralStateChanged) {
                 mailbox->requests.erase(event.request_id);
+            }
+        }
+        // Deliver queued terminal results before considering failures for genuinely missing responses.
+        const auto now = std::chrono::steady_clock::now();
+        for (auto it = mailbox->requests.begin(); it != mailbox->requests.end();) {
+            const auto &[id, state] = *it;
+            if (state.response_lost || (state.missing_result_deadline != std::chrono::steady_clock::time_point{} &&
+                                       now >= state.missing_result_deadline)) {
+                overflowed.push_back(id);
+                events.push_back({.type = PendingHttpEventType::Failed, .request_id = static_cast<double>(id),
+                                  .response = {{"error_message", "HTTP event mailbox result unavailable after overflow"}}});
+                it = mailbox->requests.erase(it);
+            } else {
+                ++it;
             }
         }
     }
@@ -1188,18 +1193,21 @@ bool AppStoreApp::submit_http_request_async(
         return false;
     }
     const std::weak_ptr<Impl::HttpEventMailbox> weak_mailbox = mailbox;
+    const auto idle_timeout = std::chrono::milliseconds(std::max(request.timeout_ms, uint32_t{10000})) *
+                              (1LL + request.retry_count) + std::chrono::seconds(10);
     const auto generation = async_generation_;
     auto result_handler = [
                               this,
                               generation,
                               weak_mailbox,
+                              idle_timeout,
                               success_handler = std::move(success_handler),
                               failure_handler = std::move(failure_handler)
                           ](service::FunctionResult && result) mutable {
         auto active = weak_mailbox.lock();
         const auto request_id = HttpHelper::process_function_result<double>(result);
         if (!active || !active->finish_submission(request_id ?
-                std::optional<uint64_t>(static_cast<uint64_t>(*request_id)) : std::nullopt)) {
+                std::optional<uint64_t>(static_cast<uint64_t>(*request_id)) : std::nullopt, idle_timeout)) {
             if (request_id && !HttpHelper::call_function_async(HttpHelper::FunctionId::CancelRequest, *request_id)) {
                 BROOKESIA_LOGW("Failed to cancel App Store request after its mailbox closed: %1%", *request_id);
             }

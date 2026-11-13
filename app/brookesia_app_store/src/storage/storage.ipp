@@ -89,6 +89,7 @@ void AppStoreApp::disconnect_http_events()
         mailbox->open = false;
         mailbox->events.clear();
         mailbox->requests.clear();
+        mailbox->lost_early_requests.clear();
         mailbox->pending_bytes = 0;
     }
     for (auto &connection : http_event_connections_) {

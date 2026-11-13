@@ -35,6 +35,7 @@ PREAMBLE = r'''
 #include <string>
 #include <thread>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include "boost/json.hpp"
 #include <vector>
@@ -77,7 +78,7 @@ struct HttpHelper {
     using RequestSignal = signal<void(const std::string &, double, const boost::json::object &)>;
     static inline RequestSignal progress, completed, failed, canceled;
     enum class FunctionId { CancelRequest, RequestAsync };
-    struct HttpRequest {};
+    struct HttpRequest { uint32_t timeout_ms = 15000; uint32_t retry_count = 1; };
     static inline bool defer_submission = false, reject_submission = false, early_completion = false;
     static inline uint64_t next_id = 50000;
     static inline std::vector<std::function<void()>> submissions;
@@ -95,7 +96,8 @@ struct HttpHelper {
         return true;
     }
     static inline unsigned cancellations = 0;
-    static bool call_function_async(FunctionId, double) { ++cancellations; return true; }
+    static inline std::vector<uint64_t> canceled_ids;
+    static bool call_function_async(FunctionId, double id) { ++cancellations; canceled_ids.push_back(id); return true; }
     static inline signal<void(const std::string &, const std::string &)> state;
     static inline std::atomic_bool block_callback = false;
     static inline std::promise<void> *entered = nullptr;
@@ -136,6 +138,7 @@ public:
     bool http_available_ = true;
     unsigned async_generation_ = 0;
     std::vector<std::string> delivered;
+    std::vector<uint64_t> completed_ids, failed_ids;
     int binding_releases = 0;
     std::vector<int> entries_, local_packages_, installed_runtime_apps_, local_package_by_manifest_id_;
     std::vector<int> installed_manifest_ids_, installed_version_by_manifest_id_, i18n_strings_;
@@ -183,8 +186,8 @@ public:
     void stop_http_event_timer(system::core::AppContext &context);
     void process_pending_http_events(system::core::AppContext &context);
     void handle_request_progress(double, const boost::json::object &v) { delivered.push_back("progress:" + std::to_string(v.at("value").as_int64())); }
-    void handle_request_completed(double, const boost::json::object &) { delivered.push_back("completed"); }
-    void handle_request_failed(double, const boost::json::object &) { delivered.push_back("failed"); }
+    void handle_request_completed(double id, const boost::json::object &) { delivered.push_back("completed"); completed_ids.push_back(id); }
+    void handle_request_failed(double id, const boost::json::object &) { delivered.push_back("failed"); failed_ids.push_back(id); }
     void handle_request_canceled(double, const boost::json::object &) { delivered.push_back("canceled"); }
     void handle_http_general_state_changed(const std::string &s) { delivered.push_back(s); }
 };
@@ -257,6 +260,72 @@ int main()
         HttpHelper::completed("retry", 99, {});
         app.process_pending_http_events(context);
         assert(app.delivered.back() == "completed");
+        assert(app.on_stop(context));
+    }
+    {
+        AppStoreApp app(context);
+        app.subscribe_http_events();
+        auto mailbox = app.http_event_mailbox_;
+        assert(mailbox->begin_submission() && mailbox->begin_submission());
+        const boost::json::object huge{{"body", std::string(2 * mailbox->MAX_BYTES, 'x')}};
+        HttpHelper::completed("lost A before id registration", 90001, huge);
+        assert(mailbox->finish_submission(90001));
+        assert(mailbox->finish_submission(90002));
+        HttpHelper::completed("healthy B", 90002, {});
+        const auto canceled_before = HttpHelper::canceled_ids.size();
+        app.process_pending_http_events(context);
+        assert((app.completed_ids == std::vector<uint64_t>{90002}));
+        assert((app.failed_ids == std::vector<uint64_t>{90001}));
+        assert(HttpHelper::canceled_ids.size() == canceled_before + 1 && HttpHelper::canceled_ids.back() == 90001);
+
+        // B may still be running when the lost A response is drained.
+        assert(mailbox->begin_submission() && mailbox->begin_submission());
+        HttpHelper::completed("lost A", 90003, huge);
+        assert(mailbox->finish_submission(90003) && mailbox->finish_submission(90004));
+        app.process_pending_http_events(context);
+        assert(app.failed_ids.back() == 90003 && mailbox->requests.contains(90004));
+        assert(HttpHelper::canceled_ids.back() == 90003);
+        HttpHelper::completed("later B", 90004, {});
+        app.process_pending_http_events(context);
+        assert(app.completed_ids.back() == 90004 && HttpHelper::canceled_ids.back() == 90003);
+
+        // Losing another application's early result cannot fail either owned request.
+        assert(mailbox->begin_submission() && mailbox->begin_submission());
+        HttpHelper::completed("other app", 90005, huge);
+        assert(mailbox->finish_submission(90006) && mailbox->finish_submission(90007));
+        app.process_pending_http_events(context);
+        assert(mailbox->requests.size() == 2 && HttpHelper::canceled_ids.back() == 90003);
+        HttpHelper::completed("owned", 90006, {});
+        HttpHelper::completed("owned", 90007, {});
+        app.process_pending_http_events(context);
+        assert(mailbox->requests.empty() && app.completed_ids.back() == 90007);
+        assert(app.on_stop(context));
+    }
+    {
+        AppStoreApp app(context);
+        app.subscribe_http_events();
+        auto mailbox = app.http_event_mailbox_;
+        assert(mailbox->begin_submission() && mailbox->begin_submission());
+        const boost::json::object huge{{"body", std::string(2 * mailbox->MAX_BYTES, 'x')}};
+        for (int id = 100000; id < 120000; ++id) {
+            HttpHelper::completed("other app", id, huge);
+            assert(mailbox->lost_early_requests.size() <= mailbox->MAX_EVENTS);
+            assert(mailbox->pending_bytes <= mailbox->MAX_BYTES && mailbox->events.size() <= mailbox->MAX_EVENTS);
+        }
+        assert(mailbox->finish_submission(130000) && mailbox->finish_submission(130001));
+        app.process_pending_http_events(context);
+        assert(mailbox->requests.size() == 2 && app.failed_ids.empty());
+        // Activity renews the fallback even when the earlier loss history was saturated.
+        mailbox->requests.at(130001).missing_result_deadline = std::chrono::steady_clock::now();
+        HttpHelper::progress("healthy", 130001, {{"value", 50}});
+        app.process_pending_http_events(context);
+        assert(mailbox->requests.size() == 2 && app.failed_ids.empty());
+        mailbox->requests.at(130000).missing_result_deadline = std::chrono::steady_clock::now();
+        app.process_pending_http_events(context);
+        assert((app.failed_ids == std::vector<uint64_t>{130000}) && mailbox->requests.size() == 1);
+        HttpHelper::completed("healthy", 130001, {});
+        app.process_pending_http_events(context);
+        assert((app.completed_ids == std::vector<uint64_t>{130001}) && mailbox->requests.empty());
         assert(app.on_stop(context));
     }
     {

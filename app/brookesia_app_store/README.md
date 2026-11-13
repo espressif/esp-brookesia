@@ -8,6 +8,8 @@
 
 HTTP event buffering tracks at most 16 App Store requests, 33 pending events and a 768 KiB payload budget. Unrelated requests are filtered and progress is coalesced. If a response exceeds the budget, the request is canceled and reported as failed so it can be retried.
 
+Lost results are isolated by request ID. If an event burst exceeds the loss-tracking capacity, active requests continue while making progress; a result that remains unavailable beyond its timeout and retry budget is reported as failed.
+
 For more information, see the [ESP-Brookesia Programming Guide](https://docs.espressif.com/projects/esp-brookesia/en/latest/app/store.html).
 
 ## How to Use

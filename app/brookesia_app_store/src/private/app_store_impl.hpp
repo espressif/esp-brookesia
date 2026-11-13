@@ -6,10 +6,12 @@
 #pragma once
 
 #include <algorithm>
+#include <chrono>
 #include <deque>
 #include <mutex>
 #include <optional>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "brookesia/app_store.hpp"
 #include "brookesia/service_manager/service/manager.hpp"
@@ -18,16 +20,34 @@ namespace esp_brookesia::app::app_store {
 
 struct AppStoreApp::Impl {
     struct HttpEventMailbox {
+        struct RequestState {
+            bool response_lost = false;
+            std::chrono::milliseconds idle_timeout{};
+            std::chrono::steady_clock::time_point missing_result_deadline{};
+        };
         static constexpr size_t MAX_REQUESTS = 16;
         static constexpr size_t MAX_EVENTS = 2 * MAX_REQUESTS + 1;
         static constexpr size_t MAX_BYTES = 768 * 1024;
         std::mutex mutex;
         bool open = true;
         std::vector<PendingHttpEvent> events;
-        std::unordered_map<uint64_t, bool> requests;
+        std::unordered_map<uint64_t, RequestState> requests;
+        std::unordered_set<uint64_t> lost_early_requests;
         size_t pending_submissions = 0;
         size_t pending_bytes = 0;
-        bool early_event_overflow = false;
+        bool early_loss_tracking_full = false;
+
+        void record_early_loss(uint64_t id)
+        {
+            if (lost_early_requests.contains(id)) {
+                return;
+            }
+            if (lost_early_requests.size() < MAX_EVENTS) {
+                lost_early_requests.insert(id);
+            } else {
+                early_loss_tracking_full = true;
+            }
+        }
 
         static size_t json_bytes(const boost::json::value &value, unsigned depth = 0)
         {
@@ -66,7 +86,8 @@ struct AppStoreApp::Impl {
             return true;
         }
 
-        bool finish_submission(std::optional<uint64_t> id)
+        bool finish_submission(std::optional<uint64_t> id,
+                               std::chrono::milliseconds idle_timeout = std::chrono::seconds(60))
         {
             std::lock_guard lock(mutex);
             if (!open) {
@@ -74,13 +95,19 @@ struct AppStoreApp::Impl {
             }
             --pending_submissions;
             if (id) {
-                // A very fast response may precede RequestAsync's result. Keep a bounded grace queue until
-                // the id is known; if it overflowed, fail this request explicitly rather than leave it pending.
+                // Early terminal events already carry ids; a loss must not fail a different submission.
                 const auto is_terminal = [id](const auto & event) {
                     return event.request_id == *id && event.type != PendingHttpEventType::Progress;
                 };
                 const bool terminal_queued = std::any_of(events.begin(), events.end(), is_terminal);
-                requests.emplace(*id, early_event_overflow && !terminal_queued);
+                const bool response_lost = lost_early_requests.erase(*id) != 0 && !terminal_queued;
+                RequestState state{.response_lost = response_lost, .idle_timeout = idle_timeout};
+                if (early_loss_tracking_full && !terminal_queued && !response_lost) {
+                    // If the bounded loss-id history filled, allow normal progress and completion. Only a
+                    // missing result that stays inactive for the request's retry budget becomes a failure.
+                    state.missing_result_deadline = std::chrono::steady_clock::now() + idle_timeout;
+                }
+                requests.emplace(*id, state);
             }
             if (pending_submissions == 0) {
                 const auto discard_unowned = [this](const auto & event) {
@@ -91,7 +118,8 @@ struct AppStoreApp::Impl {
                     return true;
                 };
                 std::erase_if(events, discard_unowned);
-                early_event_overflow = false;
+                lost_early_requests.clear();
+                early_loss_tracking_full = false;
             }
             return true;
         }
@@ -107,6 +135,11 @@ struct AppStoreApp::Impl {
             const auto request = requests.find(id);
             if (!general && request == requests.end() && pending_submissions == 0) {
                 return;
+            }
+            if (request != requests.end() && type == PendingHttpEventType::Progress &&
+                    request->second.missing_result_deadline != std::chrono::steady_clock::time_point{}) {
+                request->second.missing_result_deadline =
+                    std::chrono::steady_clock::now() + request->second.idle_timeout;
             }
             for (auto it = events.begin(); it != events.end(); ++it) {
                 if ((general && it->type == type) || (!general && it->type != PendingHttpEventType::GeneralStateChanged &&
@@ -136,7 +169,9 @@ struct AppStoreApp::Impl {
             for (auto it = events.begin(); full() && it != events.end();) {
                 if (it->type == PendingHttpEventType::Progress ||
                         (it->type != PendingHttpEventType::GeneralStateChanged && !requests.contains(it->request_id))) {
-                    early_event_overflow |= it->type != PendingHttpEventType::Progress;
+                    if (it->type != PendingHttpEventType::Progress) {
+                        record_early_loss(static_cast<uint64_t>(it->request_id));
+                    }
                     pending_bytes -= it->memory_bytes;
                     it = events.erase(it);
                 } else {
@@ -146,9 +181,9 @@ struct AppStoreApp::Impl {
             if (full()) {
                 if (!general && type != PendingHttpEventType::Progress) {
                     if (request != requests.end()) {
-                        request->second = true;
+                        request->second.response_lost = true;
                     } else {
-                        early_event_overflow = true;
+                        record_early_loss(static_cast<uint64_t>(id));
                     }
                 }
                 return;
@@ -162,6 +197,10 @@ struct AppStoreApp::Impl {
             }
             events.push_back(std::move(event));
             pending_bytes += bytes;
+            if (request != requests.end() && type != PendingHttpEventType::Progress) {
+                request->second.response_lost = false;
+                request->second.missing_result_deadline = {};
+            }
         }
     };
 
