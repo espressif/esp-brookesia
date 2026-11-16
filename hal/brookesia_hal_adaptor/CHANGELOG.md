@@ -23,6 +23,7 @@
 - fix(wifi): publish successful empty scans and distinguish failed scans from fresh results.
 - fix(logging): omit station and SoftAP credentials from configuration and connection logs.
 - fix(deps): require HAL Interface `>=0.8.4,<0.9` for the expanded Wi-Fi interfaces.
+- fix(deps): require `esp_hosted >=2.13.1,<3.0` for ESP-IDF 6.2 Wi-Fi compatibility.
 
 ### Documentation:
 

@@ -103,7 +103,7 @@ bool BleDevice::probe()
 #if CONFIG_SOC_BLE_SUPPORTED && CONFIG_BT_CONTROLLER_ENABLED
     return true;
 #elif CONFIG_BT_CONTROLLER_DISABLED && CONFIG_ESP_HOSTED_ENABLE_BT_NIMBLE && CONFIG_ESP_HOSTED_NIMBLE_HCI_VHCI
-    // ESP-Hosted 2.12.3 exposes no passive BLE capability query. Probe once with the
+    // ESP-Hosted 2.x exposes no passive BLE capability query. Probe once with the
     // least invasive controller RPC pair and cache the result: repeated HAL discovery
     // must not deinitialize a controller already owned by an acquired BLE interface.
     static const bool hosted_ble_available = []() {

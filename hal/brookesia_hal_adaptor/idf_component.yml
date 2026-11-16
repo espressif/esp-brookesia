@@ -105,9 +105,9 @@ dependencies:
     require: no
     matches:
       - if: "target in [esp32p4] && $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_WIFI_DEVICE} == True"
-  # TODO: workaround for the compatibility issue of the `v2.12.5` version
+  # 2.13.0+ drops strlen() on nonstring Wi-Fi fields (IDF 6.2) and 2.12.6+ fixes v2.12.5 TAG clash.
   espressif/esp_hosted:
-    version: "2.12.3"
+    version: ">=2.13.1,<3.0"
     require: no
     matches:
       - if: "target in [esp32p4] && $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_WIFI_DEVICE} == True"
