@@ -82,6 +82,7 @@ variables:
     - python .gitlab/tools/build_apps.py ${EXAMPLE_DIR} --config ${EXAMPLE_CONFIG} -t ${EXAMPLE_TARGET} --collect-size-info size_info.txt --build-jobs "${BROOKESIA_CI_BUILD_JOBS}" -vv
 
 # Target ESP-IDF versions
+# Use supported release branches; latest tracks development beyond the component IDF range.
 # Keep matrix values literal. GitLab shows raw variable names in matrix job names instead of expanded values.
 .build_idf_release_version_general:
   parallel:
@@ -100,7 +101,7 @@ variables:
       - IMAGE: "espressif/idf:release-v6.0"
         EXAMPLE_TARGET: "esp32c5"
         EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
-      - IMAGE: "espressif/idf:latest"
+      - IMAGE: "espressif/idf:release-v6.2"
         EXAMPLE_TARGET: "esp32s31"
         EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
 
@@ -113,7 +114,7 @@ variables:
       - IMAGE: "espressif/idf:release-v6.0"
         EXAMPLE_TARGET: "esp32p4"
         EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
-      - IMAGE: "espressif/idf:latest"
+      - IMAGE: "espressif/idf:release-v6.2"
         EXAMPLE_TARGET: "esp32s31"
         EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
 
@@ -124,7 +125,7 @@ variables:
         EXAMPLE_TARGET: "esp32s3"
       - IMAGE: "espressif/idf:release-v6.0"
         EXAMPLE_TARGET: "esp32p4"
-      - IMAGE: "espressif/idf:latest"
+      - IMAGE: "espressif/idf:release-v6.2"
         EXAMPLE_TARGET: "esp32s31"
 
 .build_idf_release_version_for_super:
@@ -136,9 +137,9 @@ variables:
       - IMAGE: "espressif/idf:release-v6.0"
         EXAMPLE_TARGET: "esp32p4"
         EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
-      - IMAGE: "espressif/idf:latest"
+      - IMAGE: "espressif/idf:release-v6.2"
         EXAMPLE_TARGET: "esp32p4"
         EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
-      - IMAGE: "espressif/idf:latest"
+      - IMAGE: "espressif/idf:release-v6.2"
         EXAMPLE_TARGET: "esp32s31"
         EXAMPLE_CONFIG: "sdkconfig.ci.board.*="

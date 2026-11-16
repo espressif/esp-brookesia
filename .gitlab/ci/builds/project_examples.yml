@@ -48,10 +48,10 @@ build_examples_system_gsp_app:
       - IMAGE: "espressif/idf:release-v6.0"
         EXAMPLE_TARGET: "esp32p4"
         EXAMPLE_CONFIG: "sdkconfig.ci.lvgl="
-      - IMAGE: "espressif/idf:latest"
+      - IMAGE: "espressif/idf:release-v6.2"
         EXAMPLE_TARGET: "esp32p4"
         EXAMPLE_CONFIG: "sdkconfig.ci.board.esp32_p4_function_ev="
-      - IMAGE: "espressif/idf:latest"
+      - IMAGE: "espressif/idf:release-v6.2"
         EXAMPLE_TARGET: "esp32p4"
         EXAMPLE_CONFIG: "sdkconfig.ci.lvgl="
   timeout: 3 hour
