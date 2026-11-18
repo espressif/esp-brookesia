@@ -1,5 +1,34 @@
 # ChangeLog
 
+## v0.8.6 - 2026-11-10
+
+### Breaking Changes:
+
+- break(esp-dl): additional model components must register operator/kernel requirements for pruned ESP-DL builds.
+
+### Enhancements:
+
+- feat(audio): upgrade to av_processor 0.7.0 with compatible GMF 1.0 and ESP-SR dependencies.
+- feat(audio): make processor recording and AFE support optional for playback-only firmware.
+- feat(wifi): query the actual connected SSID and identify enterprise networks in scan results.
+
+### Bug Fixes:
+
+- fix(audio): align playback codec format and processor metadata with the recorder for shared I2S clocks.
+- fix(audio): drain playback callbacks and preallocate a cleanup worker so callback-initiated close can complete safely.
+- fix(deps): omit video dependencies from audio-only builds and enable pipelines for HAL video codecs.
+- fix(adc): adapt Board Manager and codec ADC integrations to ESP-IDF 6 channel-count APIs.
+- fix(display): select the correct DPI frame callback across ESP-IDF 6.0 and 6.1.
+- fix(touch): apply the stale-report timeout to P4X GT911 controllers and keep state per controller.
+- fix(wifi): publish successful empty scans and distinguish failed scans from fresh results.
+- fix(logging): omit station and SoftAP credentials from configuration and connection logs.
+- fix(deps): require HAL Interface `>=0.8.4,<0.9` for the expanded Wi-Fi interfaces.
+- fix(deps): require `esp_hosted >=2.13.1,<3.0` for ESP-IDF 6.2 Wi-Fi compatibility.
+
+### Documentation:
+
+- docs(deps): document audio formats, playback-only builds, model requirements, and dependency patches.
+
 ## v0.8.5 - 2026-10-27
 
 ### Enhancements:

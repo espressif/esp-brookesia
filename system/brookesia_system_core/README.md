@@ -8,6 +8,53 @@
 
 For more information, see the [ESP-Brookesia Programming Guide](https://docs.espressif.com/projects/esp-brookesia/en/latest/system/core/index.html).
 
+## GSP system home and shared input
+
+ESP builds select GSP or LVGL in Kconfig. A target must enable
+`BROOKESIA_SYSTEM_CORE_ENABLE_GSP_BACKEND` before GSP is available. LVGL builds
+omit the GSP shell, scene resources and renderer dependency; application
+lifecycle and service contracts remain shared.
+
+When `System::Config` supplies `gsp_panel` and `gsp_touch`, System Core installs
+and starts its built-in GSP system home. The home lists six visible applications
+per page and refreshes the list after installation or removal. It restores saved
+language/theme preferences and holds the SNTP binding for the system lifetime.
+
+Native and JavaScript applications use the existing System Core keyboard and
+message-dialog APIs. A modal temporarily suspends the application GSP session;
+closing it resumes that session. Switching applications closes pending modal
+requests through their request manager. A failed GSP stop retains the session and
+display/touch references so it can be retried before device release.
+
+Runtime GSP apps may update the suspended scene while a modal is open. Updates
+are checked against the bundle and retained for replay, with a limit of 256
+distinct updates and a 64 KiB budget calculated from entry sizes and string
+lengths. Invalid or over-budget updates return an error. A successful page change clears the previous
+scene's cache; a failed change leaves it intact.
+
+`SystemCore.UninstallApp` removes managed runtime packages only. Native apps are
+not removable through the service, and the built-in system home is also protected
+from direct `System::uninstall_app` calls.
+
+The compiled home, keyboard and dialog scenes belong to this component. Theme
+preparation and the common Latin font come from the declared `brookesia_gui_gsp`
+dependency; using this component does not require Settings or the GSP example's
+source files.
+
+Linux GSP builds use `System::Config::gsp_desktop_display` instead of ESP display
+devices, and run the same shell, app manager and modal logic. The optional
+`app_support_check` reports a launch limitation while keeping the installed App
+visible with its error. The Toolkit entrypoint is
+`simulator/tools/brookesia_gsp_system/run.py`; its Linux guide describes package
+discovery, persistent data and hardware capabilities that are not connected.
+
+On Linux, blocking JavaScript `ShowKeyboard` and `ShowMessageDialog` calls return
+an accepted request ID before renderer startup. The ID can be used to cancel a
+pending request. Message dialogs share the same FIFO with native/system requests;
+cancelled pending dialogs are not displayed. If display fails after acceptance,
+the normal close event completes that ID once and the App retains the actual
+error. On ESP, these calls display the interface synchronously.
+
 ## USB Host Bridge
 
 On supported ESP32-P4 targets, system core can bind the USB Serial/JTAG

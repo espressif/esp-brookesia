@@ -1,0 +1,535 @@
+{
+  "screen": "super_launcher",
+  "w": 1024,
+  "h": 600,
+  "screen_bg": "#F4F5F7",
+  "font": "brookesia_gui_gsp/DejaVuSans.ttf",
+  "default_font_size": 24,
+  "objects": [
+    {
+      "type": "container",
+      "parent": -1,
+      "name": "page_background",
+      "x": 0,
+      "y": 0,
+      "w": 1024,
+      "h": 600,
+      "bg_color": {
+        "theme": "page_bg"
+      }
+    },
+    {
+      "type": "container",
+      "parent": -1,
+      "name": "header_bar",
+      "x": 0,
+      "y": 0,
+      "w": 1024,
+      "h": 74,
+      "bg_color": {
+        "theme": "surface"
+      }
+    },
+    {
+      "type": "label",
+      "parent_name": "header_bar",
+      "name": "title",
+      "bind": "title",
+      "x": 54,
+      "y": 16,
+      "w": 320,
+      "h": 42,
+      "text": "ESP-Brookesia",
+      "font_size": 32,
+      "fg_color": {
+        "theme": "text"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "label",
+      "parent_name": "header_bar",
+      "name": "subtitle",
+      "bind": "subtitle",
+      "x": 384,
+      "y": 24,
+      "w": 320,
+      "h": 30,
+      "text": "System Home",
+      "font_size": 20,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "label",
+      "parent_name": "header_bar",
+      "name": "status_clock",
+      "bind": "status_clock",
+      "x": 716,
+      "y": 22,
+      "w": 104,
+      "h": 32,
+      "text": "--:--",
+      "font_size": 22,
+      "fg_color": {
+        "theme": "text"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "button",
+      "parent_name": "header_bar",
+      "name": "open_settings",
+      "bind": "open_settings",
+      "x": 830,
+      "y": 13,
+      "w": 140,
+      "h": 48,
+      "text": "Settings",
+      "font_size": 20,
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 14,
+      "callback": "open_settings",
+      "enabled": true,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "label",
+      "parent": -1,
+      "name": "installed_caption",
+      "bind": "installed_caption",
+      "x": 54,
+      "y": 90,
+      "w": 916,
+      "h": 28,
+      "text": "Applications",
+      "font_size": 20,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "container",
+      "parent": -1,
+      "name": "app_slot_0_group",
+      "bind": "app_slot_0_group",
+      "bind_target": "visible",
+      "x": 54,
+      "y": 130,
+      "w": 288,
+      "h": 162,
+      "bg_color": "#00000000",
+      "hidden": true
+    },
+    {
+      "type": "button",
+      "name": "app_slot_0",
+      "bind": "app_slot_0",
+      "x": 0,
+      "y": 0,
+      "w": 288,
+      "h": 162,
+      "text": "Settings",
+      "font_size": 24,
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 20,
+      "callback": "open_app_0",
+      "hidden": false,
+      "enabled": true,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "app_slot_0_group"
+    },
+    {
+      "type": "label",
+      "name": "app_meta_0",
+      "bind": "app_meta_0",
+      "x": 20,
+      "y": 116,
+      "w": 248,
+      "h": 28,
+      "text": " ",
+      "font_size": 16,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "hidden": false,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "app_slot_0_group"
+    },
+    {
+      "type": "container",
+      "parent": -1,
+      "name": "app_slot_1_group",
+      "bind": "app_slot_1_group",
+      "bind_target": "visible",
+      "x": 368,
+      "y": 130,
+      "w": 288,
+      "h": 162,
+      "bg_color": "#00000000",
+      "hidden": true
+    },
+    {
+      "type": "button",
+      "name": "app_slot_1",
+      "bind": "app_slot_1",
+      "x": 0,
+      "y": 0,
+      "w": 288,
+      "h": 162,
+      "text": "App",
+      "font_size": 24,
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 20,
+      "callback": "open_app_1",
+      "hidden": false,
+      "enabled": true,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "app_slot_1_group"
+    },
+    {
+      "type": "label",
+      "name": "app_meta_1",
+      "bind": "app_meta_1",
+      "x": 20,
+      "y": 116,
+      "w": 248,
+      "h": 28,
+      "text": " ",
+      "font_size": 16,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "hidden": false,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "app_slot_1_group"
+    },
+    {
+      "type": "container",
+      "parent": -1,
+      "name": "app_slot_2_group",
+      "bind": "app_slot_2_group",
+      "bind_target": "visible",
+      "x": 682,
+      "y": 130,
+      "w": 288,
+      "h": 162,
+      "bg_color": "#00000000",
+      "hidden": true
+    },
+    {
+      "type": "button",
+      "name": "app_slot_2",
+      "bind": "app_slot_2",
+      "x": 0,
+      "y": 0,
+      "w": 288,
+      "h": 162,
+      "text": "App",
+      "font_size": 24,
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 20,
+      "callback": "open_app_2",
+      "hidden": false,
+      "enabled": true,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "app_slot_2_group"
+    },
+    {
+      "type": "label",
+      "name": "app_meta_2",
+      "bind": "app_meta_2",
+      "x": 20,
+      "y": 116,
+      "w": 248,
+      "h": 28,
+      "text": " ",
+      "font_size": 16,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "hidden": false,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "app_slot_2_group"
+    },
+    {
+      "type": "container",
+      "parent": -1,
+      "name": "app_slot_3_group",
+      "bind": "app_slot_3_group",
+      "bind_target": "visible",
+      "x": 54,
+      "y": 312,
+      "w": 288,
+      "h": 162,
+      "bg_color": "#00000000",
+      "hidden": true
+    },
+    {
+      "type": "button",
+      "name": "app_slot_3",
+      "bind": "app_slot_3",
+      "x": 0,
+      "y": 0,
+      "w": 288,
+      "h": 162,
+      "text": "App",
+      "font_size": 24,
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 20,
+      "callback": "open_app_3",
+      "hidden": false,
+      "enabled": true,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "app_slot_3_group"
+    },
+    {
+      "type": "label",
+      "name": "app_meta_3",
+      "bind": "app_meta_3",
+      "x": 20,
+      "y": 116,
+      "w": 248,
+      "h": 28,
+      "text": " ",
+      "font_size": 16,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "hidden": false,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "app_slot_3_group"
+    },
+    {
+      "type": "container",
+      "parent": -1,
+      "name": "app_slot_4_group",
+      "bind": "app_slot_4_group",
+      "bind_target": "visible",
+      "x": 368,
+      "y": 312,
+      "w": 288,
+      "h": 162,
+      "bg_color": "#00000000",
+      "hidden": true
+    },
+    {
+      "type": "button",
+      "name": "app_slot_4",
+      "bind": "app_slot_4",
+      "x": 0,
+      "y": 0,
+      "w": 288,
+      "h": 162,
+      "text": "App",
+      "font_size": 24,
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 20,
+      "callback": "open_app_4",
+      "hidden": false,
+      "enabled": true,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "app_slot_4_group"
+    },
+    {
+      "type": "label",
+      "name": "app_meta_4",
+      "bind": "app_meta_4",
+      "x": 20,
+      "y": 116,
+      "w": 248,
+      "h": 28,
+      "text": " ",
+      "font_size": 16,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "hidden": false,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "app_slot_4_group"
+    },
+    {
+      "type": "container",
+      "parent": -1,
+      "name": "app_slot_5_group",
+      "bind": "app_slot_5_group",
+      "bind_target": "visible",
+      "x": 682,
+      "y": 312,
+      "w": 288,
+      "h": 162,
+      "bg_color": "#00000000",
+      "hidden": true
+    },
+    {
+      "type": "button",
+      "name": "app_slot_5",
+      "bind": "app_slot_5",
+      "x": 0,
+      "y": 0,
+      "w": 288,
+      "h": 162,
+      "text": "App",
+      "font_size": 24,
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 20,
+      "callback": "open_app_5",
+      "hidden": false,
+      "enabled": true,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "app_slot_5_group"
+    },
+    {
+      "type": "label",
+      "name": "app_meta_5",
+      "bind": "app_meta_5",
+      "x": 20,
+      "y": 116,
+      "w": 248,
+      "h": 28,
+      "text": " ",
+      "font_size": 16,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "hidden": false,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "app_slot_5_group"
+    },
+    {
+      "type": "button",
+      "parent": -1,
+      "name": "prev_page",
+      "bind": "prev_page",
+      "x": 54,
+      "y": 506,
+      "w": 140,
+      "h": 46,
+      "text": "Previous",
+      "font_size": 20,
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 12,
+      "callback": "prev_page",
+      "enabled": false,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "label",
+      "parent": -1,
+      "name": "page_info",
+      "bind": "page_info",
+      "x": 220,
+      "y": 514,
+      "w": 584,
+      "h": 30,
+      "text": "1 / 1",
+      "font_size": 20,
+      "fg_color": {
+        "theme": "text"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "button",
+      "parent": -1,
+      "name": "next_page",
+      "bind": "next_page",
+      "x": 830,
+      "y": 506,
+      "w": 140,
+      "h": 46,
+      "text": "Next",
+      "font_size": 20,
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 12,
+      "callback": "next_page",
+      "enabled": false,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    }
+  ],
+  "themes": {
+    "accent": {
+      "type": "color",
+      "default": "#0A84FF",
+      "dynamic": true
+    },
+    "control": {
+      "type": "color",
+      "default": "#E8E8EA",
+      "dynamic": true
+    },
+    "muted": {
+      "type": "color",
+      "default": "#636366",
+      "dynamic": true
+    },
+    "on_accent": {
+      "type": "color",
+      "default": "#FFFFFF",
+      "dynamic": true
+    },
+    "page_bg": {
+      "type": "color",
+      "default": "#F4F5F7",
+      "dynamic": true
+    },
+    "surface": {
+      "type": "color",
+      "default": "#FFFFFF",
+      "dynamic": true
+    },
+    "text": {
+      "type": "color",
+      "default": "#1C1C1E",
+      "dynamic": true
+    }
+  }
+}

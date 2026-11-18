@@ -5,8 +5,10 @@
  */
 #pragma once
 
+#include <cstddef>
 #include <expected>
 #include <memory>
+#include <span>
 #include <string>
 #include <string_view>
 
@@ -41,6 +43,23 @@ public:
      * @return GUI descriptor; the default descriptor is empty for non-visual apps.
      */
     virtual AppGuiDescriptor get_gui_descriptor() const;
+
+    /**
+     * @brief Compiled GSP deployable bytes when the GUI descriptor root is GspBundle.
+     *
+     * The returned bytes must stay valid until the app is uninstalled. Core copies
+     * them into a Bundle and keeps that copy until the GSP session stops.
+     */
+    virtual std::span<const std::byte> gui_bundle() const;
+
+    /**
+     * @brief Optional generated `esp_gsp_config_t` for an embedded GSP bundle.
+     *
+     * Core uses this when the GUI root is a GSP bundle. The config and all
+     * referenced data must remain valid for the lifetime of the app object.
+     * Core retains the app until any deferred GSP cleanup has completed.
+     */
+    virtual const void *gui_runtime_config() const;
 
     /**
      * @brief Called when the application package is installed into the system.

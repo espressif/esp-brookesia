@@ -35,7 +35,7 @@ wifi_ap_config_t get_ap_config(const wifi::SoftApParams &ap_params)
 {
     BROOKESIA_LOG_TRACE_GUARD();
 
-    BROOKESIA_LOGD("Params: ap_params(%1%)", BROOKESIA_DESCRIBE_TO_STR(ap_params));
+    BROOKESIA_LOGD("Configuring SoftAP '%1%'", ap_params.ssid);
 
     // Initialize the config with default values
 #pragma GCC diagnostic push
@@ -187,7 +187,7 @@ bool SoftAp::set_soft_ap_params(const wifi::SoftApParams &params)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: params(%1%)", BROOKESIA_DESCRIBE_TO_STR(params));
+    BROOKESIA_LOGD("Setting SoftAP '%1%'", params.ssid);
 
     softap_params_ = params;
 
@@ -949,7 +949,6 @@ bool SoftAp::do_soft_ap_start(const wifi::SoftApParams *params)
     };
 
     BROOKESIA_LOGI("Starting AP(%1%) in channel '%2%'...", wifi_config.ap.ssid, wifi_config.ap.channel);
-    BROOKESIA_LOGD("With password: %1%", wifi_config.ap.password);
 
     BROOKESIA_CHECK_ESP_ERR_RETURN(esp_wifi_set_mode(WIFI_MODE_APSTA), false, "Set WiFi mode failed");
     BROOKESIA_CHECK_ESP_ERR_RETURN(esp_wifi_set_config(WIFI_IF_AP, &wifi_config), false, "Failed to set WiFi config");

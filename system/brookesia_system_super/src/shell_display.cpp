@@ -54,9 +54,11 @@ std::expected<void, std::string> ShellApp::mount_overlay(core::AppContext &conte
 
     refresh_status_clock();
     schedule_status_clock_timer();
-    refresh_wifi_status();
-    subscribe_sntp_events();
-    (void)configure_display_gesture();
+    if (start_status_event_processing()) {
+        refresh_wifi_status();
+        subscribe_sntp_events();
+        (void)configure_display_gesture();
+    }
     apply_debug_config(get_debug_config_snapshot());
     return refresh_system_ui_bindings();
 }
@@ -66,6 +68,7 @@ void ShellApp::unmount_overlay()
 {
     stop_debug_runtime();
     disconnect_overlay_actions();
+    stop_status_event_processing();
     release_display_service_binding();
     release_sntp_service_binding();
     release_wifi_service_binding();
@@ -131,9 +134,16 @@ void ShellApp::release_display_service_binding()
 bool ShellApp::configure_display_gesture()
 {
     disconnect_display_gesture();
-    if (!ensure_display_service_binding()) {
+    auto mailbox = status_mailbox_;
+    if (!mailbox || !ensure_display_service_binding()) {
         return false;
     }
+    uint64_t subscription = 0;
+    {
+        std::lock_guard lock(mailbox->mutex);
+        subscription = ++mailbox->gesture_subscription;
+    }
+    const std::weak_ptr<StatusMailbox> weak_mailbox = mailbox;
 
     auto gui_output_names = get_gui_display_output_names();
     auto outputs = DisplayService::get_instance().get_outputs();
@@ -168,8 +178,25 @@ bool ShellApp::configure_display_gesture()
         }
         configured = true;
 
-        auto gesture_callback = [this](const std::string &, const DisplayService::TouchGestureInfo & info) {
-            handle_display_touch_gesture(info);
+        auto gesture_callback = [weak_mailbox, subscription](
+                                    const std::string &, const DisplayService::TouchGestureInfo & info
+        ) {
+            if (auto state = weak_mailbox.lock()) {
+                std::lock_guard lock(state->mutex);
+                if (!state->open || state->gesture_subscription != subscription) {
+                    return;
+                }
+                auto &gestures = state->gestures;
+                if (!gestures.empty() && info.event_type == DisplayService::TouchGestureEventType::Pressing &&
+                        gestures.back().event_type == DisplayService::TouchGestureEventType::Pressing) {
+                    gestures.back() = info;
+                } else {
+                    if (gestures.size() >= 64) {
+                        gestures.clear();
+                    }
+                    gestures.push_back(info);
+                }
+            }
         };
         auto connection = DisplayService::get_instance().connect_touch_gesture(output.name, gesture_callback);
         if (!connection.connected()) {
@@ -196,8 +223,13 @@ bool ShellApp::configure_display_gesture()
 
 void ShellApp::disconnect_display_gesture()
 {
+    if (auto mailbox = status_mailbox_) {
+        std::lock_guard lock(mailbox->mutex);
+        ++mailbox->gesture_subscription;
+        mailbox->gestures.clear();
+    }
     for (const auto &connection : display_gesture_connections_) {
-        connection.disconnect();
+        connection.disconnect_without_wait();
     }
     display_gesture_connections_.clear();
     reset_gesture_indicator();

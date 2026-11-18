@@ -22,6 +22,10 @@
 #include "brookesia/system_core/system/gui_access.hpp"
 #include "brookesia/system_core/system/storage.hpp"
 
+namespace esp_brookesia::gui::gsp {
+class DesktopDisplay;
+}
+
 namespace esp_brookesia::system::core {
 
 class SystemService;
@@ -91,6 +95,16 @@ public:
 
         /** GUI backend implementation used by the system runtime. */
         std::unique_ptr<gui::IBackend> gui_backend;
+        /**
+         * Panel and touch for a GSP session. Leave both null for LVGL.
+         * They stay in use until the session has stopped.
+         */
+        void *gsp_panel = nullptr;
+        void *gsp_touch = nullptr;
+        /** Desktop GSP display; leave empty for HAL panel and touch sessions. */
+        std::shared_ptr<gui::gsp::DesktopDisplay> gsp_desktop_display;
+        /** Optional platform preflight. A reason rejects launch while retaining the installed app. */
+        std::function<std::optional<std::string>(const AppManifest &)> app_support_check;
         /** GUI and platform environment exposed to apps. */
         gui::Environment environment;
         /** Storage roots and install target policy. */
@@ -226,6 +240,8 @@ public:
     );
 
     std::vector<AppInfo> list_apps() const;
+    /** Return a platform support error for an installed app, or empty when supported. */
+    std::optional<std::string> app_support_error(AppId app_id) const;
     std::optional<AppInfo> get_app(AppId app_id) const;
     std::optional<AppInfo> get_active_app() const;
 
@@ -469,6 +485,7 @@ protected:
     virtual void on_deinit();
     virtual std::expected<void, std::string> on_app_installed(const AppInfo &app);
     virtual std::expected<void, std::string> on_app_uninstalled(const AppInfo &app);
+    virtual std::expected<void, std::string> on_prepare_app_start(AppId app_id);
     virtual std::expected<void, std::string> on_app_started(const AppInfo &app);
     virtual void on_app_start_failed(const AppInfo &app, std::string_view reason);
     virtual void on_app_stopped(const AppInfo &app);
@@ -501,6 +518,19 @@ protected:
     std::optional<std::string> get_stored_gui_language() const;
     void begin_gui_preferences_restore();
     void mark_gui_preferences_restored();
+    void *gsp_panel() const;
+    void *gsp_touch() const;
+    std::shared_ptr<gui::gsp::DesktopDisplay> gsp_desktop_display() const;
+    std::expected<AppId, std::string> suspend_gsp_session_for_modal(AppId exclude_app_id = INVALID_APP_ID);
+    std::expected<void, std::string> resume_gsp_session_after_modal(AppId app_id);
+    std::expected<void, std::string> post_system_app_task(std::function<void()> task);
+    std::expected<void, std::string> post_system_app_task_queued(std::function<void()> task);
+    std::expected<uint64_t, std::string> post_system_app_delayed_task(
+        int32_t delay_ms,
+        std::function<void()> task
+    );
+    void cancel_system_app_delayed_task(uint64_t task_id);
+    bool has_queued_message_dialogs() const;
 
     std::expected<gui::DocumentId, std::string> system_gui_load_file(
         std::string_view resource_dir,
@@ -524,6 +554,7 @@ private:
     friend class GuiService;
     friend class TimerService;
     friend class SystemGuiAccess;
+    friend class GspSystemShellApp;
 
     class Impl;
     std::expected<void, std::string> show_next_message_dialog();

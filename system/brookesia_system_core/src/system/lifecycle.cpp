@@ -96,6 +96,7 @@ std::expected<void, std::string> System::init(Config config)
     if (!impl_->configure_task_groups()) {
         return std::unexpected("Failed to configure system task groups");
     }
+#if BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
     if (config.gui_backend) {
         const bool should_lock_gui_thread = impl_->gui_thread_guard_.has_value() &&
                                             impl_->gui_thread_guard_->lock &&
@@ -119,17 +120,24 @@ std::expected<void, std::string> System::init(Config config)
                               );
         impl_->gui_runtime_->set_view_debug_enabled(config.enable_gui_view_debug);
     }
+#endif
     impl_->config_ = std::move(config);
+    impl_->gsp_panel_ = impl_->config_.gsp_panel;
+    impl_->gsp_touch_ = impl_->config_.gsp_touch;
+    auto held_devices = impl_->hold_gsp_display_devices();
+    if (!held_devices) {
+        return held_devices;
+    }
     auto storage_path_resolver = [this](
                                      runtime::AppId runtime_app_id,
                                      const StorageFileLocation & location
     ) -> std::expected<std::string, std::string> {
-        auto it = impl_->runtime_to_app_.find(runtime_app_id);
-        if (it == impl_->runtime_to_app_.end())
+        auto owner = impl_->runtime_owner(runtime_app_id);
+        if (!owner)
         {
             return std::unexpected("Runtime app owner not found");
         }
-        return impl_->resolve_storage_file_path(it->second, location);
+        return impl_->resolve_storage_file_path(*owner, location);
     };
     auto event_dispatcher = [this](
                                 runtime::AppId runtime_app_id,
@@ -137,12 +145,12 @@ std::expected<void, std::string> System::init(Config config)
                                 std::string event_name,
                                 std::string items_json
     ) -> std::expected<void, std::string> {
-        auto it = impl_->runtime_to_app_.find(runtime_app_id);
-        if (it == impl_->runtime_to_app_.end())
+        auto owner = impl_->runtime_owner(runtime_app_id);
+        if (!owner)
         {
             return std::unexpected("Runtime app owner not found");
         }
-        const AppId app_id = it->second;
+        const AppId app_id = *owner;
         auto task = [
         this,
         app_id,
@@ -163,11 +171,15 @@ std::expected<void, std::string> System::init(Config config)
         };
         return impl_->post_task(SYSTEM_APP_INPUT_TASK_GROUP, std::move(task));
     };
+    auto gsp_updater = [this](runtime::AppId runtime_app_id, const SystemHostBridge::GspUpdate & update) {
+        return impl_->apply_runtime_gsp_update(runtime_app_id, update);
+    };
     impl_->host_bridge_ = std::make_shared<SystemHostBridge>(
                               std::make_shared<runtime::RuntimeFunctionBridge>(),
                               impl_->task_scheduler_,
                               std::move(storage_path_resolver),
-                              std::move(event_dispatcher)
+                              std::move(event_dispatcher),
+                              std::move(gsp_updater)
                           );
     impl_->runtime_function_bridge_ = impl_->host_bridge_->get_function_bridge();
     impl_->runtime_ = std::make_unique<runtime::Runtime>(impl_->host_bridge_);
@@ -410,29 +422,71 @@ void System::deinit()
     }
     stop();
     impl_->hide_startup_overlay();
-    for (auto &[_, record] : impl_->apps_) {
+    auto shell_stopped = impl_->run_task_sync<std::expected<void, std::string>>(
+                             SYSTEM_APP_TASK_GROUP,
+    [this]() {
+        return impl_->stop_gsp_shell_session();
+    },
+    std::unexpected("Failed to post GSP shell stop task")
+                         );
+    if (!shell_stopped) {
+        BROOKESIA_LOGE("GSP modal stop failed; keeping system and HAL ownership: %1%", shell_stopped.error());
+        return;
+    }
+    const auto records = impl_->snapshot_app_records();
+    // Complete every fallible session stop before invoking irreversible uninstall callbacks.
+    for (const auto &record_owner : records) {
+        auto &record = *record_owner;
         if (record.info.state == AppState::Running || record.info.state == AppState::Paused) {
             auto stop_result = stop_app(record.info.app_id);
             if (!stop_result) {
-                BROOKESIA_LOGW(
+                BROOKESIA_LOGE(
                     "Failed to stop app while deinitializing system: app_id(%1%), error(%2%)",
                     record.info.app_id,
                     stop_result.error()
                 );
+                return;
             }
         }
+        const AppId app_id = record.info.app_id;
+        auto *record_ptr = &record;
+        auto gsp_stopped = impl_->run_task_sync<std::expected<void, std::string>>(
+                               SYSTEM_GUI_TASK_GROUP,
+        [this, record_ptr]() {
+            return impl_->stop_gsp_session(*record_ptr);
+        },
+        std::unexpected("Failed to post GSP stop task")
+                           );
+        if (!gsp_stopped || impl_->gsp_session_running(record)) {
+            BROOKESIA_LOGE(
+                "GSP stop failed while deinitializing system; keeping the app record: app_id(%1%)",
+                app_id
+            );
+            return;
+        }
+    }
+    if (impl_->any_gsp_session_running()) {
+        BROOKESIA_LOGE("GSP sessions remain active; keeping the system initialized for another stop attempt");
+        return;
+    }
+    for (const auto &record_owner : records) {
+        auto &record = *record_owner;
+        const AppId app_id = record.info.app_id;
+        auto *record_ptr = &record;
         if (record.native_app && record.context) {
             record.native_app->on_uninstall(*record.context);
         }
         impl_->cancel_app_timers(record);
         impl_->unload_runtime(record);
-        const AppId app_id = record.info.app_id;
-        auto *record_ptr = &record;
         auto cleanup_result = impl_->run_task_sync<std::expected<void, std::string>>(
                                   SYSTEM_GUI_TASK_GROUP,
         [this, record_ptr, app_id]() -> std::expected<void, std::string> {
             impl_->clear_pending_gui_bindings(app_id);
-            impl_->unload_gui(*record_ptr);
+            auto unloaded = impl_->unload_gui(*record_ptr);
+            if (!unloaded)
+            {
+                return unloaded;
+            }
             impl_->unregister_app_gui_resources(*record_ptr);
             impl_->unregister_app_icon_resource(*record_ptr);
             return {};
@@ -447,8 +501,21 @@ void System::deinit()
             );
         }
     }
-    impl_->apps_.clear();
-    impl_->manifest_id_to_app_.clear();
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
+    impl_->gsp_sntp_binding_.release();
+    impl_->gsp_shell_app_.reset();
+    impl_->gsp_shell_app_id_ = INVALID_APP_ID;
+    impl_->gsp_stopping_ = false;
+    impl_->gsp_launching_app_ = false;
+#endif
+    impl_->release_gsp_display_devices();
+    decltype(impl_->apps_) removed_apps;
+    {
+        std::lock_guard lock(impl_->app_records_mutex_);
+        removed_apps.swap(impl_->apps_);
+        impl_->manifest_id_to_app_.clear();
+    }
+    removed_apps.clear();
     impl_->image_resource_owners_.clear();
     impl_->font_resource_owners_.clear();
     impl_->system_service_binding_.release();
@@ -478,15 +545,71 @@ void System::deinit()
     if (!gui_cleanup_result) {
         BROOKESIA_LOGW("Failed to cleanup GUI runtime while deinitializing system: %1%", gui_cleanup_result.error());
     }
-    impl_->gui_thread_guard_.reset();
     if (impl_->task_scheduler_) {
         impl_->task_scheduler_->stop();
         impl_->task_scheduler_.reset();
+    }
+    // The synchronous cleanup task can finish before its post-execution callback
+    // releases the GUI guard. Keep the guard alive until all workers have joined.
+    {
+        std::lock_guard<std::recursive_mutex> runtime_lock(impl_->gui_runtime_mutex_);
+        impl_->gui_thread_guard_.reset();
     }
     impl_->runtime_initialized_ = false;
     on_deinit();
     impl_->initialized_ = false;
     BROOKESIA_LOGI("System core deinitialized");
+}
+
+void System::Impl::abandon_system_references()
+{
+    detach_gsp_callbacks();
+    detach_gsp_shell_callbacks();
+    // A queued service event can still use the runtime. Stop new posts and join
+    // scheduler workers before destroying that runtime after a failed GSP stop.
+    if (host_bridge_) {
+        host_bridge_->stop_event_dispatch();
+    }
+    if (task_scheduler_) {
+        task_scheduler_->stop();
+        task_scheduler_.reset();
+    }
+    system_service_binding_.release();
+    gui_service_binding_.release();
+    timer_service_binding_.release();
+#if defined(ESP_PLATFORM) && CONFIG_BROOKESIA_SYSTEM_CORE_ENABLE_USB_BRIDGE
+    usb_service_binding_.release();
+    service::Usb::get_instance().clear_service_call_bridge();
+    service::Usb::get_instance().clear_host_command_bridge();
+#endif
+    auto &service_manager = service::ServiceManager::get_instance();
+    service_manager.remove_service(BROOKESIA_SYSTEM_CORE_TIMER_SERVICE_NAME);
+    service_manager.remove_service(BROOKESIA_SYSTEM_CORE_GUI_SERVICE_NAME);
+    service_manager.remove_service(BROOKESIA_SYSTEM_CORE_SERVICE_NAME);
+    timer_service_.reset();
+    gui_service_.reset();
+    system_service_.reset();
+    if (runtime_) {
+        runtime_->deinit();
+        runtime_.reset();
+    }
+    host_bridge_.reset();
+    runtime_function_bridge_.reset();
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
+    decltype(apps_) abandoned_apps;
+    {
+        std::lock_guard lock(app_records_mutex_);
+        abandoned_apps.swap(apps_);
+    }
+    abandoned_apps.clear();
+    gsp_shell_app_.reset();
+#endif
+    {
+        std::lock_guard<std::recursive_mutex> runtime_lock(gui_runtime_mutex_);
+        gui_runtime_.reset();
+        gui_thread_guard_.reset();
+    }
+    runtime_initialized_ = false;
 }
 
 void System::process_timers()

@@ -985,8 +985,20 @@ public:
     public:
         using ReceivedItmes = std::vector<EventItem>;
 
+    private:
+        struct CallbackState {
+            std::mutex mutex;
+            std::condition_variable cv;
+            std::vector<ReceivedItmes> received_items;
+            uint64_t generation = 0;
+        };
+
+    public:
         EventMonitor() = default;
-        ~EventMonitor() = default;
+        ~EventMonitor()
+        {
+            stop();
+        }
 
         EventMonitor(const EventMonitor &) = delete;
         EventMonitor &operator=(const EventMonitor &) = delete;
@@ -999,22 +1011,35 @@ public:
          */
         bool start()
         {
-            if (is_running()) {
+            auto state = state_;
+            if (!state) {
+                return false;
+            }
+            std::lock_guard<std::mutex> lock(state->mutex);
+            if (connection_.connected()) {
                 return true;
             }
 
-            std::lock_guard<std::mutex> lock(mutex_);
+            const auto generation = ++state->generation;
+            const std::weak_ptr<CallbackState> weak_state = state;
             connection_ = subscribe_event(EventIdValue,
-            [this](const std::string & event_name, const EventItemMap & items) {
+            [weak_state, generation](const std::string & event_name, const EventItemMap & items) {
                 (void)event_name;
-                std::lock_guard<std::mutex> lock(mutex_);
+                auto state = weak_state.lock();
+                if (!state) {
+                    return;
+                }
+                std::lock_guard<std::mutex> lock(state->mutex);
+                if (state->generation != generation) {
+                    return;
+                }
                 ReceivedItmes event;
                 event.reserve(items.size());
                 for (const auto &[name, item] : items) {
                     event.push_back(item);
                 }
-                received_items_.push_back(std::move(event));
-                cv_.notify_all();
+                state->received_items.push_back(std::move(event));
+                state->cv.notify_all();
             });
 
             return connection_.connected();
@@ -1025,16 +1050,14 @@ public:
          */
         void stop()
         {
-            if (!is_running()) {
+            auto state = state_;
+            if (!state) {
                 return;
             }
-
-            {
-                std::lock_guard<std::mutex> lock(mutex_);
-                connection_.disconnect();
-            }
-
-            clear();
+            std::lock_guard<std::mutex> lock(state->mutex);
+            ++state->generation;
+            connection_.disconnect_without_wait();
+            state->received_items.clear();
         }
 
         /**
@@ -1042,8 +1065,8 @@ public:
          */
         void clear()
         {
-            std::lock_guard<std::mutex> lock(mutex_);
-            received_items_.clear();
+            std::lock_guard<std::mutex> lock(state_->mutex);
+            state_->received_items.clear();
         }
 
         /**
@@ -1059,18 +1082,18 @@ public:
                 return false;
             }
 
-            std::unique_lock<std::mutex> lock(mutex_);
+            std::unique_lock<std::mutex> lock(state_->mutex);
 
             auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
 
             while (true) {
-                for (const auto &items : received_items_) {
+                for (const auto &items : state_->received_items) {
                     if (items == expected_items) {
                         return true;
                     }
                 }
 
-                if (cv_.wait_until(lock, deadline) == std::cv_status::timeout) {
+                if (state_->cv.wait_until(lock, deadline) == std::cv_status::timeout) {
                     return false;
                 }
             }
@@ -1084,15 +1107,15 @@ public:
          */
         bool wait_for_any(uint32_t timeout_ms)
         {
-            std::unique_lock<std::mutex> lock(mutex_);
+            std::unique_lock<std::mutex> lock(state_->mutex);
 
-            if (!received_items_.empty()) {
+            if (!state_->received_items.empty()) {
                 return true;
             }
 
             auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
-            return cv_.wait_until(lock, deadline, [this]() {
-                return !received_items_.empty();
+            return state_->cv.wait_until(lock, deadline, [this]() {
+                return !state_->received_items.empty();
             });
         }
 
@@ -1102,8 +1125,8 @@ public:
          */
         size_t get_count() const
         {
-            std::lock_guard<std::mutex> lock(mutex_);
-            return received_items_.size();
+            std::lock_guard<std::mutex> lock(state_->mutex);
+            return state_->received_items.size();
         }
 
         /**
@@ -1114,8 +1137,8 @@ public:
          */
         bool has(const ReceivedItmes &expected_items) const
         {
-            std::lock_guard<std::mutex> lock(mutex_);
-            for (const auto &items : received_items_) {
+            std::lock_guard<std::mutex> lock(state_->mutex);
+            for (const auto &items : state_->received_items) {
                 if (items == expected_items) {
                     return true;
                 }
@@ -1129,8 +1152,8 @@ public:
          */
         const std::vector<ReceivedItmes> &get_all() const
         {
-            std::lock_guard<std::mutex> lock(mutex_);
-            return received_items_;
+            std::lock_guard<std::mutex> lock(state_->mutex);
+            return state_->received_items;
         }
 
         /**
@@ -1139,11 +1162,11 @@ public:
          */
         std::optional<ReceivedItmes> get_last() const
         {
-            std::lock_guard<std::mutex> lock(mutex_);
-            if (received_items_.empty()) {
+            std::lock_guard<std::mutex> lock(state_->mutex);
+            if (state_->received_items.empty()) {
                 return std::nullopt;
             }
-            return received_items_.back();
+            return state_->received_items.back();
         }
 
     private:
@@ -1176,10 +1199,10 @@ public:
         template<typename... Args>
         std::vector<std::tuple<Args...>> get_all() const
         {
-            std::lock_guard<std::mutex> lock(mutex_);
+            std::lock_guard<std::mutex> lock(state_->mutex);
             std::vector<std::tuple<Args...>> result;
 
-            for (const auto &items : received_items_) {
+            for (const auto &items : state_->received_items) {
                 if (items.size() >= sizeof...(Args)) {
                     auto extracted = try_extract_items<Args...>(items, std::index_sequence_for<Args...> {});
                     if (extracted) {
@@ -1219,11 +1242,11 @@ public:
         template<typename... Args>
         std::optional<std::tuple<Args...>> get_last() const
         {
-            std::lock_guard<std::mutex> lock(mutex_);
-            if (received_items_.empty()) {
+            std::lock_guard<std::mutex> lock(state_->mutex);
+            if (state_->received_items.empty()) {
                 return std::nullopt;
             }
-            return try_extract_items<Args...>(received_items_.back(), std::index_sequence_for<Args...> {});
+            return try_extract_items<Args...>(state_->received_items.back(), std::index_sequence_for<Args...> {});
         }
 
         /**
@@ -1232,15 +1255,13 @@ public:
          */
         bool is_running() const
         {
-            std::lock_guard<std::mutex> lock(mutex_);
+            std::lock_guard<std::mutex> lock(state_->mutex);
             return connection_.connected();
         }
 
     private:
-        mutable std::mutex mutex_;
-        std::condition_variable cv_;
+        std::shared_ptr<CallbackState> state_ = std::make_shared<CallbackState>();
         EventRegistry::SignalConnection connection_;
-        std::vector<ReceivedItmes> received_items_;
     };
 };
 

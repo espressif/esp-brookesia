@@ -77,6 +77,7 @@ public:
         TriggerSoftApProvisionStop,
         LoadData,
         ResetData,
+        GetConnectedSsid, ///< Current connected SSID, or an empty string when disconnected.
         Max,
     };
 
@@ -307,6 +308,15 @@ private:
                 "Also clears Storage data.",
                 .parameters = std::span<const FunctionParameterSpec>{},
             },
+            {
+                .name = "GetConnectedSsid",
+                .description = "Get the established connection's SSID, independently of the next connection target.",
+                .parameters = std::span<const FunctionParameterSpec>{},
+                .return_value = FunctionReturnSpec{
+                    .type = FunctionValueType::String,
+                    .description = "Connected SSID, or an empty string when not connected. Contains no credentials.",
+                },
+            },
         }
     };
     static_assert(FUNCTION_SPECS.size() == static_cast<size_t>(FunctionId::Max));
@@ -464,7 +474,7 @@ BROOKESIA_DESCRIBE_ENUM(
     TriggerGeneralAction, GetGeneralState, SetConnectAp, GetConnectAp, GetConnectedAps,
     RemoveConnectedAp, SetScanParams, TriggerScanStart, TriggerScanStop,
     SetSoftApParams, GetSoftApParams, TriggerSoftApStart, TriggerSoftApStop,
-    TriggerSoftApProvisionStart, TriggerSoftApProvisionStop, LoadData, ResetData,
+    TriggerSoftApProvisionStart, TriggerSoftApProvisionStop, LoadData, ResetData, GetConnectedSsid,
     Max
 );
 

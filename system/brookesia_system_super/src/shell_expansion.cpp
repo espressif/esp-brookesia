@@ -103,7 +103,7 @@ void ShellApp::start_expansion_notifications()
 
 void ShellApp::stop_expansion_notifications()
 {
-    expansion_event_connection_.disconnect();
+    expansion_event_connection_.disconnect_without_wait();
     expansion_notifications_.reset();
     if (context_ != nullptr && expansion_notification_timer_id_ != core::INVALID_TIMER_ID) {
         (void)context_->timer().stop(expansion_notification_timer_id_);

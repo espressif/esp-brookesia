@@ -5,12 +5,11 @@
  */
 #pragma once
 
-#include <cstddef>
-#include "brookesia/system_core/macro_configs.h"
 #include <atomic>
+#include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <expected>
-#include <chrono>
 #include <filesystem>
 #include <map>
 #include <memory>
@@ -21,6 +20,17 @@
 #include <string_view>
 #include <vector>
 
+#include "brookesia/system_core/macro_configs.h"
+
+#if __has_include("sdkconfig.h")
+#   include "sdkconfig.h"
+#endif
+#ifndef CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#   define CONFIG_BROOKESIA_GUI_BACKEND_GSP 0
+#endif
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#   include "brookesia/gui_gsp/app_host.hpp"
+#endif
 #include "boost/json.hpp"
 #include "boost/thread/future.hpp"
 #if defined(__EMSCRIPTEN__)
@@ -32,6 +42,9 @@
 #include "brookesia/system_core/service/timer.hpp"
 #include "brookesia/system_core/system/system.hpp"
 #include "private/runtime/host_bridge.hpp"
+#if !BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
+#   include "private/system/json_gui_unavailable.hpp"
+#endif
 
 namespace esp_brookesia::system::core {
 
@@ -77,6 +90,25 @@ public:
         bool runtime_loaded = false;
         bool runtime_started = false;
         bool preload_dom = false;
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
+        struct GspCallbackGate {
+            std::mutex mutex;
+            Impl *impl = nullptr;
+        };
+        struct GspEventTarget {
+            std::shared_ptr<GspCallbackGate> gate;
+            AppId app_id = INVALID_APP_ID;
+            std::shared_ptr<std::atomic<uint64_t>> epoch;
+        };
+        std::unique_ptr<gui::gsp::AppHost> gsp_host;
+        std::shared_ptr<const gui::gsp::BundleContract> gsp_suspended_contract;
+        std::shared_ptr<std::atomic<uint64_t>> gsp_epoch;
+        std::shared_ptr<GspEventTarget> gsp_event_target;
+        uint16_t gsp_current_scene = 0;
+        bool gsp_scene_known = false;
+        bool gsp_suspended = false;
+        std::vector<SystemHostBridge::GspUpdate> gsp_scene_updates;
+#endif
     };
 
     struct PendingTimer {
@@ -197,17 +229,39 @@ public:
     std::expected<void, std::string> subscribe_gui_action_now(AppId app_id, std::string action);
     std::expected<void, std::string> subscribe_gui_actions_now(AppId app_id, const std::vector<std::string> &actions);
 
-    std::expected<AppRecord *, std::string> get_record(AppId app_id);
-    std::expected<const AppRecord *, std::string> get_record(AppId app_id) const;
+    std::expected<std::shared_ptr<AppRecord>, std::string> get_record(AppId app_id);
+    std::expected<std::shared_ptr<const AppRecord>, std::string> get_record(AppId app_id) const;
+    std::vector<std::shared_ptr<AppRecord>> snapshot_app_records() const;
+    bool has_manifest(std::string_view manifest_id) const;
+    std::optional<AppId> runtime_owner(runtime::AppId runtime_app_id) const;
     void cleanup_app_transient_resources(AppRecord &record);
 
     std::expected<void, std::string> ensure_runtime_initialized();
     std::expected<void, std::string> ensure_gui_loaded(AppRecord &record, bool enable_idle_warm = true);
+    std::expected<void, std::string> ensure_gsp_loaded(AppRecord &record);
+    std::expected<void, std::string> stop_gsp_session(AppRecord &record);
+    std::expected<void, std::string> apply_runtime_gsp_update(
+        runtime::AppId runtime_app_id, const SystemHostBridge::GspUpdate &update
+    );
+    bool gsp_session_running(const AppRecord &record) const;
+    bool any_gsp_session_running() const;
+    bool gsp_shell_session_running() const;
+    std::expected<void, std::string> stop_gsp_shell_session();
+    void detach_gsp_shell_callbacks();
+    std::expected<void, std::string> hold_gsp_display_devices();
+    void release_gsp_display_devices();
+    void detach_gsp_callbacks();
+    void abandon_system_references();
+    bool discard_app_record(AppId app_id);
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
+    void dispatch_gsp_event(AppId app_id, const esp_gsp_event_t *event, uint64_t epoch);
+    static void forward_gsp_event(esp_gsp_handle_t gsp, const esp_gsp_event_t *event, void *user_ctx);
+#endif
     std::expected<void, std::string> prepare_installed_app_gui(AppRecord &record);
     void release_app_gui_presentation(AppRecord &record);
     void cleanup_stopped_app_gui(AppRecord &record);
-    void rollback_installed_app_gui(AppRecord &record);
-    void unload_gui(AppRecord &record);
+    std::expected<void, std::string> rollback_installed_app_gui(AppRecord &record);
+    std::expected<void, std::string> unload_gui(AppRecord &record);
     std::expected<void, std::string> enable_live_preview_for_document(
         gui::DocumentId document_id,
         const gui::LivePreviewOptions &options
@@ -288,12 +342,28 @@ public:
     // worker threads and the app task.
     mutable std::recursive_mutex timer_map_mutex_;
     mutable std::mutex gui_binding_mutex_;
+    mutable std::mutex app_records_mutex_;
     mutable std::recursive_mutex app_callback_mutex_;
     mutable std::recursive_mutex gui_runtime_mutex_;
     Config config_;
     std::string system_type_ = BROOKESIA_SYSTEM_CORE_DEFAULT_SYSTEM_TYPE;
     gui::Environment environment_;
+#if BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
     std::unique_ptr<gui::Runtime> gui_runtime_;
+#else
+    std::unique_ptr<JsonGuiUnavailable> gui_runtime_;
+#endif
+    void *gsp_panel_ = nullptr;
+    void *gsp_touch_ = nullptr;
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
+    std::shared_ptr<hal::InterfaceHandle<hal::display::PanelIface>> gsp_panel_owner_;
+    std::shared_ptr<hal::InterfaceHandle<hal::display::TouchIface>> gsp_touch_owner_;
+    std::shared_ptr<IApp> gsp_shell_app_;
+    AppId gsp_shell_app_id_ = INVALID_APP_ID;
+    service::ServiceBinding gsp_sntp_binding_;
+    bool gsp_stopping_ = false;
+    bool gsp_launching_app_ = false;
+#endif
     std::optional<gui::IBackend::ThreadGuard> gui_thread_guard_;
     std::shared_ptr<SystemHostBridge> host_bridge_;
     std::shared_ptr<runtime::RuntimeFunctionBridge> runtime_function_bridge_;
@@ -311,10 +381,11 @@ public:
     // service only while it has an active binding to it.
     service::ServiceBinding usb_service_binding_;
 #endif
-    std::map<AppId, AppRecord> apps_;
+    std::map<AppId, std::shared_ptr<AppRecord>> apps_;
     std::map<std::string, AppId> manifest_id_to_app_;
     std::map<KeyboardRequestId, KeyboardRequestRecord> keyboard_requests_;
     std::map<MessageDialogRequestId, MessageDialogRequestRecord> message_dialog_requests_;
+    size_t modal_result_notification_depth_ = 0;
     std::vector<MessageDialogRequestId> queued_message_dialog_requests_;
     std::optional<MessageDialogRequestId> active_message_dialog_request_id_;
     std::map<std::string, AppId> image_resource_owners_;

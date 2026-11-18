@@ -59,18 +59,23 @@ void SettingsApp::subscribe_sntp_events()
         return;
     }
 
+    const std::weak_ptr<WifiUiMailbox> weak_mailbox = wifi_ui_mailbox_;
     const service::EventRegistry::SignalSlot state_callback =
-        [this](const std::string &, const service::EventItemMap &items) {
+        [weak_mailbox](const std::string &, const service::EventItemMap &items) {
         const auto *state = std::get_if<std::string>(find_event_item(items, "State"));
         if (!state) {
             return;
         }
-        time_zone_ui_state_.state = *state;
-        if (context_ == nullptr) {
-            return;
-        }
-        if (auto result = refresh_time_zone_state(*context_); !result) {
-            BROOKESIA_LOGW("Failed to refresh Time zone state after SNTP event: %1%", result.error());
+        if (auto mailbox = weak_mailbox.lock()) {
+            mailbox->enqueue([state = *state](SettingsApp &app) {
+                app.time_zone_ui_state_.state = state;
+                if (app.context_ == nullptr) {
+                    return;
+                }
+                if (auto result = app.refresh_time_zone_state(*app.context_); !result) {
+                    BROOKESIA_LOGW("Failed to refresh Time zone state after SNTP event: %1%", result.error());
+                }
+            });
         }
     };
     auto state_connection = SNTPHelper::subscribe_event(SNTPHelper::EventId::StateChanged, state_callback);
@@ -83,6 +88,9 @@ void SettingsApp::subscribe_sntp_events()
 
 void SettingsApp::disconnect_sntp_events()
 {
+    for (auto &connection : sntp_event_connections_) {
+        connection.disconnect_without_wait();
+    }
     sntp_event_connections_.clear();
 }
 
@@ -124,6 +132,39 @@ std::expected<void, std::string> SettingsApp::refresh_time_zone_page_state(syste
     const auto unavailable = make_localized_unavailable_text(current_locale_);
     const auto timezone_text = time_zone_ui_state_.timezone.empty() ? unavailable : time_zone_ui_state_.timezone;
     const auto state_text = time_zone_ui_state_.state.empty() ? unavailable : time_zone_ui_state_.state;
+
+    if (settings_uses_gsp_backend()) {
+        if (current_page_ != PAGE_TIME_ZONE) {
+            return {};
+        }
+        TimeZonePageView view;
+        view.current_timezone = time_zone_ui_state_.timezone.empty() ?
+                                unavailable :
+                                (get_time_zone_summary_name(current_locale_, time_zone_ui_state_.timezone) +
+                                 " (" + time_zone_ui_state_.timezone + ")");
+        view.sntp_state = state_text;
+        static constexpr std::pair<std::string_view, std::string_view> SNTP_STATE_LABELS[] = {
+            {"Stopped", "gsp.sntp_stopped"},
+            {"CheckingNetwork", "gsp.sntp_checking_network"},
+            {"Syncing", "gsp.sntp_syncing"},
+            {"Synced", "gsp.sntp_synced"},
+        };
+        for (const auto &[state, label] : SNTP_STATE_LABELS) {
+            if (state_text == state) {
+                view.sntp_state = localized_text(current_locale_, label);
+                break;
+            }
+        }
+        view.status = localized_text(current_locale_, "gsp.time_zone_hint");
+        for (size_t i = 0; i < TIME_ZONE_OPTIONS.size() && i < view.labels.size(); ++i) {
+            const auto &option = TIME_ZONE_OPTIONS[i];
+            view.labels[i] = get_time_zone_summary_name(current_locale_, option.timezone);
+            view.values[i] = (option.timezone == time_zone_ui_state_.timezone) ?
+                             (localized_text(current_locale_, "current") + " | " + std::string(option.timezone)) :
+                             std::string(option.timezone);
+        }
+        return surface_->set_time_zone(context, view);
+    }
 
     std::vector<gui::BindingValueUpdate> updates;
     add_binding_update(
@@ -255,10 +296,28 @@ void SettingsApp::apply_wifi_enabled_preference_to_service()
         return;
     }
 
+    if (settings_uses_gsp_backend()) {
+        auto state = WifiHelper::call_function_sync<std::string>(
+                         WifiHelper::FunctionId::GetGeneralState, service::helper::Timeout(WIFI_SERVICE_TIMEOUT_MS)
+                     );
+        if (state && is_wifi_started_state(*state) != wifi_ui_state_.enabled) {
+            auto result = WifiHelper::call_function_sync(
+                              WifiHelper::FunctionId::TriggerGeneralAction,
+                              wifi_ui_state_.enabled ? "Start" : "Stop",
+                              service::helper::Timeout(WIFI_SERVICE_TIMEOUT_MS)
+                          );
+            if (!result) {
+                BROOKESIA_LOGW("Failed to restore Wi-Fi preference: %1%", result.error());
+            }
+        }
+        return;
+    }
+
     const auto preferred_enabled = wifi_ui_state_.enabled;
-    const auto generation = wifi_operation_generation_;
-    const auto state_handler = [this, preferred_enabled, generation](service::FunctionResult && result) {
-        if (generation != wifi_operation_generation_ || preferred_enabled != wifi_ui_state_.enabled) {
+    const auto generation_token = impl_->wifi_operation_generation;
+    const auto generation = generation_token->load();
+    const auto state_handler = [preferred_enabled, generation_token, generation](service::FunctionResult && result) {
+        if (generation != generation_token->load()) {
             return;
         }
         if (!result.success) {
@@ -278,8 +337,8 @@ void SettingsApp::apply_wifi_enabled_preference_to_service()
 
         const auto action = preferred_enabled ? WifiHelper::GeneralAction::Start : WifiHelper::GeneralAction::Stop;
         const auto action_name = BROOKESIA_DESCRIBE_TO_STR(action);
-        const auto action_handler = [this, action_name, generation](service::FunctionResult && action_result) {
-            if (generation != wifi_operation_generation_) {
+        const auto action_handler = [action_name, generation_token, generation](service::FunctionResult && action_result) {
+            if (generation != generation_token->load()) {
                 return;
             }
             if (action_result.success) {
@@ -307,18 +366,23 @@ void SettingsApp::apply_wifi_enabled_preference_to_service()
 void SettingsApp::subscribe_wifi_events()
 {
     disconnect_wifi_events();
-    if (!wifi_ui_state_.service_ready) {
+    if (!wifi_ui_state_.service_ready || !wifi_ui_mailbox_) {
         return;
     }
+    const std::weak_ptr<WifiUiMailbox> weak_mailbox = wifi_ui_mailbox_;
 
     const service::EventRegistry::SignalSlot general_callback =
-        [this](const std::string &, const service::EventItemMap &items) {
+        [weak_mailbox](const std::string &, const service::EventItemMap &items) {
         const auto *event = std::get_if<std::string>(find_event_item(items, "Event"));
         const auto *unexpected = std::get_if<bool>(find_event_item(items, "IsUnexpected"));
         if (!event || !unexpected) {
             return;
         }
-        handle_wifi_general_event(*event, *unexpected);
+        if (auto mailbox = weak_mailbox.lock()) {
+            mailbox->enqueue([event = *event, unexpected = *unexpected](SettingsApp &app) {
+                app.handle_wifi_general_event(event, unexpected);
+            });
+        }
     };
     auto general_connection = WifiHelper::subscribe_event(
                                   WifiHelper::EventId::GeneralEventHappened,
@@ -331,12 +395,16 @@ void SettingsApp::subscribe_wifi_events()
     }
 
     const service::EventRegistry::SignalSlot scan_state_callback =
-        [this](const std::string &, const service::EventItemMap &items) {
+        [weak_mailbox](const std::string &, const service::EventItemMap &items) {
         const auto *running = std::get_if<bool>(find_event_item(items, "IsRunning"));
         if (!running) {
             return;
         }
-        handle_wifi_scan_state_changed(*running);
+        if (auto mailbox = weak_mailbox.lock()) {
+            mailbox->enqueue([running = *running](SettingsApp &app) {
+                app.handle_wifi_scan_state_changed(running);
+            });
+        }
     };
     auto scan_state_connection = WifiHelper::subscribe_event(
                                      WifiHelper::EventId::ScanStateChanged,
@@ -349,12 +417,16 @@ void SettingsApp::subscribe_wifi_events()
     }
 
     const service::EventRegistry::SignalSlot scan_infos_callback =
-        [this](const std::string &, const service::EventItemMap &items) {
+        [weak_mailbox](const std::string &, const service::EventItemMap &items) {
         const auto *ap_infos_json = std::get_if<boost::json::array>(find_event_item(items, "ApInfos"));
         if (!ap_infos_json) {
             return;
         }
-        handle_wifi_scan_ap_infos_updated(*ap_infos_json);
+        if (auto mailbox = weak_mailbox.lock()) {
+            mailbox->enqueue([ap_infos = *ap_infos_json](SettingsApp &app) {
+                app.handle_wifi_scan_ap_infos_updated(ap_infos);
+            });
+        }
     };
     auto scan_infos_connection = WifiHelper::subscribe_event(
                                      WifiHelper::EventId::ScanApInfosUpdated,
@@ -369,6 +441,9 @@ void SettingsApp::subscribe_wifi_events()
 
 void SettingsApp::disconnect_wifi_events()
 {
+    for (auto &connection : wifi_event_connections_) {
+        connection.disconnect_without_wait();
+    }
     wifi_event_connections_.clear();
 }
 
@@ -394,8 +469,8 @@ void SettingsApp::rebuild_available_wifi_networks()
     );
 
     const auto connected_state = BROOKESIA_DESCRIBE_TO_STR(WifiHelper::GeneralState::Connected);
-    const bool should_filter_target_ssid = wifi_ui_state_.general_state == connected_state ||
-                                           wifi_ui_state_.connecting;
+    const bool should_filter_target_ssid = !settings_uses_gsp_backend() &&
+                                          (wifi_ui_state_.general_state == connected_state || wifi_ui_state_.connecting);
     std::vector<WifiHelper::ScanApInfo> best_ap_infos;
     for (const auto &ap : last_wifi_scan_ap_infos_) {
         if (ap.ssid.empty()) {
@@ -405,7 +480,7 @@ void SettingsApp::rebuild_available_wifi_networks()
                 ap.ssid == wifi_ui_state_.connected_ssid) {
             continue;
         }
-        if (is_saved_wifi_ssid(ap.ssid)) {
+        if (!settings_uses_gsp_backend() && is_saved_wifi_ssid(ap.ssid)) {
             continue;
         }
 
@@ -452,8 +527,10 @@ void SettingsApp::rebuild_available_wifi_networks()
             .password = "",
             .saved = false,
             .locked = ap.is_locked,
+            .enterprise = ap.is_enterprise,
             .signal_level = signal_level,
             .channel = ap.channel,
+            .rssi = ap.rssi,
         });
     }
 }
@@ -466,7 +543,7 @@ void SettingsApp::request_saved_wifi_networks_refresh()
     }
 
     saved_wifi_networks_refreshing_ = true;
-    const auto generation = wifi_operation_generation_;
+    const auto generation = wifi_operation_generation_.load();
     const auto saved_handler = [this, generation](service::FunctionResult && result) {
         saved_wifi_networks_refreshing_ = false;
         if (context_ == nullptr || generation != wifi_operation_generation_ || !wifi_ui_state_.enabled) {
@@ -513,7 +590,8 @@ void SettingsApp::request_saved_wifi_networks_refresh()
             BROOKESIA_LOGW("Failed to refresh Wi-Fi lists after saved AP update: %1%", list_result.error());
         }
     };
-    if (!WifiHelper::call_function_async(WifiHelper::FunctionId::GetConnectedAps, saved_handler)) {
+    if (!WifiHelper::call_function_async(WifiHelper::FunctionId::GetConnectedAps,
+                                         make_wifi_ui_result_handler(wifi_ui_mailbox_, saved_handler))) {
         saved_wifi_networks_refreshing_ = false;
         BROOKESIA_LOGW("Failed to submit saved Wi-Fi AP request");
     }
@@ -685,8 +763,51 @@ std::expected<void, std::string> SettingsApp::refresh_wifi_service_state(system:
         return refresh_wifi_summary_state(context);
     }
 
-    const auto generation = wifi_operation_generation_;
-    const auto state_handler = [this, generation](service::FunctionResult && result) {
+    const auto generation = wifi_operation_generation_.load();
+    const auto apply_ssid = [this, generation](std::string ssid, bool actual) {
+        if (context_ == nullptr || generation != wifi_operation_generation_ || !wifi_ui_state_.enabled) {
+            return;
+        }
+        const bool connected_state = wifi_ui_state_.general_state ==
+                                     BROOKESIA_DESCRIBE_TO_STR(WifiHelper::GeneralState::Connected);
+        if ((actual && !connected_state) || (!actual && !wifi_ui_state_.connecting)) {
+            return;
+        }
+        wifi_ui_state_.connected_ssid = std::move(ssid);
+        if (connected_state) {
+            cancel_wifi_connected_hide_timer(*context_);
+        }
+        sync_wifi_connected_card_from_service_state();
+        remove_unavailable_wifi_networks_from_available_list();
+        if (auto page_result = refresh_wifi_page_state(*context_); !page_result) {
+            BROOKESIA_LOGW("Failed to refresh Wi-Fi page after SSID update: %1%", page_result.error());
+        }
+        if (auto list_result = refresh_wifi_lists(*context_); !list_result) {
+            BROOKESIA_LOGW("Failed to refresh Wi-Fi lists after SSID update: %1%", list_result.error());
+        }
+        if (auto summary_result = refresh_wifi_summary_state(*context_); !summary_result) {
+            BROOKESIA_LOGW("Failed to refresh Wi-Fi summary after SSID update: %1%", summary_result.error());
+        }
+    };
+    const auto actual_ssid_handler = [apply_ssid](service::FunctionResult && result) {
+        if (!result.success || !result.has_data()) {
+            BROOKESIA_LOGW("Failed to get connected Wi-Fi SSID: %1%", result.error_message);
+            return;
+        }
+        apply_ssid(result.get_data<std::string>(), true);
+    };
+    const auto target_handler = [apply_ssid](service::FunctionResult && result) {
+        if (!result.success || !result.has_data()) {
+            BROOKESIA_LOGW("Failed to get Wi-Fi target AP: %1%", result.error_message);
+            return;
+        }
+        WifiHelper::ConnectApInfo target_ap;
+        auto &target_json = result.get_data<boost::json::object>();
+        apply_ssid(BROOKESIA_DESCRIBE_FROM_JSON(target_json, target_ap) && target_ap.is_valid() ?
+                   target_ap.ssid : std::string{}, false);
+    };
+    const auto state_handler = [this, generation, actual_ssid_handler, target_handler](
+                                   service::FunctionResult && result) {
         if (context_ == nullptr || generation != wifi_operation_generation_ || !wifi_ui_state_.enabled) {
             return;
         }
@@ -695,8 +816,25 @@ std::expected<void, std::string> SettingsApp::refresh_wifi_service_state(system:
             return;
         }
         auto &state = result.get_data<std::string>();
+        const auto previous_state = wifi_ui_state_.general_state;
         wifi_ui_state_.general_state = state;
         wifi_ui_state_.connecting = is_wifi_connecting_state(state);
+        if (state == BROOKESIA_DESCRIBE_TO_STR(WifiHelper::GeneralState::Connected)) {
+            if (previous_state != state) {
+                wifi_ui_state_.connected_ssid.clear();
+            }
+            if (!WifiHelper::call_function_async(WifiHelper::FunctionId::GetConnectedSsid,
+                                                 make_wifi_ui_result_handler(wifi_ui_mailbox_, actual_ssid_handler))) {
+                BROOKESIA_LOGW("Failed to submit connected Wi-Fi SSID request");
+            }
+        } else if (wifi_ui_state_.connecting) {
+            if (!WifiHelper::call_function_async(WifiHelper::FunctionId::GetConnectAp,
+                                                 make_wifi_ui_result_handler(wifi_ui_mailbox_, target_handler))) {
+                BROOKESIA_LOGW("Failed to submit Wi-Fi target AP request");
+            }
+        } else {
+            wifi_ui_state_.connected_ssid.clear();
+        }
         if (wifi_ui_state_.connecting || state == BROOKESIA_DESCRIBE_TO_STR(WifiHelper::GeneralState::Connected)) {
             cancel_wifi_connected_hide_timer(*context_);
         }
@@ -712,42 +850,9 @@ std::expected<void, std::string> SettingsApp::refresh_wifi_service_state(system:
             BROOKESIA_LOGW("Failed to refresh Wi-Fi summary after state update: %1%", summary_result.error());
         }
     };
-    if (!WifiHelper::call_function_async(WifiHelper::FunctionId::GetGeneralState, state_handler)) {
+    if (!WifiHelper::call_function_async(WifiHelper::FunctionId::GetGeneralState,
+                                         make_wifi_ui_result_handler(wifi_ui_mailbox_, state_handler))) {
         BROOKESIA_LOGW("Failed to submit Wi-Fi general state request");
-    }
-
-    const auto target_handler = [this, generation](service::FunctionResult && result) {
-        if (context_ == nullptr || generation != wifi_operation_generation_ || !wifi_ui_state_.enabled) {
-            return;
-        }
-        if (!result.success || !result.has_data()) {
-            BROOKESIA_LOGW("Failed to get Wi-Fi target AP: %1%", result.error_message);
-            return;
-        }
-        auto &target_json = result.get_data<boost::json::object>();
-        WifiHelper::ConnectApInfo target_ap;
-        if (BROOKESIA_DESCRIBE_FROM_JSON(target_json, target_ap) && target_ap.is_valid()) {
-            wifi_ui_state_.connected_ssid = target_ap.ssid;
-        } else {
-            wifi_ui_state_.connected_ssid.clear();
-        }
-        if (wifi_ui_state_.general_state == BROOKESIA_DESCRIBE_TO_STR(WifiHelper::GeneralState::Connected)) {
-            cancel_wifi_connected_hide_timer(*context_);
-        }
-        sync_wifi_connected_card_from_service_state();
-        remove_unavailable_wifi_networks_from_available_list();
-        if (auto page_result = refresh_wifi_page_state(*context_); !page_result) {
-            BROOKESIA_LOGW("Failed to refresh Wi-Fi page after target AP update: %1%", page_result.error());
-        }
-        if (auto list_result = refresh_wifi_lists(*context_); !list_result) {
-            BROOKESIA_LOGW("Failed to refresh Wi-Fi lists after target AP update: %1%", list_result.error());
-        }
-        if (auto summary_result = refresh_wifi_summary_state(*context_); !summary_result) {
-            BROOKESIA_LOGW("Failed to refresh Wi-Fi summary after target AP update: %1%", summary_result.error());
-        }
-    };
-    if (!WifiHelper::call_function_async(WifiHelper::FunctionId::GetConnectAp, target_handler)) {
-        BROOKESIA_LOGW("Failed to submit Wi-Fi target AP request");
     }
 
     if (wifi_ui_state_.enabled && !saved_wifi_networks_loaded_) {

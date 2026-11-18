@@ -5,7 +5,7 @@
  */
 #pragma once
 
-#include <atomic>
+#include <algorithm>
 #include <cstddef>
 #include <functional>
 #include <memory>
@@ -13,25 +13,224 @@
 #include <utility>
 #include <vector>
 
+#if defined(ESP_PLATFORM)
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#else
+#include <condition_variable>
+#include <thread>
+#endif
+
 namespace esp_brookesia::lib_utils {
 
 /*
- * Minimal, thread-safe signal/slot facility covering the subset of the
- * `boost::signals2` API that this code base actually uses: void-returning
- * signals, `connect()` returning a `connection`, `scoped_connection` RAII,
- * `connected()`/`disconnect()` and reentrancy-safe emission. It deliberately
- * omits the heavyweight features (return-value combiners, automatic `track()`
- * lifetime management, shared connection blocks) that are unused here, which is
- * what makes it dramatically smaller than `boost::signals2`.
+ * A small signal and slot helper.
+ *
+ * disconnect() destroys the callback after it has let go of the list lock.
+ * A callback can disconnect another slot while it is being destroyed.
+ *
+ * A caller that is not already inside a callback waits until a callback
+ * running on another thread returns. A caller that is already inside a
+ * callback does not wait, so two callbacks can cancel each other safely.
  */
 
 namespace signal_detail {
 
+// On the device, a normal FreeRTOS task has no pthread id. Asking for one
+// aborts, so the device uses the task handle. The PC uses the C++ thread id.
+#if defined(ESP_PLATFORM)
+using ExecutionId = TaskHandle_t;
+inline ExecutionId current_execution_id()
+{
+    return xTaskGetCurrentTaskHandle();
+}
+#else
+using ExecutionId = std::thread::id;
+inline ExecutionId current_execution_id()
+{
+    return std::this_thread::get_id();
+}
+#endif
+
+inline int &emission_depth()
+{
+    thread_local int depth = 0;
+    return depth;
+}
+
+struct EmissionGuard {
+    EmissionGuard()
+    {
+        ++emission_depth();
+    }
+
+    ~EmissionGuard()
+    {
+        --emission_depth();
+    }
+
+    EmissionGuard(const EmissionGuard &) = delete;
+    EmissionGuard &operator=(const EmissionGuard &) = delete;
+};
+
+inline bool inside_signal_emission()
+{
+    return emission_depth() > 0;
+}
+
 struct SlotControl {
-    std::atomic<bool> connected{true};
+    mutable std::mutex mutex;
+#if !defined(ESP_PLATFORM)
+    std::condition_variable idle;
+#endif
+    bool connected = true;
+    int inflight = 0;
+    std::vector<ExecutionId> runners;
+    std::function<void()> detach_fn;
+
+    bool running_on_this_thread_locked() const
+    {
+        const auto current = current_execution_id();
+        return std::find(runners.begin(), runners.end(), current) != runners.end();
+    }
+
+    void wait_until_idle(std::unique_lock<std::mutex> &lock)
+    {
+#if defined(ESP_PLATFORM)
+        while (inflight > 0) {
+            lock.unlock();
+            vTaskDelay(1);
+            lock.lock();
+        }
+#else
+        idle.wait(lock, [this]() {
+            return inflight == 0;
+        });
+#endif
+    }
+
+    void notify_idle()
+    {
+#if !defined(ESP_PLATFORM)
+        idle.notify_all();
+#endif
+    }
+
+    bool enter()
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        if (!connected) {
+            return false;
+        }
+        runners.push_back(current_execution_id());
+        ++inflight;
+        return true;
+    }
+
+    void leave()
+    {
+        std::function<void()> detach;
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            const auto current = current_execution_id();
+            const auto runner = std::find(runners.begin(), runners.end(), current);
+            if (runner != runners.end()) {
+                runners.erase(runner);
+            }
+            if (inflight > 0) {
+                --inflight;
+            }
+            if ((inflight == 0) && !connected) {
+                detach = std::move(detach_fn);
+            }
+            if (inflight == 0) {
+                notify_idle();
+            }
+        }
+        if (detach) {
+            detach();
+        }
+    }
+
+    bool disconnect_and_wait() noexcept
+    {
+        std::function<void()> detach;
+        try {
+            std::unique_lock<std::mutex> lock(mutex);
+            connected = false;
+            if (inflight == 0) {
+                detach = std::move(detach_fn);
+            } else if (running_on_this_thread_locked() || inside_signal_emission()) {
+                // Already inside a callback: do not wait. Two callbacks that
+                // cancel each other would otherwise wait forever.
+                return false;
+            } else {
+                wait_until_idle(lock);
+                detach = std::move(detach_fn);
+            }
+        } catch (...) {
+            return false;
+        }
+        if (!detach) {
+            return true;
+        }
+        try {
+            detach();
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
+
+    void disconnect() noexcept
+    {
+        (void)disconnect_and_wait();
+    }
+
+    void disconnect_without_wait() noexcept
+    {
+        std::function<void()> detach;
+        try {
+            {
+                std::lock_guard<std::mutex> lock(mutex);
+                connected = false;
+                if (inflight == 0) {
+                    detach = std::move(detach_fn);
+                }
+            }
+            if (detach) {
+                detach();
+            }
+        } catch (...) {
+            // Destruction of the connection must not throw.
+        }
+    }
+
+    bool is_connected() const
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        return connected;
+    }
 };
 
 } // namespace signal_detail
+
+/**
+ * @brief Keep the owner alive for each callback without an ownership cycle.
+ *
+ * The callback receives the owner as its first argument. Calls are skipped
+ * after the owner's last shared reference is released.
+ */
+template<typename Owner, typename Callback>
+auto track_callback(std::weak_ptr<Owner> owner, Callback callback)
+{
+    return [owner = std::move(owner), callback = std::move(callback)](auto &&...args) mutable {
+        if (auto locked = owner.lock())
+        {
+            std::invoke(callback, *locked, std::forward<decltype(args)>(args)...);
+        }
+    };
+}
 
 /**
  * @brief Lightweight handle to a single signal/slot connection.
@@ -47,14 +246,47 @@ public:
     bool connected() const noexcept
     {
         auto control = control_.lock();
-        return control && control->connected.load(std::memory_order_acquire);
+        return control && control->is_connected();
     }
 
+    /**
+     * @brief Drop this subscription.
+     *
+     * The callback is destroyed after the list lock is released.
+     * Outside a callback, this waits for a call that is still running
+     * on another thread. Inside a callback, it does not wait.
+     */
     void disconnect() const noexcept
     {
         if (auto control = control_.lock()) {
-            control->connected.store(false, std::memory_order_release);
+            control->disconnect();
         }
+    }
+
+    /**
+     * @brief Disconnect without waiting for calls already in progress.
+     *
+     * The callback must own or otherwise protect everything it accesses until
+     * it returns, for example by using track_callback() or a shared mailbox.
+     */
+    void disconnect_without_wait() const noexcept
+    {
+        if (auto control = control_.lock()) {
+            control->disconnect_without_wait();
+        }
+    }
+
+    /**
+     * @brief Disconnect and report whether all in-flight calls have finished.
+     *
+     * Returns false if called from any signal callback while this slot is
+     * still in flight, avoiding self- or cross-callback deadlock. In that
+     * case keep captured objects alive and retry outside signal callbacks.
+     */
+    bool disconnect_and_wait() const noexcept
+    {
+        auto control = control_.lock();
+        return !control || control->disconnect_and_wait();
     }
 
 private:
@@ -65,6 +297,10 @@ private:
  * @brief RAII connection that disconnects on destruction.
  *
  * Movable but not copyable, mirroring `boost::signals2::scoped_connection`.
+ * Destruction from a signal callback does not wait for other in-flight calls.
+ * For an object accessed by a callback, use track_callback() with a weak
+ * shared owner or keep the callback state independently owned. A raw `this`
+ * capture requires a successful disconnect_and_wait() before destruction.
  */
 class scoped_connection {
 public:
@@ -112,6 +348,19 @@ public:
         conn_.disconnect();
     }
 
+    /** @copydoc connection::disconnect_without_wait() */
+    void disconnect_without_wait() noexcept
+    {
+        conn_.disconnect_without_wait();
+        conn_ = connection{};
+    }
+
+    /** @copydoc connection::disconnect_and_wait() */
+    bool disconnect_and_wait() const noexcept
+    {
+        return conn_.disconnect_and_wait();
+    }
+
     connection release() noexcept
     {
         connection released = conn_;
@@ -136,7 +385,7 @@ class signal<void(Args...)> {
 public:
     using slot_type = std::function<void(Args...)>;
 
-    signal() = default;
+    signal() : list_(std::make_shared<SlotList>()) {}
     signal(const signal &) = delete;
     signal &operator=(const signal &) = delete;
 
@@ -144,18 +393,27 @@ public:
     // stay valid across a move because they reference the per-slot control block, which
     // travels with the slot entries.
     signal(signal &&other) noexcept
+        : list_(std::make_shared<SlotList>())
     {
-        std::lock_guard<std::mutex> lock(other.mutex_);
-        slots_ = std::move(other.slots_);
+        std::lock_guard<std::mutex> lock(other.list_->mutex);
+        list_ = std::move(other.list_);
+        other.list_ = std::make_shared<SlotList>();
     }
 
     signal &operator=(signal &&other) noexcept
     {
         if (this != &other) {
-            std::scoped_lock lock(mutex_, other.mutex_);
-            slots_ = std::move(other.slots_);
+            disconnect_all_slots();
+            std::lock_guard<std::mutex> lock(other.list_->mutex);
+            list_ = std::move(other.list_);
+            other.list_ = std::make_shared<SlotList>();
         }
         return *this;
+    }
+
+    ~signal()
+    {
+        disconnect_all_slots();
     }
 
     /**
@@ -164,38 +422,60 @@ public:
     connection connect(slot_type slot)
     {
         auto control = std::make_shared<signal_detail::SlotControl>();
-        auto entry = std::make_shared<Slot>(control, std::move(slot));
-        std::lock_guard<std::mutex> lock(mutex_);
-        slots_.push_back(std::move(entry));
-        return connection{control};
+        std::weak_ptr<SlotList> list = list_;
+        signal_detail::SlotControl *control_ptr = control.get();
+        control->detach_fn = [list, control_ptr]() {
+            std::shared_ptr<Slot> removed;
+            if (const auto locked = list.lock()) {
+                std::lock_guard<std::mutex> guard(locked->mutex);
+                for (auto it = locked->slots.begin(); it != locked->slots.end(); ++it) {
+                    if ((*it)->control.get() == control_ptr) {
+                        removed = std::move(*it);
+                        locked->slots.erase(it);
+                        break;
+                    }
+                }
+            }
+            removed.reset();
+        };
+        auto entry = std::make_shared<Slot>(std::move(control), std::move(slot));
+        {
+            std::lock_guard<std::mutex> lock(list_->mutex);
+            list_->slots.push_back(entry);
+        }
+        return connection{entry->control};
     }
 
     /**
-     * @brief Invoke every connected slot.
+     * @brief Call every connected slot.
      *
-     * A snapshot of the slot list is taken under the lock so slots may safely
-     * connect/disconnect (including themselves) during emission, and so
-     * emission is safe against concurrent mutation from other threads.
+     * The slot list is copied first. A slot may connect or disconnect
+     * during the call, including itself.
      */
     void operator()(Args... args) const
     {
+        [[maybe_unused]] const signal_detail::EmissionGuard emission_guard;
+        struct LeaveGuard {
+            signal_detail::SlotControl *control = nullptr;
+            ~LeaveGuard()
+            {
+                control->leave();
+            }
+        };
+
+        const auto list = list_;
         std::vector<std::shared_ptr<Slot>> snapshot;
         {
-            std::lock_guard<std::mutex> lock(mutex_);
-            snapshot = slots_;
+            std::lock_guard<std::mutex> lock(list->mutex);
+            snapshot = list->slots;
         }
 
-        bool stale = false;
         for (const auto &entry : snapshot) {
-            if (entry->control->connected.load(std::memory_order_acquire)) {
-                entry->fn(args...);
-            } else {
-                stale = true;
+            if (!entry->control->enter()) {
+                continue;
             }
-        }
-
-        if (stale) {
-            prune();
+            LeaveGuard guard{entry->control.get()};
+            entry->fn(args...);
         }
     }
 
@@ -204,11 +484,14 @@ public:
      */
     void disconnect_all_slots()
     {
-        std::lock_guard<std::mutex> lock(mutex_);
-        for (const auto &entry : slots_) {
-            entry->control->connected.store(false, std::memory_order_release);
+        std::vector<std::shared_ptr<Slot>> taken;
+        {
+            std::lock_guard<std::mutex> lock(list_->mutex);
+            taken.swap(list_->slots);
         }
-        slots_.clear();
+        for (const auto &entry : taken) {
+            entry->control->disconnect();
+        }
     }
 
     /**
@@ -216,10 +499,10 @@ public:
      */
     std::size_t num_slots() const
     {
-        std::lock_guard<std::mutex> lock(mutex_);
+        std::lock_guard<std::mutex> lock(list_->mutex);
         std::size_t count = 0;
-        for (const auto &entry : slots_) {
-            if (entry->control->connected.load(std::memory_order_acquire)) {
+        for (const auto &entry : list_->slots) {
+            if (entry->control->is_connected()) {
                 ++count;
             }
         }
@@ -246,20 +529,12 @@ private:
         slot_type fn;
     };
 
-    void prune() const
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        for (auto it = slots_.begin(); it != slots_.end();) {
-            if ((*it)->control->connected.load(std::memory_order_acquire)) {
-                ++it;
-            } else {
-                it = slots_.erase(it);
-            }
-        }
-    }
+    struct SlotList {
+        mutable std::mutex mutex;
+        std::vector<std::shared_ptr<Slot>> slots;
+    };
 
-    mutable std::mutex mutex_;
-    mutable std::vector<std::shared_ptr<Slot>> slots_;
+    std::shared_ptr<SlotList> list_;
 };
 
 } // namespace esp_brookesia::lib_utils

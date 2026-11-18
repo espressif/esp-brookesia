@@ -115,6 +115,21 @@ std::expected<gui::MountTarget, std::string> map_manifest_target(AppKind kind, c
 
 std::expected<void, std::string> validate_gui_descriptor(AppKind kind, const AppGuiDescriptor &descriptor)
 {
+    if (descriptor.root_kind == GuiRootKind::GspBundle) {
+        if (!descriptor.screen_flows.empty()) {
+            return std::unexpected("GSP bundle GUI does not use JSON screen flows");
+        }
+        if (kind == AppKind::Native) {
+            if (!descriptor.root.empty()) {
+                return std::unexpected("Native GSP bundle GUI does not use a package bundle path");
+            }
+            return {};
+        }
+        if (descriptor.root.empty()) {
+            return std::unexpected("Runtime GSP bundle GUI requires a bundle path");
+        }
+        return {};
+    }
     if ((descriptor.root_kind == GuiRootKind::None) && !descriptor.screen_flows.empty()) {
         return std::unexpected("App GUI descriptor without a root cannot declare screen flows");
     }
@@ -206,23 +221,49 @@ void show_service_requirement_error_dialog(System &system, const AppInfo &info, 
 
 } // namespace
 
-std::expected<System::Impl::AppRecord *, std::string> System::Impl::get_record(AppId app_id)
+std::expected<std::shared_ptr<System::Impl::AppRecord>, std::string> System::Impl::get_record(AppId app_id)
 {
+    std::lock_guard lock(app_records_mutex_);
     auto it = apps_.find(app_id);
     if (it == apps_.end()) {
         return std::unexpected("App not found");
     }
-    return &it->second;
+    return it->second;
 }
 
 
-std::expected<const System::Impl::AppRecord *, std::string> System::Impl::get_record(AppId app_id) const
+std::expected<std::shared_ptr<const System::Impl::AppRecord>, std::string> System::Impl::get_record(AppId app_id) const
 {
+    std::lock_guard lock(app_records_mutex_);
     auto it = apps_.find(app_id);
     if (it == apps_.end()) {
         return std::unexpected("App not found");
     }
-    return &it->second;
+    return std::shared_ptr<const AppRecord>(it->second);
+}
+
+std::vector<std::shared_ptr<System::Impl::AppRecord>> System::Impl::snapshot_app_records() const
+{
+    std::lock_guard lock(app_records_mutex_);
+    std::vector<std::shared_ptr<AppRecord>> records;
+    records.reserve(apps_.size());
+    for (const auto &[_, record] : apps_) {
+        records.push_back(record);
+    }
+    return records;
+}
+
+bool System::Impl::has_manifest(std::string_view manifest_id) const
+{
+    std::lock_guard lock(app_records_mutex_);
+    return manifest_id_to_app_.contains(std::string(manifest_id));
+}
+
+std::optional<AppId> System::Impl::runtime_owner(runtime::AppId runtime_app_id) const
+{
+    std::lock_guard lock(app_records_mutex_);
+    auto it = runtime_to_app_.find(runtime_app_id);
+    return it == runtime_to_app_.end() ? std::nullopt : std::optional<AppId>(it->second);
 }
 
 void System::Impl::cleanup_app_transient_resources(AppRecord &record)
@@ -306,6 +347,12 @@ std::expected<void, std::string> System::Impl::dispatch_event(
 std::expected<AppId, std::string> System::install_app(std::shared_ptr<IApp> app)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    if (impl_->should_schedule_app_task()) {
+        return impl_->run_task_sync<std::expected<AppId, std::string>>(
+        SYSTEM_APP_TASK_GROUP, [this, app = std::move(app)]() mutable {
+            return install_app(std::move(app));
+        }, std::unexpected("Failed to post app install task"));
+    }
     if (!app) {
         return std::unexpected("App is null");
     }
@@ -315,7 +362,7 @@ std::expected<AppId, std::string> System::install_app(std::shared_ptr<IApp> app)
     if (manifest.id.empty()) {
         return std::unexpected("App manifest id is empty");
     }
-    if (impl_->manifest_id_to_app_.contains(manifest.id)) {
+    if (impl_->has_manifest(manifest.id)) {
         return std::unexpected("App manifest id already installed");
     }
     auto gui_descriptor = app->get_gui_descriptor();
@@ -344,59 +391,74 @@ std::expected<AppId, std::string> System::install_app(std::shared_ptr<IApp> app)
     if (!install_result) {
         return std::unexpected(install_result.error());
     }
-    impl_->manifest_id_to_app_.emplace(record.info.manifest.id, app_id);
-    auto [it, _] = impl_->apps_.emplace(app_id, std::move(record));
+    auto installed_record = std::make_shared<Impl::AppRecord>(std::move(record));
+    {
+        std::lock_guard lock(impl_->app_records_mutex_);
+        impl_->manifest_id_to_app_.emplace(installed_record->info.manifest.id, app_id);
+        impl_->apps_.emplace(app_id, installed_record);
+    }
     auto gui_prepare_result = impl_->run_task_sync<std::expected<void, std::string>>(
                                   SYSTEM_GUI_TASK_GROUP,
-    [this, &it]() -> std::expected<void, std::string> {
-        return impl_->prepare_installed_app_gui(it->second);
+    [this, installed_record]() -> std::expected<void, std::string> {
+        return impl_->prepare_installed_app_gui(*installed_record);
     },
     std::unexpected("Failed to post app GUI install preparation task")
                               );
     if (!gui_prepare_result) {
         auto rollback_result = impl_->run_task_sync<std::expected<void, std::string>>(
                                    SYSTEM_GUI_TASK_GROUP,
-        [this, &it]() -> std::expected<void, std::string> {
-            impl_->rollback_installed_app_gui(it->second);
-            return {};
+        [this, installed_record]() -> std::expected<void, std::string> {
+            return impl_->rollback_installed_app_gui(*installed_record);
         },
         std::unexpected("Failed to post app GUI install rollback task")
                                );
         if (!rollback_result) {
             BROOKESIA_LOGW("Failed to rollback app GUI resources: %1%", rollback_result.error());
         }
-        impl_->manifest_id_to_app_.erase(it->second.info.manifest.id);
-        impl_->apps_.erase(it);
+        if (!impl_->discard_app_record(app_id)) {
+            return std::unexpected(
+                       gui_prepare_result.error() +
+                       "; app record kept because the GSP session is still running"
+                   );
+        }
         return std::unexpected(gui_prepare_result.error());
     }
-    auto hook_result = on_app_installed(it->second.info);
+    auto hook_result = on_app_installed(installed_record->info);
     if (!hook_result) {
         auto rollback_result = impl_->run_task_sync<std::expected<void, std::string>>(
                                    SYSTEM_GUI_TASK_GROUP,
-        [this, &it]() -> std::expected<void, std::string> {
-            impl_->rollback_installed_app_gui(it->second);
-            return {};
+        [this, installed_record]() -> std::expected<void, std::string> {
+            return impl_->rollback_installed_app_gui(*installed_record);
         },
         std::unexpected("Failed to post app GUI install rollback task")
                                );
         if (!rollback_result) {
             BROOKESIA_LOGW("Failed to rollback app GUI resources: %1%", rollback_result.error());
         }
-        impl_->manifest_id_to_app_.erase(it->second.info.manifest.id);
-        impl_->apps_.erase(it);
+        if (!impl_->discard_app_record(app_id)) {
+            return std::unexpected(
+                       hook_result.error() + "; app record kept because the GSP session is still running"
+                   );
+        }
         return std::unexpected(hook_result.error());
     }
-    BROOKESIA_LOGI("Native app installed: id(%1%), manifest(%2%)", app_id, it->second.info.manifest.id);
+    BROOKESIA_LOGI("Native app installed: id(%1%), manifest(%2%)", app_id, installed_record->info.manifest.id);
     return app_id;
 }
 
 std::expected<AppId, std::string> System::install_runtime_app(const AppManifest &manifest)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    if (impl_->should_schedule_app_task()) {
+        return impl_->run_task_sync<std::expected<AppId, std::string>>(
+        SYSTEM_APP_TASK_GROUP, [this, manifest]() {
+            return install_runtime_app(manifest);
+        }, std::unexpected("Failed to post runtime app install task"));
+    }
     if (manifest.id.empty()) {
         return std::unexpected("Runtime app manifest id is empty");
     }
-    if (impl_->manifest_id_to_app_.contains(manifest.id)) {
+    if (impl_->has_manifest(manifest.id)) {
         return std::unexpected("App manifest id already installed");
     }
     auto heap_before_descriptor = heap_trace::capture();
@@ -415,6 +477,17 @@ std::expected<AppId, std::string> System::install_runtime_app(const AppManifest 
     auto descriptor_result = validate_gui_descriptor(AppKind::Runtime, resource_descriptor->gui);
     if (!descriptor_result) {
         return std::unexpected(descriptor_result.error());
+    }
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
+    const GuiBackend host_gui_backend = GuiBackend::Gsp;
+#else
+    const GuiBackend host_gui_backend = GuiBackend::Lvgl;
+#endif
+    auto backend_result = check_runtime_package_gui_backend(
+                              manifest.gui_backend, resource_descriptor->gui, host_gui_backend
+                          );
+    if (!backend_result) {
+        return std::unexpected(backend_result.error());
     }
     auto storage_result = impl_->ensure_app_storage_paths(manifest.id);
     if (!storage_result) {
@@ -437,49 +510,64 @@ std::expected<AppId, std::string> System::install_runtime_app(const AppManifest 
     record.info.manifest.kind = AppKind::Runtime;
     record.context = std::make_unique<AppContext>(*this, app_id);
     record.preload_dom = record.info.manifest.preload_dom;
-    impl_->manifest_id_to_app_.emplace(record.info.manifest.id, app_id);
-    auto [it, _] = impl_->apps_.emplace(app_id, std::move(record));
+    auto installed_record = std::make_shared<Impl::AppRecord>(std::move(record));
+    {
+        std::lock_guard lock(impl_->app_records_mutex_);
+        impl_->manifest_id_to_app_.emplace(installed_record->info.manifest.id, app_id);
+        impl_->apps_.emplace(app_id, installed_record);
+    }
     auto gui_prepare_result = impl_->run_task_sync<std::expected<void, std::string>>(
                                   SYSTEM_GUI_TASK_GROUP,
-    [this, &it]() -> std::expected<void, std::string> {
-        return impl_->prepare_installed_app_gui(it->second);
+    [this, installed_record]() -> std::expected<void, std::string> {
+        return impl_->prepare_installed_app_gui(*installed_record);
     },
     std::unexpected("Failed to post app GUI install preparation task")
                               );
     if (!gui_prepare_result) {
         auto rollback_result = impl_->run_task_sync<std::expected<void, std::string>>(
                                    SYSTEM_GUI_TASK_GROUP,
-        [this, &it]() -> std::expected<void, std::string> {
-            impl_->rollback_installed_app_gui(it->second);
-            return {};
+        [this, installed_record]() -> std::expected<void, std::string> {
+            return impl_->rollback_installed_app_gui(*installed_record);
         },
         std::unexpected("Failed to post app GUI install rollback task")
                                );
         if (!rollback_result) {
             BROOKESIA_LOGW("Failed to rollback app GUI resources: %1%", rollback_result.error());
         }
-        impl_->manifest_id_to_app_.erase(it->second.info.manifest.id);
-        impl_->apps_.erase(it);
+        if (!impl_->discard_app_record(app_id)) {
+            return std::unexpected(
+                       gui_prepare_result.error() +
+                       "; app record kept because the GSP session is still running"
+                   );
+        }
         return std::unexpected(gui_prepare_result.error());
     }
-    auto hook_result = on_app_installed(it->second.info);
+    auto hook_result = on_app_installed(installed_record->info);
     if (!hook_result) {
         auto rollback_result = impl_->run_task_sync<std::expected<void, std::string>>(
                                    SYSTEM_GUI_TASK_GROUP,
-        [this, &it]() -> std::expected<void, std::string> {
-            impl_->rollback_installed_app_gui(it->second);
-            return {};
+        [this, installed_record]() -> std::expected<void, std::string> {
+            return impl_->rollback_installed_app_gui(*installed_record);
         },
         std::unexpected("Failed to post app GUI install rollback task")
                                );
         if (!rollback_result) {
             BROOKESIA_LOGW("Failed to rollback app GUI resources: %1%", rollback_result.error());
         }
-        impl_->manifest_id_to_app_.erase(it->second.info.manifest.id);
-        impl_->apps_.erase(it);
+        if (!impl_->discard_app_record(app_id)) {
+            return std::unexpected(
+                       hook_result.error() + "; app record kept because the GSP session is still running"
+                   );
+        }
         return std::unexpected(hook_result.error());
     }
-    BROOKESIA_LOGI("Runtime app installed: id(%1%), manifest(%2%)", app_id, manifest.id);
+    BROOKESIA_LOGI(
+        "Runtime app installed: id(%1%), manifest(%2%), execution_backend(%3%), gui_backend(%4%)",
+        app_id,
+        manifest.id,
+        BROOKESIA_DESCRIBE_TO_STR(manifest.runtime_type),
+        BROOKESIA_DESCRIBE_TO_STR(manifest.gui_backend)
+    );
     return app_id;
 }
 
@@ -524,11 +612,39 @@ std::expected<void, std::string> System::uninstall_app(AppId app_id)
         return std::unexpected(record_result.error());
     }
     auto &record = *record_result.value();
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
+    if (app_id == impl_->gsp_shell_app_id_) {
+        return std::unexpected("The system shell cannot be uninstalled");
+    }
+#endif
+    std::filesystem::path runtime_app_path;
+    if (record.info.manifest.kind == AppKind::Runtime) {
+        if (record.info.manifest.app_path.empty()) {
+            return std::unexpected("Runtime app manifest app_path is empty");
+        }
+        runtime_app_path = normalize_filesystem_path(std::filesystem::path(record.info.manifest.app_path));
+        if (!impl_->is_managed_app_directory(runtime_app_path)) {
+            return std::unexpected(
+                       "Refuse to remove runtime app directory outside managed app roots: " +
+                       runtime_app_path.generic_string()
+                   );
+        }
+    }
     if (record.info.state == AppState::Running || record.info.state == AppState::Paused) {
         auto stop_result = stop_app(app_id);
         if (!stop_result) {
             return stop_result;
         }
+    }
+    auto gsp_stopped = impl_->run_task_sync<std::expected<void, std::string>>(
+                           SYSTEM_GUI_TASK_GROUP,
+    [this, &record]() {
+        return impl_->stop_gsp_session(record);
+    },
+    std::unexpected("Failed to post GSP stop task")
+                       );
+    if (!gsp_stopped || impl_->gsp_session_running(record)) {
+        return gsp_stopped ? std::unexpected("GSP session is still running") : gsp_stopped;
     }
     const auto uninstalled_app = record.info;
     release_runtime_dataflow_operations(record.runtime_app_id);
@@ -546,32 +662,34 @@ std::expected<void, std::string> System::uninstall_app(AppId app_id)
                               SYSTEM_GUI_TASK_GROUP,
     [this, &record]() -> std::expected<void, std::string> {
         impl_->clear_pending_gui_bindings(record.info.app_id);
-        impl_->rollback_installed_app_gui(record);
+        auto rolled_back = impl_->rollback_installed_app_gui(record);
+        if (!rolled_back)
+        {
+            return rolled_back;
+        }
         return {};
     },
     std::unexpected("Failed to post GUI cleanup task")
                           );
-    if (!cleanup_result) {
-        BROOKESIA_LOGW("Failed to cleanup app GUI while uninstalling app: %1%", cleanup_result.error());
+    if (!cleanup_result || impl_->gsp_session_running(record)) {
+        if (!cleanup_result) {
+            BROOKESIA_LOGW("Failed to cleanup app GUI while uninstalling app: %1%", cleanup_result.error());
+        }
+        if (impl_->gsp_session_running(record)) {
+            return cleanup_result ? std::unexpected("GSP session is still running") : cleanup_result;
+        }
     }
     if (record.info.manifest.kind == AppKind::Runtime) {
-        if (record.info.manifest.app_path.empty()) {
-            return std::unexpected("Runtime app manifest app_path is empty");
-        }
-        const auto app_path = normalize_filesystem_path(std::filesystem::path(record.info.manifest.app_path));
-        if (!impl_->is_managed_app_directory(app_path)) {
-            return std::unexpected(
-                       "Refuse to remove runtime app directory outside managed app roots: " +
-                       app_path.generic_string()
-                   );
-        }
-        auto remove_result = remove_path_tree(app_path, "runtime app directory");
+        auto remove_result = remove_path_tree(runtime_app_path, "runtime app directory");
         if (!remove_result) {
             return std::unexpected(remove_result.error());
         }
+        std::lock_guard lock(impl_->mutex_);
+        impl_->app_storage_paths_cache_.erase(record.info.manifest.id);
     }
-    impl_->manifest_id_to_app_.erase(record.info.manifest.id);
-    impl_->apps_.erase(app_id);
+    if (!impl_->discard_app_record(app_id)) {
+        return std::unexpected("GSP session is still running");
+    }
     if (impl_->active_app_id_ == app_id) {
         impl_->active_app_id_ = INVALID_APP_ID;
     }
@@ -581,6 +699,18 @@ std::expected<void, std::string> System::uninstall_app(AppId app_id)
     }
     BROOKESIA_LOGI("App uninstalled: id(%1%)", app_id);
     return {};
+}
+
+std::optional<std::string> System::app_support_error(AppId app_id) const
+{
+    auto record = impl_->get_record(app_id);
+    if (!record) {
+        return record.error();
+    }
+    if (impl_->config_.app_support_check) {
+        return impl_->config_.app_support_check((*record)->info.manifest);
+    }
+    return std::nullopt;
 }
 
 std::expected<void, std::string> System::start_app(AppId app_id)
@@ -605,6 +735,12 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
         return std::unexpected(record_result.error());
     }
     auto &record = *record_result.value();
+    if (auto error = app_support_error(app_id); error) {
+        record.info.last_error = *error;
+        on_app_start_failed(record.info, *error);
+        show_service_requirement_error_dialog(*this, record.info, *error);
+        return std::unexpected(*error);
+    }
     if (record.info.state == AppState::Running) {
         return {};
     }
@@ -648,6 +784,21 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
             elapsed_ms_since(start_profile_started_at, now)
         );
     };
+    auto prepare_start_result = on_prepare_app_start(app_id);
+    if (!prepare_start_result) {
+        record.info.state = AppState::Error;
+        record.info.last_error = prepare_start_result.error();
+        on_app_start_failed(record.info, prepare_start_result.error());
+        show_lifecycle_error_dialog(*this, record.info, "start", LIFECYCLE_ON_START, prepare_start_result.error());
+        return prepare_start_result;
+    }
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
+    record.gsp_current_scene = 0;
+    record.gsp_scene_known = false;
+    record.gsp_suspended = false;
+    record.gsp_suspended_contract.reset();
+    record.gsp_scene_updates.clear();
+#endif
     auto heap_before_start = heap_trace::capture();
     heap_trace::log("system.start", "before start", record.info.manifest.id, heap_before_start);
     record.info.state = AppState::Starting;
@@ -715,6 +866,10 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
         if (!gui_result)
         {
             log_gui_profile("root_load_failed", root_started_at);
+            auto unloaded = impl_->unload_gui(record);
+            if (!unloaded) {
+                return std::unexpected(gui_result.error() + "; cleanup failed: " + unloaded.error());
+            }
             impl_->unregister_app_gui_resources(record);
             return gui_result;
         }
@@ -733,13 +888,19 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
                 auto target = map_manifest_target(record.info.manifest.kind, flow_entry);
                 if (!target) {
                     log_gui_profile("screen_flow_mount_failed", screen_flow_started_at);
-                    impl_->unload_gui(record);
+                    auto unloaded = impl_->unload_gui(record);
+                    if (!unloaded) {
+                        return unloaded;
+                    }
                     impl_->unregister_app_gui_resources(record);
                     return std::unexpected(target.error());
                 }
                 if (!impl_->gui_runtime_->has_screen_flow(*record.document_id, flow_entry.screen_flow)) {
                     log_gui_profile("screen_flow_mount_failed", screen_flow_started_at);
-                    impl_->unload_gui(record);
+                    auto unloaded = impl_->unload_gui(record);
+                    if (!unloaded) {
+                        return unloaded;
+                    }
                     impl_->unregister_app_gui_resources(record);
                     return std::unexpected("App GUI screen flow is not found: " + flow_entry.screen_flow);
                 }
@@ -750,7 +911,10 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
                                    );
                 if (!flow_result) {
                     log_gui_profile("screen_flow_mount_failed", screen_flow_started_at);
-                    impl_->unload_gui(record);
+                    auto unloaded = impl_->unload_gui(record);
+                    if (!unloaded) {
+                        return unloaded;
+                    }
                     impl_->unregister_app_gui_resources(record);
                     return flow_result;
                 }
@@ -854,7 +1018,11 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
                                    SYSTEM_GUI_TASK_GROUP,
         [this, &record]() -> std::expected<void, std::string> {
             impl_->clear_pending_gui_bindings(record.info.app_id);
-            impl_->unload_gui(record);
+            auto unloaded = impl_->unload_gui(record);
+            if (!unloaded)
+            {
+                return unloaded;
+            }
             impl_->unregister_app_gui_resources(record);
             return {};
         },
@@ -953,6 +1121,7 @@ std::expected<void, std::string> System::stop_app(AppId app_id)
         impl_->cleanup_app_transient_resources(record);
         return {};
     }
+    const auto stop_started_at = SteadyClock::now();
     auto heap_before_stop = heap_trace::capture();
     heap_trace::log("system.stop", "before stop", record.info.manifest.id, heap_before_stop);
     record.info.state = AppState::Stopping;
@@ -1003,6 +1172,11 @@ std::expected<void, std::string> System::stop_app(AppId app_id)
     [this, &record]() -> std::expected<void, std::string> {
         auto heap_before_gui_cleanup = heap_trace::capture();
         heap_trace::log("system.gui", "before cleanup", record.info.manifest.id, heap_before_gui_cleanup);
+        auto gsp_stop = impl_->stop_gsp_session(record);
+        if (!gsp_stop)
+        {
+            return gsp_stop;
+        }
         impl_->cleanup_stopped_app_gui(record);
         heap_trace::log(
             "system.gui",
@@ -1016,7 +1190,10 @@ std::expected<void, std::string> System::stop_app(AppId app_id)
     std::unexpected("Failed to post app GUI cleanup task")
                           );
     if (!cleanup_result) {
-        BROOKESIA_LOGW("Failed to cleanup app GUI while stopping app: %1%", cleanup_result.error());
+        record.info.state = AppState::Error;
+        record.info.last_error = cleanup_result.error();
+        BROOKESIA_LOGE("App GUI cleanup failed; GSP resources stay owned: %1%", cleanup_result.error());
+        return cleanup_result;
     }
     if (!stop_result) {
         record.info.state = AppState::Error;
@@ -1029,9 +1206,22 @@ std::expected<void, std::string> System::stop_app(AppId app_id)
         return stop_result;
     }
     record.info.state = AppState::Stopped;
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
+    record.gsp_current_scene = 0;
+    record.gsp_scene_known = false;
+    record.gsp_suspended = false;
+    record.gsp_suspended_contract.reset();
+    record.gsp_scene_updates.clear();
+#endif
     if (impl_->active_app_id_ == app_id) {
         impl_->active_app_id_ = INVALID_APP_ID;
     }
+    BROOKESIA_LOGI(
+        "App stopped: id(%1%), manifest(%2%), elapsed_ms(%3%)",
+        app_id,
+        record.info.manifest.id,
+        elapsed_ms_since(stop_started_at)
+    );
     on_app_stopped(record.info);
     heap_trace::log(
         "system.stop",
@@ -1040,7 +1230,6 @@ std::expected<void, std::string> System::stop_app(AppId app_id)
         heap_trace::capture(),
         &heap_before_stop
     );
-    BROOKESIA_LOGI("App stopped: id(%1%), manifest(%2%)", app_id, record.info.manifest.id);
     return {};
 }
 
@@ -1169,9 +1358,46 @@ std::expected<KeyboardRequestId, std::string> System::show_app_keyboard(
     };
     impl_->keyboard_requests_.emplace(request_id, std::move(keyboard_record));
 
+    // A blocking JS service call holds the SystemApp callback gate. Accept the request before
+    // switching desktop renderers, then display it on that same task after JavaScript receives its ID.
+    if (impl_->config_.gsp_desktop_display && is_blocking_runtime_service_call_context()) {
+        auto show_deferred = [this, app_id, request_id, options = std::move(options)]() {
+            const auto pending = impl_->keyboard_requests_.find(request_id);
+            if (pending == impl_->keyboard_requests_.end() || pending->second.app_id != app_id) {
+                return;
+            }
+            auto owner = impl_->get_record(app_id);
+            if (!owner || (*owner)->info.state != AppState::Running) {
+                (void)hide_app_keyboard(app_id, request_id);
+                return;
+            }
+            auto shown = on_show_app_keyboard(app_id, request_id, options);
+            if (!shown) {
+                (*owner)->info.last_error = shown.error();
+                BROOKESIA_LOGE("Deferred keyboard display failed: app_id(%1%), request_id(%2%), error(%3%)",
+                               app_id, request_id, shown.error());
+                // Close the accepted request through its normal owner callback and KeyboardClosed event.
+                auto closed = hide_app_keyboard(app_id, request_id);
+                if (!closed) {
+                    BROOKESIA_LOGW("Failed to close deferred keyboard request: %1%", closed.error());
+                }
+            }
+        };
+        // post_task may execute inline on SystemApp; this acceptance path must always enqueue.
+        if (!impl_->task_scheduler_ || !impl_->task_scheduler_->is_running() ||
+                !impl_->task_scheduler_->post(std::move(show_deferred), nullptr, SYSTEM_APP_TASK_GROUP)) {
+            impl_->keyboard_requests_.erase(request_id);
+            return std::unexpected("Failed to queue desktop keyboard display");
+        }
+        return request_id;
+    }
+
     auto show_result = on_show_app_keyboard(app_id, request_id, options);
     if (!show_result) {
         impl_->keyboard_requests_.erase(request_id);
+        if (!impl_->active_message_dialog_request_id_ && impl_->queued_message_dialog_requests_.empty()) {
+            System::on_message_dialog_idle();
+        }
         return std::unexpected(show_result.error());
     }
     return request_id;
@@ -1206,11 +1432,20 @@ std::expected<void, std::string> System::hide_app_keyboard(AppId app_id, Keyboar
         .confirmed = false,
         .text = {},
     };
-    if (record.handler) {
-        record.handler(result);
+    {
+        ++impl_->modal_result_notification_depth_;
+        lib_utils::FunctionGuard finish_notification([this]() {
+            --impl_->modal_result_notification_depth_;
+        });
+        if (record.handler) {
+            record.handler(result);
+        }
+        if (impl_->system_service_) {
+            impl_->system_service_->publish_keyboard_closed(result);
+        }
     }
-    if (impl_->system_service_) {
-        impl_->system_service_->publish_keyboard_closed(result);
+    if (!impl_->active_message_dialog_request_id_ && impl_->queued_message_dialog_requests_.empty()) {
+        System::on_message_dialog_idle();
     }
     return {};
 }
@@ -1248,11 +1483,17 @@ std::expected<void, std::string> System::complete_app_keyboard(
         .confirmed = confirmed,
         .text = std::move(text),
     };
-    if (record.handler) {
-        record.handler(result);
-    }
-    if (impl_->system_service_) {
-        impl_->system_service_->publish_keyboard_closed(result);
+    {
+        ++impl_->modal_result_notification_depth_;
+        lib_utils::FunctionGuard finish_notification([this]() {
+            --impl_->modal_result_notification_depth_;
+        });
+        if (record.handler) {
+            record.handler(result);
+        }
+        if (impl_->system_service_) {
+            impl_->system_service_->publish_keyboard_closed(result);
+        }
     }
     return {};
 }
@@ -1412,8 +1653,29 @@ std::expected<MessageDialogRequestId, std::string> System::enqueue_message_dialo
     };
     impl_->message_dialog_requests_.emplace(request_id, std::move(request));
 
-    if (impl_->active_message_dialog_request_id_.has_value()) {
+    if (impl_->active_message_dialog_request_id_.has_value() ||
+            !impl_->queued_message_dialog_requests_.empty()) {
         impl_->queued_message_dialog_requests_.push_back(request_id);
+        return request_id;
+    }
+
+    // Return the accepted ID before a desktop renderer switch can exceed the JS call deadline.
+    // Keep pending requests in the same FIFO so cancellation and native requests cannot bypass them.
+    if (impl_->config_.gsp_desktop_display && is_blocking_runtime_service_call_context()) {
+        impl_->queued_message_dialog_requests_.push_back(request_id);
+        auto show_deferred = [this]() {
+            auto shown = show_next_message_dialog();
+            if (!shown) {
+                BROOKESIA_LOGW("Failed to show deferred message dialog: %1%", shown.error());
+            }
+        };
+        // Unlike post_task, post must not execute inline on the current SystemApp task.
+        if (!impl_->task_scheduler_ || !impl_->task_scheduler_->is_running() ||
+                !impl_->task_scheduler_->post(std::move(show_deferred), nullptr, SYSTEM_APP_TASK_GROUP)) {
+            remove_queued_message_dialog(request_id);
+            impl_->message_dialog_requests_.erase(request_id);
+            return std::unexpected("Failed to queue desktop message dialog display");
+        }
         return request_id;
     }
 
@@ -1423,6 +1685,9 @@ std::expected<MessageDialogRequestId, std::string> System::enqueue_message_dialo
     if (!show_result) {
         impl_->active_message_dialog_request_id_.reset();
         impl_->message_dialog_requests_.erase(request_id);
+        if (impl_->queued_message_dialog_requests_.empty()) {
+            System::on_message_dialog_idle();
+        }
         return std::unexpected(show_result.error());
     }
 
@@ -1444,11 +1709,20 @@ std::expected<void, std::string> System::show_next_message_dialog()
         }
 
         impl_->active_message_dialog_request_id_ = request_id;
-        auto show_result = on_show_message_dialog(it->second.app_id, request_id, it->second.options);
+        auto owner = impl_->get_record(it->second.app_id);
+        const bool stopped_desktop_owner = impl_->config_.gsp_desktop_display &&
+                                           it->second.app_id != INVALID_APP_ID &&
+                                           (!owner || (*owner)->info.state != AppState::Running);
+        auto show_result = stopped_desktop_owner ?
+                           std::expected<void, std::string>(std::unexpected("Message dialog owner is not running")) :
+                           on_show_message_dialog(it->second.app_id, request_id, it->second.options);
         if (show_result) {
             return {};
         }
 
+        if (owner) {
+            (*owner)->info.last_error = show_result.error();
+        }
         BROOKESIA_LOGW("Failed to show queued message dialog: %1%", show_result.error());
         auto record = std::move(it->second);
         impl_->message_dialog_requests_.erase(it);
@@ -1477,6 +1751,10 @@ void System::remove_queued_message_dialog(MessageDialogRequestId request_id)
 
 void System::publish_message_dialog_closed(MessageDialogResult result, MessageDialogResultHandler handler)
 {
+    ++impl_->modal_result_notification_depth_;
+    lib_utils::FunctionGuard finish_notification([this]() {
+        --impl_->modal_result_notification_depth_;
+    });
     if (handler) {
         handler(result);
     }
@@ -1521,6 +1799,9 @@ std::expected<void, std::string> System::close_message_dialog(
             if (impl_->should_defer_gui_task(SYSTEM_GUI_INPUT_TASK_GROUP)) {
                 auto post_result = impl_->post_gui_input_task([this, owner_app_id, request_id]() {
                     on_hide_message_dialog(owner_app_id, request_id);
+                    if (!impl_->active_message_dialog_request_id_ && impl_->queued_message_dialog_requests_.empty()) {
+                        System::on_message_dialog_idle();
+                    }
                 });
                 if (!post_result) {
                     BROOKESIA_LOGW(
@@ -1652,9 +1933,10 @@ void System::close_message_dialogs_for_app(AppId app_id)
 std::vector<AppInfo> System::list_apps() const
 {
     std::vector<AppInfo> apps;
-    apps.reserve(impl_->apps_.size());
-    for (const auto &[_, record] : impl_->apps_) {
-        apps.push_back(record.info);
+    const auto records = impl_->snapshot_app_records();
+    apps.reserve(records.size());
+    for (const auto &record : records) {
+        apps.push_back(record->info);
     }
     return apps;
 }

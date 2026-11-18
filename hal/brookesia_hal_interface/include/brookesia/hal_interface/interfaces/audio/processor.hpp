@@ -114,6 +114,11 @@ public:
     ~PlaybackIface() override = default;
 
     virtual bool open(EventCallback callback) = 0;
+    /**
+     * @brief Close playback. Cleanup requested from an event callback may finish asynchronously.
+     *
+     * A subsequent open can fail while that cleanup is still in progress.
+     */
     virtual void close() = 0;
     virtual bool play(const std::string &url) = 0;
     virtual bool pause() = 0;

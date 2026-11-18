@@ -97,7 +97,7 @@ void MemoryDataStore::set_string(std::string_view key, std::string value)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: key(%1%), value(%2%)", key, value);
+    BROOKESIA_LOGD("Params: key(%1%)", key);
 
     const std::string expected_value = value;
     set_string_silent(key, std::move(value));
@@ -174,11 +174,10 @@ void MemoryDataStore::set_string(
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     BROOKESIA_LOGD(
-        "Params: document_id(%1%), absolute_path(%2%), key(%3%), value(%4%)",
+        "Params: document_id(%1%), absolute_path(%2%), key(%3%)",
         document_id,
         absolute_path,
-        key,
-        value);
+        key);
 
     set_string(make_scoped_store_key(document_id, absolute_path, key), std::move(value));
 }

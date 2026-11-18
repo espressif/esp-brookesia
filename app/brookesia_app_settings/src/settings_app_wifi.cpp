@@ -10,5 +10,6 @@ namespace esp_brookesia::app::settings {
 using namespace detail;
 
 #include "service/wifi.ipp"
+#include "service/wifi_page.ipp"
 
 } // namespace esp_brookesia::app::settings

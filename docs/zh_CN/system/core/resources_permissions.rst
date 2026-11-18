@@ -95,7 +95,7 @@ system core 当前使用 ``AppManifest.kind`` 区分基础权限。
 
 - 指定 GUI ``DocumentId``、layer 或 mount target。
 - 调用 load/unload GUI document service。
-- 通过 service 启动或停止其他 app。
+- 通过 service 启动、停止或卸载其他 app。
 - 修改默认安装目标或访问其它 app 的私有目录。
 - 注册 Native image/font runtime resource。
 

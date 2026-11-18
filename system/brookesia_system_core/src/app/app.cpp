@@ -24,15 +24,6 @@ namespace {
 
 constexpr uint32_t STORAGE_FS_TIMEOUT_MS = 5000;
 
-bool is_safe_app_directory_name(std::string_view name)
-{
-    return !name.empty() &&
-           name != "." &&
-           name != ".." &&
-           (name.find('/') == std::string_view::npos) &&
-           (name.find('\\') == std::string_view::npos);
-}
-
 std::optional<AppInfo> find_app_by_manifest_id(const System &system, std::string_view manifest_id)
 {
     for (const auto &app : system.list_apps()) {
@@ -1197,8 +1188,11 @@ std::expected<AppId, std::string> System::install_runtime_app_package(
                );
     }
 
-    const auto staging_parent = app_root / ".installing" / make_unique_install_directory_name(package_manifest->id);
+    const auto staging_parent = app_root / APP_INSTALL_STAGING_DIR /
+                                make_unique_install_directory_name(package_manifest->id);
     const auto staged_app_dir = staging_parent / package_manifest->id;
+    const auto previous_app_dir = staging_parent / APP_PREVIOUS_VERSION_DIR;
+    const auto rejected_app_dir = staging_parent / APP_REJECTED_VERSION_DIR;
     const auto install_dir = app_root / package_manifest->id;
 
     auto cleanup_staging = [&staging_parent]() {
@@ -1231,6 +1225,29 @@ std::expected<AppId, std::string> System::install_runtime_app_package(
         cleanup_staging();
         return std::unexpected("Failed to validate staged runtime app package: " + descriptor_result.error());
     }
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+    const GuiBackend host_gui_backend = GuiBackend::Gsp;
+#else
+    const GuiBackend host_gui_backend = GuiBackend::Lvgl;
+#endif
+    auto backend_result = check_runtime_package_gui_backend(
+                              unpacked_manifest->gui_backend, descriptor_result->gui, host_gui_backend
+                          );
+    if (!backend_result) {
+        cleanup_staging();
+        return std::unexpected(backend_result.error());
+    }
+
+    auto target_written = service::helper::Storage::fs_write_text(
+                              (staging_parent / APP_INSTALL_TARGET_FILE).generic_string(),
+                              package_manifest->id, STORAGE_FS_TIMEOUT_MS);
+    auto transaction_written = target_written ? service::helper::Storage::fs_write_text(
+                                   (staged_app_dir / APP_INSTALL_TRANSACTION_FILE).generic_string(),
+                                   staging_parent.filename().generic_string(), STORAGE_FS_TIMEOUT_MS) : target_written;
+    if (!transaction_written) {
+        cleanup_staging();
+        return std::unexpected("Failed to record runtime app install target: " + transaction_written.error());
+    }
 
     if (installed) {
         auto preserve_result = preserve_runtime_app_private_data(old_app_dir, staged_app_dir);
@@ -1246,38 +1263,157 @@ std::expected<AppId, std::string> System::install_runtime_app_package(
         }
     }
 
+    bool previous_moved = false;
+    bool previous_unregistered = false;
+    auto restore_previous = [&]() -> std::string {
+        if (!previous_moved)
+        {
+            return {};
+        }
+        const auto kept = "; previous version kept in '" + previous_app_dir.generic_string() + "'";
+        const auto install_state = query_path_state(install_dir);
+        if (install_state == PathState::Unknown)
+        {
+            return kept + ": cannot check '" + install_dir.generic_string() + "'";
+        }
+        if (install_state == PathState::Exists)
+        {
+            auto moved_aside = service::helper::Storage::fs_rename(
+                                   install_dir.generic_string(), rejected_app_dir.generic_string(), STORAGE_FS_TIMEOUT_MS
+                               );
+            if (!moved_aside) {
+                return kept + ": " + moved_aside.error();
+            }
+        }
+        auto moved_back = service::helper::Storage::fs_rename(
+                              previous_app_dir.generic_string(), install_dir.generic_string(), STORAGE_FS_TIMEOUT_MS
+                          );
+        if (!moved_back)
+        {
+            return kept + ": " + moved_back.error();
+        }
+        previous_moved = false;
+        if (!previous_unregistered)
+        {
+            return "; previous version restored";
+        }
+        auto previous_manifest = read_unpacked_app_manifest(install_dir.generic_string(), get_system_type());
+        if (!previous_manifest)
+        {
+            return "; previous version files restored, reload failed: " + previous_manifest.error();
+        }
+        auto reinstalled = install_runtime_app(*previous_manifest);
+        if (!reinstalled)
+        {
+            return "; previous version files restored, reload failed: " + reinstalled.error();
+        }
+        return "; previous version " + previous_manifest->version + " restored";
+    };
+    auto fail_after_swap = [&](std::string error) -> std::unexpected<std::string> {
+        error += restore_previous();
+        if (!previous_moved)
+        {
+            cleanup_staging();
+        }
+        return std::unexpected(std::move(error));
+    };
+
     if (installed) {
+        if ((installed->state == AppState::Running) || (installed->state == AppState::Paused)) {
+            auto stop_result = stop_app(installed->app_id);
+            if (!stop_result) {
+                cleanup_staging();
+                return std::unexpected("Failed to stop existing app: " + stop_result.error());
+            }
+        }
+        auto keep_result = service::helper::Storage::fs_rename(
+                               old_app_dir.generic_string(), previous_app_dir.generic_string(), STORAGE_FS_TIMEOUT_MS
+                           );
+        if (!keep_result) {
+            cleanup_staging();
+            return std::unexpected("Failed to set aside existing app: " + keep_result.error());
+        }
+        previous_moved = true;
         auto uninstall_result = uninstall_app(installed->app_id);
         if (!uninstall_result) {
-            cleanup_staging();
-            return std::unexpected("Failed to uninstall existing app: " + uninstall_result.error());
+            return fail_after_swap("Failed to uninstall existing app: " + uninstall_result.error());
         }
+        previous_unregistered = true;
     }
 
     auto rename_result = service::helper::Storage::fs_rename(
                              staged_app_dir.generic_string(), install_dir.generic_string(), STORAGE_FS_TIMEOUT_MS
                          );
     if (!rename_result) {
-        cleanup_staging();
-        return std::unexpected(
+        return fail_after_swap(
                    "Failed to move staged runtime app to final directory '" + install_dir.generic_string() +
                    "': " + rename_result.error()
                );
     }
-    cleanup_staging();
     unpacked_manifest->app_path = install_dir.generic_string();
 
     auto install_result = install_runtime_app(*unpacked_manifest);
     if (!install_result) {
-        auto cleanup_result = remove_path_tree(install_dir, "runtime app directory");
-        if (!cleanup_result) {
+        if (!installed) {
+            auto cleanup_result = remove_path_tree(install_dir, "runtime app directory");
+            cleanup_staging();
+            if (!cleanup_result) {
+                return std::unexpected(
+                           "Failed to install runtime app package: " + install_result.error() +
+                           "; additionally failed to remove runtime app directory: " + cleanup_result.error()
+                       );
+            }
+            return std::unexpected("Failed to install runtime app package: " + install_result.error());
+        }
+        return fail_after_swap("Failed to install runtime app package: " + install_result.error());
+    }
+    if (installed) {
+        // Boot recovery keeps the new version only if `committed` exists. A failed write can still
+        // leave a file behind, so write a temporary file and publish it with a rename.
+        const auto committed_path = staging_parent / APP_INSTALL_COMMITTED_FILE;
+        const auto committing_path = staging_parent / APP_INSTALL_COMMITTING_FILE;
+        auto marker_state = PathState::Missing;
+        std::string commit_error;
+        auto written = service::helper::Storage::fs_write_text(
+                           committing_path.generic_string(), "", STORAGE_FS_TIMEOUT_MS
+                       );
+        if (!written) {
+            commit_error = written.error();
+        } else {
+            auto published = service::helper::Storage::fs_rename(
+                                 committing_path.generic_string(), committed_path.generic_string(), STORAGE_FS_TIMEOUT_MS
+                             );
+            marker_state = PathState::Exists;
+            if (!published) {
+                commit_error = published.error();
+                marker_state = query_path_state(committed_path);
+            }
+        }
+        if (marker_state == PathState::Unknown) {
             return std::unexpected(
-                       "Failed to install runtime app package: " + install_result.error() +
-                       "; additionally failed to remove runtime app directory: " + cleanup_result.error()
+                       "Failed to confirm the update commit: " + commit_error + "; the new version stays installed. "
+                       "The next boot keeps it if '" + committed_path.generic_string() + "' exists, otherwise it "
+                       "restores " + installed->manifest.version
                    );
         }
-        return std::unexpected("Failed to install runtime app package: " + install_result.error());
+        if ((marker_state == PathState::Exists) && !commit_error.empty()) {
+            BROOKESIA_LOGW("Update commit reported an error, but the marker exists; keeping %1%: %2%",
+                           unpacked_manifest->version, commit_error);
+        }
+        if (marker_state == PathState::Missing) {
+            std::string error = "Failed to commit the update: " + commit_error;
+            auto uninstalled = uninstall_app(*install_result);
+            if (!uninstalled) {
+                return std::unexpected(
+                           error + "; the new version stays registered and the next boot restores the previous "
+                           "version: " + uninstalled.error()
+                       );
+            }
+            return fail_after_swap(std::move(error));
+        }
+        (void)remove_path_tree_if_exists(previous_app_dir, "previous runtime app version");
     }
+    cleanup_staging();
     return *install_result;
 }
 
@@ -1386,6 +1522,16 @@ AppContext::AppContext(System &system, AppId app_id)
 AppGuiDescriptor IApp::get_gui_descriptor() const
 {
     return {};
+}
+
+std::span<const std::byte> IApp::gui_bundle() const
+{
+    return {};
+}
+
+const void *IApp::gui_runtime_config() const
+{
+    return nullptr;
 }
 
 std::expected<void, std::string> IApp::on_install(AppContext &)

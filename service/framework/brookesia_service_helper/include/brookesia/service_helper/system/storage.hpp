@@ -1058,7 +1058,10 @@ public:
             }
             auto value_str = std::string(value_json.as_string());
             if (!BROOKESIA_DESCRIBE_JSON_DESERIALIZE(value_str, value)) {
-                return std::unexpected((boost::format("Failed to parse value from: %1%") % value_str).str());
+                return std::unexpected((
+                                           boost::format("Failed to parse value for key %1% in namespace %2%") %
+                                           key % nspace
+                                       ).str());
             }
         }
 

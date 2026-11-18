@@ -569,7 +569,8 @@ bool LcdDisplayPanelImpl::enable_event_dispatcher_locked()
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
         esp_lcd_dpi_panel_event_callbacks_t callbacks = {};
         callbacks.on_color_trans_done = on_mipi_color_trans_done;
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 2)
+        // IDF 6.0.2 still exposes the DPI frame callback as on_refresh_done.
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 1, 0)
         callbacks.on_frame_buf_complete = on_mipi_frame_done;
 #else
         callbacks.on_refresh_done = on_mipi_frame_done;

@@ -41,6 +41,20 @@
 #   endif
 #endif
 
+/* Turning this off in menuconfig leaves the option undefined. On ESP that
+   means Display does not read touches. PC builds have no menuconfig, so
+   they keep touch reading on for the simulator. */
+#if !defined(BROOKESIA_SERVICE_DISPLAY_ENABLE_TOUCH_COLLECTION)
+#   if defined(CONFIG_BROOKESIA_SERVICE_DISPLAY_ENABLE_TOUCH_COLLECTION)
+#       define BROOKESIA_SERVICE_DISPLAY_ENABLE_TOUCH_COLLECTION \
+            CONFIG_BROOKESIA_SERVICE_DISPLAY_ENABLE_TOUCH_COLLECTION
+#   elif defined(ESP_PLATFORM)
+#       define BROOKESIA_SERVICE_DISPLAY_ENABLE_TOUCH_COLLECTION  (0)
+#   else
+#       define BROOKESIA_SERVICE_DISPLAY_ENABLE_TOUCH_COLLECTION  (1)
+#   endif
+#endif
+
 #if !defined(BROOKESIA_SERVICE_DISPLAY_TOUCH_POLL_INTERVAL_MS)
 #   if defined(CONFIG_BROOKESIA_SERVICE_DISPLAY_TOUCH_POLL_INTERVAL_MS)
 #       define BROOKESIA_SERVICE_DISPLAY_TOUCH_POLL_INTERVAL_MS \

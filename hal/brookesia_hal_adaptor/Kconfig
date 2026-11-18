@@ -305,6 +305,15 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
             help
                 Enable the high-level audio processor backed by av_processor.
 
+        config BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
+            bool "Audio Processor Recording"
+            depends on BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_IMPL
+            default y
+            help
+                Expose high-level audio encoder and decoder interfaces, including
+                AFE wake-word support. Disable for playback-only applications;
+                the raw codec player and recorder interfaces remain available.
+
         if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_CODEC_RECORDER_IMPL
             config BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_BITS
                 int "Recorder bits"
@@ -379,8 +388,9 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
         menuconfig BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL
             bool "Encoder"
             default y
+            select VIDEO_PROCESSOR_ENABLE
             help
-                Enable the video encoder implementation.
+                Enable the video encoder implementation and its av_processor video pipeline.
 
         if BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL
             config BROOKESIA_HAL_ADAPTOR_VIDEO_ENCODER_DEFAULT_DEVICE_PATH_PREFIX
@@ -400,8 +410,9 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
         menuconfig BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_DECODER_IMPL
             bool "Decoder"
             default y
+            select VIDEO_PROCESSOR_ENABLE
             help
-                Enable the video decoder implementation.
+                Enable the video decoder implementation and its av_processor video pipeline.
 
         if BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_DECODER_IMPL
             config BROOKESIA_HAL_ADAPTOR_VIDEO_DECODER_DEFAULT_NUM
@@ -854,7 +865,7 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
             Targets without an integrated BLE controller require the project sdkconfig
             to select controller-disabled NimBLE with UART transport disabled and
             ESP-Hosted NimBLE VHCI enabled. The component cannot select these upstream
-            options itself. The ESP32-P4 integration uses the pinned esp_hosted 2.12.3
+            options itself. The ESP32-P4 integration uses the esp_hosted 2.x
             dependency and leaves the shared Hosted transport available to Remote Wi-Fi.
 
     menuconfig BROOKESIA_HAL_ADAPTOR_ENABLE_BT_DEVICE

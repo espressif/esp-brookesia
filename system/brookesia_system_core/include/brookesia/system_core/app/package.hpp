@@ -62,6 +62,19 @@ std::expected<RuntimeAppResourceDescriptor, std::string> read_runtime_app_resour
 std::expected<AppGuiDescriptor, std::string> read_runtime_app_gui_descriptor(const AppManifest &manifest);
 
 /**
+ * @brief Reject a package whose GUI backend does not match its descriptor or the firmware.
+ *
+ * @param package_backend GUI backend declared by manifest.gui.backend.
+ * @param gui Parsed runtime GUI descriptor.
+ * @param host_backend GUI backend compiled into the firmware.
+ */
+std::expected<void, std::string> check_runtime_package_gui_backend(
+    GuiBackend package_backend,
+    const AppGuiDescriptor &gui,
+    GuiBackend host_backend
+);
+
+/**
  * @brief Convert a system_core app manifest to a runtime app config.
  */
 std::expected<runtime::AppConfig, std::string> make_runtime_app_config(const AppManifest &manifest);

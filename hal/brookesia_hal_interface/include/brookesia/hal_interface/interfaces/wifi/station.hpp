@@ -8,6 +8,7 @@
 #include <functional>
 #include <list>
 #include <span>
+#include <string>
 #include "brookesia/hal_interface/interface.hpp"
 #include "brookesia/hal_interface/interfaces/wifi/types.hpp"
 
@@ -131,6 +132,18 @@ public:
      * @return Last connected AP information.
      */
     virtual const ConnectApInfo &get_last_connected_ap_info() const = 0;
+
+    /**
+     * @brief Query the SSID of the currently associated AP without reading saved credentials.
+     *
+     * @param[out] ssid Actual associated SSID on success.
+     * @return `true` when the backend can query the current association; otherwise `false`.
+     */
+    virtual bool get_connected_ssid(std::string &ssid) const
+    {
+        (void)ssid;
+        return false;
+    }
 
     /**
      * @brief Get the persisted known AP list.

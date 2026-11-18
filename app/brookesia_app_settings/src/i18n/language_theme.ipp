@@ -100,13 +100,16 @@ std::expected<void, std::string> SettingsApp::schedule_language_switch(
             show_preference_save_failure(context, true, result.error());
             return result;
         }
-        pending_language_locale_.clear();
-        restart_prompt_kind_ = RestartPromptKind::None;
-        hide_message_dialog_if_visible(context);
-        return refresh_language_state(context);
+    preference_error_.clear();
+    pending_language_locale_.clear();
+    restart_prompt_kind_ = RestartPromptKind::None;
+    hide_message_dialog_if_visible(context);
+    return refresh_language_state(context);
     }
 
-    const auto supported_languages = normalize_language_list(context.gui().list_supported_languages());
+    const auto supported_languages = settings_uses_gsp_backend() ?
+                                     std::vector<std::string>{LOCALE_EN, LOCALE_ZH_CN} :
+                                     normalize_language_list(context.gui().list_supported_languages());
     if (std::find(supported_languages.begin(), supported_languages.end(), normalized_locale) ==
             supported_languages.end()) {
         return std::unexpected("Unsupported language: " + normalized_locale);
@@ -115,6 +118,7 @@ std::expected<void, std::string> SettingsApp::schedule_language_switch(
         show_preference_save_failure(context, true, result.error());
         return result;
     }
+    preference_error_.clear();
     pending_language_locale_ = normalized_locale;
     auto result = refresh_language_state(context);
     if (!result) {
@@ -140,15 +144,17 @@ std::expected<void, std::string> SettingsApp::schedule_theme_switch(
             show_preference_save_failure(context, false, result.error());
             return result;
         }
-        pending_theme_id_.clear();
-        restart_prompt_kind_ = RestartPromptKind::None;
-        hide_message_dialog_if_visible(context);
-        return refresh_theme_state(context);
+    preference_error_.clear();
+    pending_theme_id_.clear();
+    restart_prompt_kind_ = RestartPromptKind::None;
+    hide_message_dialog_if_visible(context);
+    return refresh_theme_state(context);
     }
     if (auto result = context.gui().save_theme_preference(theme_id); !result) {
         show_preference_save_failure(context, false, result.error());
         return result;
     }
+    preference_error_.clear();
     pending_theme_id_ = std::string(theme_id);
     auto result = refresh_theme_state(context);
     if (!result) {
@@ -166,6 +172,9 @@ std::expected<void, std::string> SettingsApp::show_restart_prompt(
                           "language.restart_required" : "theme.restart_required";
     const auto text = localized_text(current_locale_, text_key);
     restart_prompt_kind_ = kind;
+    if (settings_uses_gsp_backend()) {
+        (void)(kind == RestartPromptKind::Language ? refresh_language_state(context) : refresh_theme_state(context));
+    }
     ensure_message_dialog(
         context,
         text,
@@ -183,6 +192,9 @@ std::expected<void, std::string> SettingsApp::show_restart_prompt(
         }
     );
     if (message_dialog_request_id_ == system::core::INVALID_MESSAGE_DIALOG_REQUEST_ID) {
+        if (settings_uses_gsp_backend()) {
+            return {};
+        }
         restart_prompt_kind_ = RestartPromptKind::None;
         return std::unexpected("Failed to show restart confirmation dialog");
     }
@@ -233,6 +245,15 @@ void SettingsApp::handle_restart_dialog_result(
 void SettingsApp::show_restart_failure(system::core::AppContext &context, std::string reason)
 {
     restart_prompt_kind_ = RestartPromptKind::Failure;
+    if (settings_uses_gsp_backend()) {
+        BROOKESIA_LOGW("Settings restart failed: %1%", reason);
+        preference_error_ = localized_text(current_locale_, "restart_failed");
+        if (auto result = current_page_ == PAGE_LANGUAGE ? refresh_language_state(context) :
+                          refresh_theme_state(context); !result) {
+            BROOKESIA_LOGW("Failed to refresh Settings restart failure: %1%", result.error());
+        }
+        return;
+    }
     ensure_message_dialog(
         context,
         localized_text(current_locale_, "restart_failed") + ": " + std::move(reason),
@@ -254,6 +275,14 @@ void SettingsApp::show_preference_save_failure(
 )
 {
     restart_prompt_kind_ = RestartPromptKind::Failure;
+    if (settings_uses_gsp_backend()) {
+        BROOKESIA_LOGW("Failed to save Settings %1% preference: %2%", language ? "language" : "theme", reason);
+        preference_error_ = localized_text(current_locale_, language ? "language.save_failed" : "theme.save_failed");
+        if (auto result = language ? refresh_language_state(context) : refresh_theme_state(context); !result) {
+            BROOKESIA_LOGW("Failed to refresh Settings preference save failure: %1%", result.error());
+        }
+        return;
+    }
     ensure_message_dialog(
         context,
         localized_text(current_locale_, language ? "language.save_failed" : "theme.save_failed") +

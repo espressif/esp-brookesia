@@ -1,5 +1,20 @@
 # ChangeLog
 
+## v0.8.4 - 2026-11-10
+
+### Breaking Changes:
+
+- break(abi): rebuild Wi-Fi HAL backends and native consumers for the expanded station and scan-result interfaces.
+
+### Enhancements:
+
+- feat(wifi): add a credential-free connected-SSID query to the station interface and ESP, Linux, and Wasm backends.
+- feat(wifi): expose enterprise authentication in access-point scan results.
+
+### Documentation:
+
+- docs(audio): describe deferred playback cleanup when close is requested from an event callback.
+
 ## v0.8.3 - 2026-10-27
 
 ### Enhancements:

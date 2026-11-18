@@ -209,7 +209,14 @@ std::expected<void, std::string> System::Impl::post_task(
     // already in the target task domain. Callers that re-arm themselves (e.g. the
     // GUI binding-flush continuation) must use it: the inline shortcut would run
     // them nested and can recurse without bound under sustained arrivals.
-    if ((allow_inline_execution && is_current_task_domain(group)) || !task_scheduler_ || !task_scheduler_->is_running()) {
+    if (!task_scheduler_ || !task_scheduler_->is_running()) {
+        if (!allow_inline_execution) {
+            return std::unexpected("System task scheduler is unavailable");
+        }
+        task();
+        return {};
+    }
+    if (allow_inline_execution && is_current_task_domain(group)) {
         task();
         return {};
     }

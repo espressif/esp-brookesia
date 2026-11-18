@@ -12,9 +12,17 @@ using namespace detail;
 SettingsApp::SettingsApp()
     : impl_(std::make_unique<Impl>())
 {
+    impl_->surface = make_settings_surface();
 }
 
-SettingsApp::~SettingsApp() = default;
+SettingsApp::~SettingsApp()
+{
+    if (wifi_ui_mailbox_) {
+        wifi_ui_mailbox_->close();
+    }
+    disconnect_sntp_events();
+    shutdown_brightness_callbacks();
+}
 
 #include "app/lifecycle.ipp"
 

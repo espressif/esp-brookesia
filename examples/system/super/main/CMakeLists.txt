@@ -1,9 +1,11 @@
 file(GLOB_RECURSE SRCS "${CMAKE_CURRENT_LIST_DIR}/*.cpp" "${CMAKE_CURRENT_LIST_DIR}/*.c")
+set(common_dir "${CMAKE_CURRENT_LIST_DIR}/../../common")
+list(APPEND SRCS "${common_dir}/lvgl/display.cpp" "${common_dir}/lvgl/general_services.cpp")
 set(EMBEDDED_FILES "")
 
 idf_component_register(
     SRCS ${SRCS}
-    INCLUDE_DIRS "."
+    INCLUDE_DIRS "." "${common_dir}"
     EMBED_TXTFILES ${EMBEDDED_FILES}
 )
 
@@ -23,7 +25,7 @@ endif()
 if(COMMAND littlefs_create_partition_image)
     littlefs_create_partition_image(
         littlefs_data
-        ../littlefs
+        "${BROOKESIA_SYSTEM_CORE_ESP_RESOURCE_STAGE_ROOT}"
         FLASH_IN_PROJECT
         DEPENDS ${brookesia_runtime_app_stage_targets} ${brookesia_system_super_stage_targets}
     )

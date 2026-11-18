@@ -1,0 +1,102 @@
+menu "Brookesia system GSP example"
+
+    config BROOKESIA_EXAMPLE_SYSTEM_GSP_APP
+        bool
+        default y
+        select BROOKESIA_SYSTEM_CORE_ENABLE_GSP_BACKEND
+        help
+            This example can run GSP, so menuconfig includes that choice.
+
+    config BROOKESIA_GSP_PREINSTALL_DEVICE_CONTROL
+        bool "Preinstall the Device Control app"
+        default n
+        help
+            Build examples/app/gsp_js_device_control and put it in the GSP
+            LittleFS image. The option stays defined when LVGL is selected so
+            the component rule can be evaluated, but the package is staged
+            only for the GSP backend. The image is written only by a full
+            'idf.py flash', which replaces every app installed over USB and
+            their data. Leave disabled to install apps with brookesia-usb
+            instead.
+
+    config BROOKESIA_GSP_SETTINGS_MEMORY_PROBE
+        bool "Open and close Settings repeatedly at startup to log heap use"
+        depends on BROOKESIA_GUI_BACKEND_GSP
+        default n
+        help
+            Start and stop Settings before the launcher, including 20 measured
+            cycles. Each cycle draws the Settings page. Leave disabled for
+            normal use, including after Restart now.
+
+    config BROOKESIA_GSP_JS_APP_MEMORY_PROBE
+        bool "Log heap across short start and exit cycles of the installed GSP JS app"
+        depends on BROOKESIA_GUI_BACKEND_GSP
+        default n
+        help
+            After warmup, start and stop brookesia.gsp.device_control five times
+            and log internal RAM and PSRAM. The app must already be installed.
+            Leave disabled for normal use.
+
+    config BROOKESIA_GSP_DELIVERY_PROBE
+        bool "Let USB callers inject touches and print the screen"
+        depends on BROOKESIA_GUI_BACKEND_GSP
+        depends on !BROOKESIA_GSP_SETTINGS_PROBE
+        default n
+        help
+            Register a GspProbe service that brookesia-usb can call to tap,
+            drag, query components, and print the framebuffers to the console.
+            Startup and the USB install path are unchanged. Anyone with USB
+            access can drive the screen, so leave disabled for normal use.
+
+    config BROOKESIA_GSP_WIFI_PROBE
+        bool "Run Settings Wi-Fi hardware acceptance probe at startup"
+        depends on BROOKESIA_GUI_BACKEND_GSP
+        default n
+        help
+            Exercise real scans, refresh, Wi-Fi toggles, and exit during scans
+            through GSP pointer input. Log heap use over 20 measured cycles.
+            This temporarily changes Wi-Fi state and restores it on success.
+            Leave disabled for normal use.
+
+    config BROOKESIA_GSP_SETTINGS_PROBE
+        bool "Run Settings sound and appearance checks instead of scan checks"
+        depends on BROOKESIA_GSP_WIFI_PROBE
+        default n
+        help
+            Exercise the Settings pages with injected touch, capture frames,
+            check sound controls, and record a short resource regression.
+            Leave disabled for normal use.
+
+    config BROOKESIA_GSP_WIFI_CONNECT_PROBE
+        bool "Run password and connection checks instead of scan checks"
+        depends on BROOKESIA_GSP_WIFI_PROBE
+        depends on !BROOKESIA_GSP_SETTINGS_PROBE
+        default n
+        help
+            Accept temporary test credentials over the serial console, then
+            exercise the password keyboard, failed connection, retry, exit,
+            and saved-network reconnection using injected touch input.
+            Credentials are not printed. Successful connections are saved by
+            the Wi-Fi service. Leave disabled for normal use.
+
+    config BROOKESIA_LVGL_HW_PROBE
+        bool "Run LVGL hardware acceptance probe at startup"
+        depends on BROOKESIA_GUI_BACKEND_LVGL
+        select LV_USE_OBJ_NAME
+        default n
+        help
+            Exercise the desktop, Settings, brightness, and Wi-Fi through
+            injected touch input. Capture screens and log heap use over
+            20 measured cycles. Leave disabled for normal use.
+
+    config BROOKESIA_LVGL_WIFI_CONNECT_PROBE
+        bool "Run LVGL password and connection checks instead of desktop checks"
+        depends on BROOKESIA_LVGL_HW_PROBE
+        default n
+        help
+            Read temporary test credentials from the serial console and test
+            password entry, cancellation, connection, and reopening Settings.
+            A saved entry for this test network is removed through the UI and
+            saved again after connection. Leave disabled for normal use.
+
+endmenu

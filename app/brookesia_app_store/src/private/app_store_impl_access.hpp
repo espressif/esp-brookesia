@@ -10,6 +10,7 @@
 #define device_binding_ impl_->device_binding
 #define storage_binding_ impl_->storage_binding
 #define http_event_connections_ impl_->http_event_connections
+#define http_event_mailbox_ impl_->http_event_mailbox
 #define primary_action_connection_ impl_->primary_action_connection
 #define local_delete_action_connection_ impl_->local_delete_action_connection
 #define entries_ impl_->entries
@@ -22,7 +23,6 @@
 #define local_package_scan_dirs_ impl_->local_package_scan_dirs
 #define local_package_scan_candidates_ impl_->local_package_scan_candidates
 #define local_package_scan_results_ impl_->local_package_scan_results
-#define pending_http_events_ impl_->pending_http_events
 #define instance_to_entry_ impl_->instance_to_entry
 #define local_package_by_manifest_id_ impl_->local_package_by_manifest_id
 #define installed_manifest_ids_ impl_->installed_manifest_ids
@@ -85,4 +85,3 @@
 #define startup_cache_load_in_progress_ impl_->startup_cache_load_in_progress
 #define local_package_scan_in_progress_ impl_->local_package_scan_in_progress
 #define local_package_scan_refresh_view_ impl_->local_package_scan_refresh_view
-#define pending_http_events_mutex_ impl_->pending_http_events_mutex

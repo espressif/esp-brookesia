@@ -1,0 +1,258 @@
+{
+  "screen": "settings_theme",
+  "w": 1024,
+  "h": 600,
+  "screen_bg": "#F4F5F7",
+  "font": "brookesia_gui_gsp/DejaVuSans.ttf",
+  "default_font_size": 24,
+  "objects": [
+    {
+      "type": "container",
+      "parent": -1,
+      "name": "page_background",
+      "x": 0,
+      "y": 0,
+      "w": 1024,
+      "h": 600,
+      "bg_color": {
+        "theme": "page_bg"
+      }
+    },
+    {
+      "type": "container",
+      "parent": -1,
+      "name": "header_bar",
+      "x": 0,
+      "y": 0,
+      "w": 1024,
+      "h": 74,
+      "bg_color": {
+        "theme": "surface"
+      }
+    },
+    {
+      "type": "button",
+      "parent_name": "header_bar",
+      "name": "header_back",
+      "bind": "header_back",
+      "x": 16,
+      "y": 9,
+      "w": 88,
+      "h": 56,
+      "text": "Back",
+      "font_size": 22,
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 16,
+      "callback": "header_back",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "label",
+      "parent_name": "header_bar",
+      "name": "header_title",
+      "bind": "header_title",
+      "x": 120,
+      "y": 16,
+      "w": 760,
+      "h": 42,
+      "text": "Theme",
+      "font_size": 32,
+      "fg_color": {
+        "theme": "text"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "label",
+      "name": "options_caption",
+      "bind": "options_caption",
+      "x": 54,
+      "y": 96,
+      "w": 916,
+      "h": 32,
+      "text": "Theme",
+      "font_size": 18,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "parent": -1,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "button",
+      "parent": -1,
+      "name": "option_0",
+      "bind": "option_0",
+      "x": 54,
+      "y": 148,
+      "w": 916,
+      "h": 100,
+      "text": "Light mode",
+      "font_size": 24,
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 14,
+      "callback": "select_0",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "label",
+      "name": "value_0",
+      "bind": "value_0",
+      "x": 710,
+      "y": 184,
+      "w": 224,
+      "h": 36,
+      "text": " ",
+      "font_size": 18,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "parent": -1,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "button",
+      "parent": -1,
+      "name": "option_1",
+      "bind": "option_1",
+      "x": 54,
+      "y": 260,
+      "w": 916,
+      "h": 100,
+      "text": "Dark mode",
+      "font_size": 24,
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 14,
+      "callback": "select_1",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "label",
+      "name": "value_1",
+      "bind": "value_1",
+      "x": 710,
+      "y": 296,
+      "w": 224,
+      "h": 36,
+      "text": " ",
+      "font_size": 18,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "parent": -1,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "label",
+      "name": "status",
+      "bind": "status",
+      "x": 54,
+      "y": 382,
+      "w": 916,
+      "h": 48,
+      "text": " ",
+      "font_size": 20,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "parent": -1,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "button",
+      "parent": -1,
+      "name": "restart_now",
+      "bind": "restart_now",
+      "x": 524,
+      "y": 466,
+      "w": 212,
+      "h": 62,
+      "text": "Restart now",
+      "font_size": 24,
+      "bg_color": {
+        "theme": "accent"
+      },
+      "fg_color": {
+        "theme": "on_accent"
+      },
+      "radius": 14,
+      "callback": "restart_now",
+      "hidden": true,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "button",
+      "parent": -1,
+      "name": "later",
+      "bind": "later",
+      "x": 758,
+      "y": 466,
+      "w": 212,
+      "h": 62,
+      "text": "Later",
+      "font_size": 24,
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 14,
+      "callback": "later",
+      "hidden": true,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    }
+  ],
+  "themes": {
+    "accent": {
+      "type": "color",
+      "default": "#0A84FF",
+      "dynamic": true
+    },
+    "control": {
+      "type": "color",
+      "default": "#E8E8EA",
+      "dynamic": true
+    },
+    "muted": {
+      "type": "color",
+      "default": "#636366",
+      "dynamic": true
+    },
+    "on_accent": {
+      "type": "color",
+      "default": "#FFFFFF",
+      "dynamic": true
+    },
+    "page_bg": {
+      "type": "color",
+      "default": "#F4F5F7",
+      "dynamic": true
+    },
+    "surface": {
+      "type": "color",
+      "default": "#FFFFFF",
+      "dynamic": true
+    },
+    "text": {
+      "type": "color",
+      "default": "#1C1C1E",
+      "dynamic": true
+    }
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "screen": "status",
+  "w": 1024,
+  "h": 600,
+  "screen_bg": "#F4F5F7",
+  "font": "../../../system/gsp_app/main/fonts/DejaVuSans.ttf",
+  "default_font_size": 24,
+  "objects": [
+    {
+      "type": "label",
+      "parent": -1,
+      "name": "title",
+      "x": 54,
+      "y": 48,
+      "w": 916,
+      "h": 56,
+      "text": "Device",
+      "font_size": 44,
+      "fg_color": "#1C1C1E",
+      "font_charset": " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-%"
+    },
+    {
+      "type": "label",
+      "parent": -1,
+      "name": "brightness_readback",
+      "bind": "brightness_readback",
+      "x": 54,
+      "y": 140,
+      "w": 916,
+      "h": 48,
+      "text": "Brightness --",
+      "font_size": 32,
+      "fg_color": "#1C1C1E",
+      "font_charset": " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-%"
+    },
+    {
+      "type": "label",
+      "parent": -1,
+      "name": "service_status",
+      "bind": "service_status",
+      "x": 54,
+      "y": 204,
+      "w": 916,
+      "h": 72,
+      "text": "Display service",
+      "font_size": 22,
+      "fg_color": "#626269",
+      "font_charset": " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-%:()"
+    },
+    {
+      "type": "button",
+      "parent": -1,
+      "name": "open_brightness",
+      "x": 54,
+      "y": 340,
+      "w": 420,
+      "h": 84,
+      "text": "Brightness",
+      "font_size": 28,
+      "bg_color": "#FFFFFF",
+      "fg_color": "#1C1C1E",
+      "radius": 22,
+      "callback": "open_brightness",
+      "font_charset": " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    },
+    {
+      "type": "button",
+      "parent": -1,
+      "name": "exit_app",
+      "x": 498,
+      "y": 340,
+      "w": 280,
+      "h": 84,
+      "text": "Exit",
+      "font_size": 28,
+      "bg_color": "#1C1C1E",
+      "fg_color": "#FFFFFF",
+      "radius": 22,
+      "callback": "exit_app",
+      "font_charset": " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    }
+  ]
+}

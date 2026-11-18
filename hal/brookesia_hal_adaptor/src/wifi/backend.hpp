@@ -79,6 +79,7 @@ public:
     void mark_target_connect_ap_info_connectable(bool connectable);
     bool set_target_connect_ap_info(const wifi::ConnectApInfo &ap_info);
     bool set_last_connected_ap_info(const wifi::ConnectApInfo &ap_info);
+    bool get_connected_ssid(std::string &ssid) const;
     bool set_connected_ap_infos(const wifi::ConnectApInfoList &ap_infos);
     const wifi::ConnectApInfo &get_target_connect_ap_info() const
     {
@@ -180,7 +181,7 @@ private:
     void notify_softap_event(wifi::SoftApEvent event);
     void notify_softap_params_updated(const wifi::SoftApParams &params);
 
-    bool on_wifi_event(uint8_t event);
+    bool on_wifi_event(uint8_t event, bool scan_failed);
     bool on_ip_event(uint8_t event);
 
     bool update_scan_ap_infos();

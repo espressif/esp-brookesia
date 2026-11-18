@@ -12,6 +12,7 @@
 #include <ctime>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "brookesia/lib_utils/describe_helpers.hpp"
@@ -26,6 +27,7 @@ namespace {
 
 using SNTPHelper = service::helper::SNTP;
 using WifiHelper = service::helper::Wifi;
+constexpr int STATUS_EVENT_POLL_INTERVAL_MS = 20;
 
 struct WifiStatusState {
     bool visible = false;
@@ -93,43 +95,132 @@ std::string make_clock_text()
 
 } // namespace
 
+bool ShellApp::start_status_event_processing()
+{
+    if (context_ == nullptr) {
+        return false;
+    }
+    auto mailbox = std::make_shared<StatusMailbox>();
+    auto timer = context_->timer().start_periodic(SUPER_STATUS_EVENT_TIMER_NAME, STATUS_EVENT_POLL_INTERVAL_MS);
+    if (!timer) {
+        BROOKESIA_LOGW("Failed to start Shell status event timer: %1%", timer.error());
+        return false;
+    }
+    status_mailbox_ = std::move(mailbox);
+    status_event_timer_id_ = *timer;
+    return true;
+}
+
+void ShellApp::stop_status_event_processing()
+{
+    auto mailbox = std::move(status_mailbox_);
+    if (mailbox) {
+        std::lock_guard lock(mailbox->mutex);
+        mailbox->open = false;
+        mailbox->wifi.reset();
+        mailbox->gestures.clear();
+        mailbox->timezone_changed = false;
+    }
+    if (context_ != nullptr && status_event_timer_id_ != core::INVALID_TIMER_ID) {
+        (void)context_->timer().stop(status_event_timer_id_);
+    }
+    status_event_timer_id_ = core::INVALID_TIMER_ID;
+}
+
+void ShellApp::process_status_events()
+{
+    auto mailbox = status_mailbox_;
+    if (!mailbox) {
+        return;
+    }
+    std::optional<StatusMailbox::WifiStatus> wifi;
+    std::vector<service::Display::TouchGestureInfo> gestures;
+    bool timezone_changed = false;
+    {
+        std::lock_guard lock(mailbox->mutex);
+        wifi = std::exchange(mailbox->wifi, std::nullopt);
+        gestures.swap(mailbox->gestures);
+        timezone_changed = std::exchange(mailbox->timezone_changed, false);
+    }
+    if (wifi) {
+        set_status_wifi_state(wifi->visible, wifi->connected);
+    }
+    if (timezone_changed) {
+        refresh_status_clock();
+        stop_status_clock_timer();
+        schedule_status_clock_timer();
+    }
+    for (const auto &gesture : gestures) {
+        if (status_mailbox_ != mailbox) {
+            break;
+        }
+        handle_display_touch_gesture(gesture);
+    }
+}
+
+void ShellApp::invalidate_wifi_status()
+{
+    if (auto mailbox = status_mailbox_) {
+        std::lock_guard lock(mailbox->mutex);
+        ++mailbox->wifi_query;
+        mailbox->wifi.reset();
+    }
+}
+
 bool ShellApp::ensure_wifi_service_binding()
 {
     if (wifi_service_binding_.is_valid()) {
         if (WifiHelper::is_running()) {
             return true;
         }
-        ++wifi_status_generation_;
+        invalidate_wifi_status();
         set_status_wifi_state(false, false);
         return false;
     }
     if (!WifiHelper::is_available()) {
-        ++wifi_status_generation_;
+        invalidate_wifi_status();
         set_status_wifi_state(false, false);
         return false;
     }
     wifi_service_binding_ = service::ServiceManager::get_instance().bind(WifiHelper::get_name().data());
     if (!wifi_service_binding_.is_valid()) {
         BROOKESIA_LOGW("Failed to bind Wi-Fi service for Shell status");
-        ++wifi_status_generation_;
+        invalidate_wifi_status();
         set_status_wifi_state(false, false);
         return false;
     }
     if (!WifiHelper::is_running()) {
-        ++wifi_status_generation_;
+        invalidate_wifi_status();
         wifi_service_binding_.release();
         set_status_wifi_state(false, false);
         return false;
     }
 
     if (!wifi_event_connection_.connected()) {
-        const auto general_callback = [this](const std::string &, const std::string & event, bool unexpected) {
+        auto mailbox = status_mailbox_;
+        if (!mailbox) {
+            return false;
+        }
+        uint64_t subscription = 0;
+        {
+            std::lock_guard lock(mailbox->mutex);
+            subscription = ++mailbox->wifi_subscription;
+        }
+        const std::weak_ptr<StatusMailbox> weak_mailbox = mailbox;
+        const auto general_callback = [weak_mailbox, subscription](
+                                          const std::string &, const std::string & event, bool unexpected
+        ) {
             if (unexpected) {
                 BROOKESIA_LOGW("Wi-Fi service reported unexpected event for Shell status: %1%", event);
             }
-            ++wifi_status_generation_;
             const auto status = get_wifi_status_from_event(event);
-            set_status_wifi_state(status.visible, status.connected);
+            if (auto state = weak_mailbox.lock()) {
+                std::lock_guard lock(state->mutex);
+                if (state->open && state->wifi_subscription == subscription) {
+                    ++state->wifi_query;
+                    state->wifi = StatusMailbox::WifiStatus{status.visible, status.connected};
+                }
+            }
         };
         wifi_event_connection_ = WifiHelper::subscribe_event(
                                      WifiHelper::EventId::GeneralEventHappened,
@@ -144,8 +235,13 @@ bool ShellApp::ensure_wifi_service_binding()
 
 void ShellApp::release_wifi_service_binding()
 {
-    ++wifi_status_generation_;
-    wifi_event_connection_.disconnect();
+    if (auto mailbox = status_mailbox_) {
+        std::lock_guard lock(mailbox->mutex);
+        ++mailbox->wifi_subscription;
+        ++mailbox->wifi_query;
+        mailbox->wifi.reset();
+    }
+    wifi_event_connection_.disconnect_without_wait();
     wifi_service_binding_.release();
     wifi_connected_ = false;
     set_status_wifi_state(false, false);
@@ -157,18 +253,26 @@ void ShellApp::refresh_wifi_status()
         return;
     }
 
-    const auto generation = ++wifi_status_generation_;
-    const auto state_handler = [this, generation](service::FunctionResult && result) {
-        if (context_ == nullptr || generation != wifi_status_generation_ || !wifi_service_binding_.is_valid()) {
-            return;
+    auto mailbox = status_mailbox_;
+    if (!mailbox) {
+        return;
+    }
+    uint64_t generation = 0;
+    {
+        std::lock_guard lock(mailbox->mutex);
+        generation = ++mailbox->wifi_query;
+    }
+    const std::weak_ptr<StatusMailbox> weak_mailbox = mailbox;
+    const auto state_handler = [weak_mailbox, generation](service::FunctionResult && result) {
+        const auto status = !result.success || !result.has_data()
+                            ? WifiStatusState{.visible = true, .connected = false}
+                            : get_wifi_status_from_state(result.get_data<std::string>());
+        if (auto state = weak_mailbox.lock()) {
+            std::lock_guard lock(state->mutex);
+            if (state->open && state->wifi_query == generation) {
+                state->wifi = StatusMailbox::WifiStatus{status.visible, status.connected};
+            }
         }
-        if (!result.success || !result.has_data()) {
-            set_status_wifi_state(true, false);
-            return;
-        }
-        const auto &state = result.get_data<std::string>();
-        const auto status = get_wifi_status_from_state(state);
-        set_status_wifi_state(status.visible, status.connected);
     };
     if (!WifiHelper::call_function_async(WifiHelper::FunctionId::GetGeneralState, state_handler)) {
         BROOKESIA_LOGW("Failed to submit Wi-Fi state request for Shell status");
@@ -235,11 +339,23 @@ void ShellApp::subscribe_sntp_events()
         return;
     }
 
-    const auto timezone_callback = [this](const std::string &, const service::EventItemMap &) {
-        BROOKESIA_LOGI("SNTP timezone changed, refresh Shell status clock");
-        refresh_status_clock();
-        stop_status_clock_timer();
-        schedule_status_clock_timer();
+    auto mailbox = status_mailbox_;
+    if (!mailbox) {
+        return;
+    }
+    uint64_t subscription = 0;
+    {
+        std::lock_guard lock(mailbox->mutex);
+        subscription = ++mailbox->sntp_subscription;
+    }
+    const std::weak_ptr<StatusMailbox> weak_mailbox = mailbox;
+    const auto timezone_callback = [weak_mailbox, subscription](const std::string &, const service::EventItemMap &) {
+        if (auto state = weak_mailbox.lock()) {
+            std::lock_guard lock(state->mutex);
+            if (state->open && state->sntp_subscription == subscription) {
+                state->timezone_changed = true;
+            }
+        }
     };
     sntp_event_connection_ = SNTPHelper::subscribe_event(
                                  SNTPHelper::EventId::TimezoneChanged,
@@ -252,7 +368,12 @@ void ShellApp::subscribe_sntp_events()
 
 void ShellApp::disconnect_sntp_events()
 {
-    sntp_event_connection_.disconnect();
+    if (auto mailbox = status_mailbox_) {
+        std::lock_guard lock(mailbox->mutex);
+        ++mailbox->sntp_subscription;
+        mailbox->timezone_changed = false;
+    }
+    sntp_event_connection_.disconnect_without_wait();
 }
 
 void ShellApp::refresh_status_clock()

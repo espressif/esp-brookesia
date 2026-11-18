@@ -7,6 +7,14 @@
 
 #include "brookesia/system_core/macro_configs.h"
 
+#if !defined(BROOKESIA_APP_SETTINGS_SOUND_TEST_URL)
+#   if defined(CONFIG_BROOKESIA_APP_SETTINGS_SOUND_TEST_URL)
+#       define BROOKESIA_APP_SETTINGS_SOUND_TEST_URL CONFIG_BROOKESIA_APP_SETTINGS_SOUND_TEST_URL
+#   else
+#       define BROOKESIA_APP_SETTINGS_SOUND_TEST_URL ""
+#   endif
+#endif
+
 #if !defined(BROOKESIA_APP_SETTINGS_RESOURCE_DIR)
 #   define BROOKESIA_APP_SETTINGS_RESOURCE_DIR "brookesia.general.settings"
 #endif

@@ -11,6 +11,7 @@
 #if defined(ESP_PLATFORM)
 #include "esp_system.h"
 #include "unity_test_utils.h"
+#include "unity_test_runner.h"
 
 #define TEST_MEMORY_LEAK_THRESHOLD (300)
 
@@ -27,6 +28,8 @@ void tearDown(void)
 
 extern "C" void app_main(void)
 {
+    printf("\r\nUnity test count: %d\r\n", unity_get_test_count());
+    fflush(stdout);
     unity_run_menu();
 }
 #else

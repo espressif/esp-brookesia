@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <span>
 #include <filesystem>
 #include <limits>
 #include <map>
@@ -23,7 +24,13 @@
 #include "boost/json.hpp"
 #include "zlib.h"
 
+#if __has_include("sdkconfig.h")
+#   include "sdkconfig.h"
+#endif
 #include "brookesia/system_core/macro_configs.h"
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#   include "brookesia/gui_gsp/bundle.hpp"
+#endif
 #if !BROOKESIA_SYSTEM_CORE_SYSTEM_ENABLE_DEBUG_LOG
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
 #endif
@@ -482,6 +489,60 @@ std::expected<runtime::BackendType, std::string> parse_backend_type(std::string_
     return parsed;
 }
 
+std::expected<GuiBackend, std::string> parse_gui_backend(std::string_view backend, std::string_view owner)
+{
+    GuiBackend parsed = GuiBackend::Lvgl;
+    if (!BROOKESIA_DESCRIBE_STR_TO_ENUM_FLEXIBLE(std::string(backend), parsed)) {
+        return std::unexpected(
+                   std::string(owner) + " must be lvgl or gsp, got: " + std::string(backend)
+               );
+    }
+    return parsed;
+}
+
+std::expected<void, std::string> validate_gsp_bundle_file(const fs::path &path)
+{
+    auto info = service::helper::Storage::fs_stat(path.generic_string(), STORAGE_FS_TIMEOUT_MS);
+    if (!info) {
+        return std::unexpected("Failed to stat GSP bundle: " + path.string() + ", error: " + info.error());
+    }
+    if (!info->exists || info->type != service::helper::Storage::FileType::File) {
+        return std::unexpected("GSP bundle not found: " + path.string());
+    }
+    constexpr uint64_t MAX_GSP_BUNDLE_BYTES = 8U * 1024U * 1024U;
+    if (info->size < 4) {
+        return std::unexpected("Damaged GSP bundle: file is truncated: " + path.string());
+    }
+    if (info->size > MAX_GSP_BUNDLE_BYTES) {
+        return std::unexpected("Damaged GSP bundle: unexpected size: " + path.string());
+    }
+
+    std::array<uint8_t, 4> magic{};
+    auto read_result = service::helper::Storage::fs_read(
+                           path.generic_string(), service::RawBuffer(magic.data(), magic.size()), STORAGE_FS_TIMEOUT_MS
+                       );
+    if (!read_result || (*read_result < magic.size())) {
+        return std::unexpected("Damaged GSP bundle: unable to read header: " + path.string());
+    }
+    if (std::memcmp(magic.data(), "GSPB", magic.size()) != 0) {
+        return std::unexpected("Damaged GSP bundle or not a deployable GSPB: " + path.string());
+    }
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+    auto bytes = read_binary_file(path);
+    if (!bytes) {
+        return std::unexpected(bytes.error());
+    }
+    const auto bundle_bytes = std::span<const std::byte>(
+                                  reinterpret_cast<const std::byte *>(bytes->data()), bytes->size()
+                              );
+    auto loaded = gui::gsp::Bundle::load(bundle_bytes);
+    if (!loaded) {
+        return std::unexpected("Damaged GSP bundle: " + loaded.error());
+    }
+#endif
+    return {};
+}
+
 template <size_t N>
 void warn_unknown_manifest_fields(
     const boost::json::object &object,
@@ -669,10 +730,11 @@ std::expected<AppManifest, std::string> parse_manifest_to_app_manifest(
     if (!runtime) {
         return std::unexpected(runtime.error());
     }
-    warn_unknown_manifest_fields(root, "json", std::array<std::string_view, 3> {
+    warn_unknown_manifest_fields(root, "json", std::array<std::string_view, 4> {
         "package",
         "runtime",
         "services",
+        "gui",
     });
     warn_unknown_manifest_fields(**package, "package", std::array<std::string_view, 5> {
         "id",
@@ -727,6 +789,24 @@ std::expected<AppManifest, std::string> parse_manifest_to_app_manifest(
         return std::unexpected(runtime_type.error());
     }
 
+    GuiBackend gui_backend = GuiBackend::Lvgl;
+    if (auto gui_it = root.find("gui"); (gui_it != root.end()) && !gui_it->value().is_null()) {
+        if (!gui_it->value().is_object()) {
+            return std::unexpected("manifest.gui must be an object");
+        }
+        const auto &gui = gui_it->value().as_object();
+        warn_unknown_manifest_fields(gui, "gui", std::array<std::string_view, 1> {"backend"});
+        auto backend = get_required_string(gui, "gui", "backend");
+        if (!backend) {
+            return std::unexpected(backend.error());
+        }
+        auto parsed_backend = parse_gui_backend(*backend, "manifest.gui.backend");
+        if (!parsed_backend) {
+            return std::unexpected(parsed_backend.error());
+        }
+        gui_backend = *parsed_backend;
+    }
+
     AppManifest manifest;
     manifest.id = *id;
     manifest.localized_names = std::move(*localized_names);
@@ -741,6 +821,7 @@ std::expected<AppManifest, std::string> parse_manifest_to_app_manifest(
     manifest.resource_dir = *resource_dir;
     manifest.arguments = *arguments;
     manifest.services = std::move(*services);
+    manifest.gui_backend = gui_backend;
 
     return manifest;
 }
@@ -779,6 +860,64 @@ std::expected<RuntimeAppResourceDescriptor, std::string> parse_runtime_app_resou
         preload_dom = preload_dom_it->value().as_bool();
     }
 
+    GuiBackend profile_backend = GuiBackend::Lvgl;
+    if (auto backend_it = root.find("gui_backend"); (backend_it != root.end()) && !backend_it->value().is_null()) {
+        if (!backend_it->value().is_string()) {
+            return std::unexpected("Runtime profile.json gui_backend must be a string");
+        }
+        const std::string backend_name(backend_it->value().as_string());
+        auto parsed_backend = parse_gui_backend(backend_name, "profile.json gui_backend");
+        if (!parsed_backend) {
+            return std::unexpected(parsed_backend.error());
+        }
+        profile_backend = *parsed_backend;
+    }
+
+    if (profile_backend == GuiBackend::Gsp) {
+        if (preload_dom) {
+            return std::unexpected("Runtime profile.json preload_dom is not used by a GSP bundle");
+        }
+        if (auto flows_it = root.find("screen_flows"); (flows_it != root.end()) && !flows_it->value().is_null()) {
+            return std::unexpected("Runtime profile.json screen_flows is not used by a GSP bundle");
+        }
+        auto root_it = root.find("root");
+        if ((root_it == root.end()) || !root_it->value().is_string()) {
+            return std::unexpected("Runtime profile.json root must be the deployable GSP bundle path");
+        }
+        std::string bundle_root(root_it->value().as_string());
+        if (bundle_root.empty() || !is_safe_relative_path(bundle_root)) {
+            return std::unexpected("Runtime profile.json root must be a safe relative GSP bundle path");
+        }
+        auto bundle_result = validate_gsp_bundle_file(descriptor_path.parent_path() / bundle_root);
+        if (!bundle_result) {
+            return std::unexpected(bundle_result.error());
+        }
+        std::map<std::string, uint16_t> start_scenes;
+        if (auto scenes_it = root.find("start_scenes"); (scenes_it != root.end()) && !scenes_it->value().is_null()) {
+            if (!scenes_it->value().is_object()) {
+                return std::unexpected("Runtime profile.json start_scenes must be an object");
+            }
+            for (const auto &[theme_id, scene] : scenes_it->value().as_object()) {
+                if (theme_id.empty() || !scene.is_int64() || (scene.as_int64() < 0) ||
+                        (scene.as_int64() > static_cast<int64_t>(UINT16_MAX))) {
+                    return std::unexpected("Runtime profile.json start_scenes maps a theme id to a scene index");
+                }
+                start_scenes.emplace(std::string(theme_id), static_cast<uint16_t>(scene.as_int64()));
+            }
+        }
+        return RuntimeAppResourceDescriptor{
+            .icon_id = std::move(icon_id),
+            .preload_dom = false,
+            .gui = AppGuiDescriptor{
+                .root_kind = GuiRootKind::GspBundle,
+                .root = std::move(bundle_root),
+                .resources = {},
+                .screen_flows = {},
+                .start_scenes = std::move(start_scenes),
+            },
+        };
+    }
+
     auto root_it = root.find("root");
     if ((root_it == root.end()) || root_it->value().is_null()) {
         if (auto flows_it = root.find("screen_flows"); (flows_it != root.end()) && !flows_it->value().is_null()) {
@@ -815,6 +954,7 @@ std::expected<RuntimeAppResourceDescriptor, std::string> parse_runtime_app_resou
             .root = std::move(document_root),
             .resources = {},
             .screen_flows = std::move(*screen_flows),
+            .start_scenes = {},
         },
     };
 }
@@ -1004,6 +1144,14 @@ std::expected<RuntimeAppResourceDescriptor, std::string> read_runtime_app_resour
     if (!descriptor) {
         return std::unexpected(descriptor.error());
     }
+    const bool descriptor_is_gsp = descriptor->gui.root_kind == GuiRootKind::GspBundle;
+    if ((manifest.gui_backend == GuiBackend::Gsp) != descriptor_is_gsp) {
+        return std::unexpected(
+                   descriptor_is_gsp
+                   ? "profile.json gui_backend is gsp but manifest.gui.backend is lvgl"
+                   : "manifest.gui.backend is gsp but profile.json is not a GSP bundle"
+               );
+    }
     if (descriptor->gui.root_kind == GuiRootKind::File) {
         auto document_result = validate_runtime_gui_document(root_path.parent_path() / descriptor->gui.root);
         if (!document_result) {
@@ -1041,6 +1189,30 @@ std::expected<runtime::AppConfig, std::string> make_runtime_app_config(const App
     config.resource_dir = manifest.resource_dir;
     config.arguments = manifest.arguments;
     return config;
+}
+
+std::expected<void, std::string> check_runtime_package_gui_backend(
+    GuiBackend package_backend,
+    const AppGuiDescriptor &gui,
+    GuiBackend host_backend
+)
+{
+    const bool package_is_gsp = package_backend == GuiBackend::Gsp;
+    const bool descriptor_is_gsp = gui.root_kind == GuiRootKind::GspBundle;
+    if (package_is_gsp != descriptor_is_gsp) {
+        return std::unexpected(
+                   package_is_gsp
+                   ? "manifest.gui.backend is gsp but the GUI descriptor is not a GSP bundle"
+                   : "GUI descriptor is a GSP bundle but manifest.gui.backend is lvgl"
+               );
+    }
+    if ((host_backend == GuiBackend::Lvgl) && package_is_gsp) {
+        return std::unexpected("Package GUI backend is gsp, but this firmware GUI backend is lvgl");
+    }
+    if ((host_backend == GuiBackend::Gsp) && !package_is_gsp && (gui.root_kind != GuiRootKind::None)) {
+        return std::unexpected("Package GUI backend is lvgl, but this firmware GUI backend is gsp");
+    }
+    return {};
 }
 
 } // namespace esp_brookesia::system::core

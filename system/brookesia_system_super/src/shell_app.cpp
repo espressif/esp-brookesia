@@ -194,6 +194,10 @@ std::expected<void, std::string> ShellApp::on_timer(
         schedule_status_clock_timer();
         return {};
     }
+    if (name == SUPER_STATUS_EVENT_TIMER_NAME && timer_id == status_event_timer_id_) {
+        process_status_events();
+        return {};
+    }
     if (name != SUPER_APP_LAUNCH_HOLD_TIMER_NAME || timer_id != launch_hold_timer_id_) {
         return {};
     }

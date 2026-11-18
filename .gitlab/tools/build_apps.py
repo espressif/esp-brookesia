@@ -16,9 +16,14 @@ from typing import List
 import typing as t
 import subprocess
 import shutil
+import shlex
+import tempfile
+from contextlib import contextmanager
 
 from idf_build_apps import App, build_apps, find_apps, setup_logging
 from idf_build_apps.app import CMakeApp
+from idf_build_apps.constants import BuildStatus
+from idf_build_apps.utils import BuildError, subprocess_run
 
 logger = logging.getLogger('idf_build_apps')
 IDF_PATH = os.getenv('IDF_PATH', '')
@@ -42,8 +47,51 @@ IGNORE_WARNINGS = [
 ]
 
 
+@contextmanager
+def limit_ninja_jobs(jobs: t.Optional[int]):
+    if jobs is None:
+        yield
+        return
+    ninja = shutil.which('ninja')
+    if ninja is None:
+        raise BuildError('Ninja is required when --build-jobs is set')
+    original_path = os.environ.get('PATH', '')
+    original_jobs = os.environ.get('IDF_PY_BUILD_JOBS')
+    with tempfile.TemporaryDirectory(prefix='brookesia-ci-ninja-') as wrapper_dir:
+        # IDF 6.0 has no -j option. PATH also covers bootloader's nested Ninja.
+        wrapper = Path(wrapper_dir) / 'ninja'
+        wrapper.write_text(f'#!/bin/sh\nexec {shlex.quote(str(Path(ninja).resolve()))} -j {jobs} "$@"\n', encoding='utf-8')
+        wrapper.chmod(0o755)
+        os.environ['PATH'] = wrapper_dir + os.pathsep + original_path
+        os.environ['IDF_PY_BUILD_JOBS'] = str(jobs)
+        logger.info('Limiting each Ninja invocation to %d parallel jobs', jobs)
+        try:
+            yield
+        finally:
+            os.environ['PATH'] = original_path
+            if original_jobs is None:
+                os.environ.pop('IDF_PY_BUILD_JOBS', None)
+            else:
+                os.environ['IDF_PY_BUILD_JOBS'] = original_jobs
+
+
+def positive_integer(value: str) -> int:
+    result = int(value)
+    if result < 1:
+        raise argparse.ArgumentTypeError('must be a positive integer')
+    return result
+
+
 class CustomApp(CMakeApp):
     build_system: t.Literal['custom'] = 'custom'  # Must be unique to identify your custom app type
+
+    def _pre_build(self) -> None:
+        if self.is_system_example() and (Path(self.work_dir) / 'sdkconfig').exists():
+            raise BuildError(
+                f'System example CI builds require a checkout without {Path(self.work_dir) / "sdkconfig"}. '
+                'Use idf.py -B <build-dir> to preserve an existing configuration.'
+            )
+        super()._pre_build()
 
     def _build(
         self,
@@ -53,6 +101,20 @@ class CustomApp(CMakeApp):
         modified_files: t.Optional[t.List[str]] = None,
         check_app_dependencies: bool = False,
     ) -> None:
+        system_example = self.is_system_example()
+        if system_example:
+            # These projects generate sdkconfig inside each build directory.
+            self.copy_sdkconfig = False
+            subprocess_run(
+                [
+                    sys.executable, '-B', '-m', 'unittest', 'discover',
+                    '-s', str(PROJECT_ROOT / 'examples/system/common'),
+                    '-p', 'test_component_manager.py',
+                ],
+                log_fs=self.build_log_path,
+                check=True,
+                cwd=self.work_dir,
+            )
         self._pre_hook()
         super()._build(
             manifest_rootpath=manifest_rootpath,
@@ -60,6 +122,23 @@ class CustomApp(CMakeApp):
             modified_files=modified_files,
             check_app_dependencies=check_app_dependencies,
         )
+        if system_example and self.build_status == BuildStatus.SUCCESS:
+            subprocess_run(
+                [
+                    sys.executable,
+                    str(PROJECT_ROOT / 'examples/system/common/check_build_isolation.py'),
+                    str(Path(self.build_path).resolve()),
+                ],
+                log_fs=self.build_log_path,
+                check=True,
+                cwd=self.work_dir,
+            )
+
+    def is_system_example(self) -> bool:
+        return Path(self.app_dir).resolve() in {
+            PROJECT_ROOT / 'examples/system/super',
+            PROJECT_ROOT / 'examples/system/gsp_app',
+        }
 
     def is_board_manager_project(self) -> bool:
         main_yml_path = Path(self.work_dir) / 'main' / 'idf_component.yml'
@@ -69,10 +148,19 @@ class CustomApp(CMakeApp):
 
     def get_board_name_from_sdkconfig(self, sdkconfig_path: str) -> str:
         board_name = ''
-        sdkconfig_path = Path(sdkconfig_path).name
-        if sdkconfig_path.startswith('sdkconfig.ci.board.'):
-            board_name = sdkconfig_path[len('sdkconfig.ci.board.'):]
-        return board_name
+        sdkconfig_name = Path(sdkconfig_path).name
+        if sdkconfig_name.startswith('sdkconfig.ci.board.'):
+            board_name = sdkconfig_name[len('sdkconfig.ci.board.'):]
+        if board_name:
+            return board_name
+        try:
+            for line in Path(sdkconfig_path).read_text(encoding='utf-8').splitlines():
+                marker = '# ci-board:'
+                if line.strip().startswith(marker):
+                    return line.split(':', 1)[1].strip()
+        except OSError:
+            return ''
+        return ''
 
     def clear_project_generated_files(self):
         proj_path = Path(self.work_dir).absolute()
@@ -87,11 +175,15 @@ class CustomApp(CMakeApp):
 
     def _pre_hook(self):
         board_name = ''
-        if self.is_board_manager_project() and len(self.sdkconfig_files) > 1:
-            board_name = self.get_board_name_from_sdkconfig(self.sdkconfig_files[1])
+        if self.is_board_manager_project():
+            for sdkconfig_path in self.sdkconfig_files:
+                board_name = self.get_board_name_from_sdkconfig(sdkconfig_path)
+                if board_name:
+                    break
         print(f'== Pre build hook for app: {self.name} at \'{self.work_dir}\' for target: {self.target}, board:'
               f'{board_name}, argv: {sys.argv}, sdkconfig_files: {self.sdkconfig_files}')
-        self.clear_project_generated_files()
+        if not self.is_system_example():
+            self.clear_project_generated_files()
         if board_name == '':
             print(f'== No board name found, skip setting board manager config')
             return  # no board name found, skip the pre build hook
@@ -100,6 +192,9 @@ class CustomApp(CMakeApp):
             cwd=self.work_dir,
             check=True,
         )
+        if self.is_system_example():
+            # CMakeApp supplies the target and build directory to the real build.
+            return
         set_target_cmd = [sys.executable, f'{IDF_PATH}/tools/idf.py']
         if self.target in PREVIEW_TARGETS:
             set_target_cmd.append('--preview')
@@ -186,17 +281,18 @@ def main(args):  # type: (argparse.Namespace) -> None
         len(apps_to_build) // APPS_BUILD_PER_JOB + 1,
     )
 
-    ret_code = build_apps(
-        apps_to_build,
-        parallel_count=args.parallel_count,
-        parallel_index=args.parallel_index,
-        dry_run=False,
-        collect_size_info_filename=args.collect_size_info,
-        keep_going=True,
-        ignore_warning_strs=IGNORE_WARNINGS,
-        copy_sdkconfig=True,
-        no_preserve=False,
-    )
+    with limit_ninja_jobs(args.build_jobs):
+        ret_code = build_apps(
+            apps_to_build,
+            parallel_count=args.parallel_count,
+            parallel_index=args.parallel_index,
+            dry_run=False,
+            collect_size_info_filename=args.collect_size_info,
+            keep_going=True,
+            ignore_warning_strs=IGNORE_WARNINGS,
+            copy_sdkconfig=True,
+            no_preserve=False,
+        )
 
     sys.exit(ret_code)
 
@@ -228,6 +324,10 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--parallel-count', default=1, type=int, help='Number of parallel build jobs.'
+    )
+    parser.add_argument(
+        '--build-jobs', type=positive_integer,
+        help='Maximum parallel jobs per Ninja invocation, including the bootloader. Default: Ninja chooses.',
     )
     parser.add_argument(
         '--parallel-index',

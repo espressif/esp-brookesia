@@ -12,10 +12,12 @@ This page describes the structure of a runtime app package, its manifest fields,
 Overview
 --------------------
 
-An app package uses ``manifest.json`` to describe package metadata and the runtime entry; the ``profile.json`` under the runtime resource directory is the system_core resource descriptor, whose ``root`` points to the real JSON UI document and whose startup flow is written in ``screen_flows[]``. It has two usage forms:
+An app package uses ``manifest.json`` to describe package metadata and the runtime entry; the ``profile.json`` under the runtime resource directory is the system_core resource descriptor. Its GUI fields depend on the backend. It has two usage forms:
 
 - ``.bpk``: a ZIP container, unpacked at runtime by ``system::core::unpack_app_package_to()``.
 - unpacked package: deploy ``manifest.json + app/ + res/`` directly, scanned and installed by ``System::init()``.
+
+A package can use either the LVGL or the GSP GUI backend. See ``gui`` under Manifest Fields and :ref:`system-core-app_package-sec-04` for backend-specific descriptors.
 
 To run a ``.bpk``, first call the system_core package API (optionally ``verify_app_package_release()``, then ``unpack_app_package_to()``) to obtain an ``AppManifest``, then convert it with ``make_runtime_app_config()`` into a ``runtime::AppConfig``.
 
@@ -23,6 +25,8 @@ To run a ``.bpk``, first call the system_core package API (optionally ``verify_a
 
 Minimal Package Structure
 -------------------------
+
+The following example uses JSON/LVGL:
 
 .. code-block:: text
 
@@ -99,6 +103,18 @@ The ``runtime`` object:
    * - ``arguments``
      - String array of runtime startup arguments
 
+The optional top-level ``gui`` object selects the GUI backend. It is independent of the runtime in ``runtime.type``, so a JavaScript app can use either GUI backend:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Field
+     - Description
+   * - ``backend``
+     - ``lvgl`` (default) or ``gsp``. Leave ``gui`` out for an existing JSON UI package. A GSP package sets ``"backend": "gsp"``
+
+A GSP package requires both a GSP descriptor and GSP firmware; it cannot be installed on LVGL firmware. A package using the default or explicit ``lvgl`` backend cannot be installed on GSP firmware if its descriptor has a JSON UI ``root``. A package without a GUI may keep the ``lvgl`` default and omit ``root`` from ``profile.json``; it can be installed on either firmware backend.
+
 The optional top-level ``services`` array declares the service RPCs required by a runtime app:
 
 .. list-table::
@@ -121,12 +137,16 @@ The exact RPC names ``SystemCore``, ``SystemGui``, and ``SystemTimer`` are impli
 
 This enforcement applies to runtime apps that access services through the HostBridge. Native apps are trusted firmware code and their direct C++ service access is not restricted by the manifest.
 
+A ``.bpk`` is unpacked and validated under ``apps/.installing/`` before replacing an installed app. Updates retain the app's ``cache``, ``data``, and ``files`` directories. If registration or commit fails, the system restores the previous version when possible; interrupted updates are recovered at startup. If required files cannot be checked or moved, the affected staging directory is preserved for recovery. An installed app that fails to load is skipped with a warning rather than stopping system startup. Uninstalling removes the app directory, including its data.
+
+Recovery accepts only a safe application directory name matching the staged install target. It moves an existing target aside only when the target carries the same install transaction marker. Unverifiable staging directories, including older backups without target metadata, are preserved for inspection; they do not replace other installed applications.
+
 .. _system-core-app_package-sec-04:
 
 Resource Descriptor
 --------------------
 
-``<runtime.resource_dir>/profile.json`` is the system_core resource descriptor, not a JSON UI document:
+``<runtime.resource_dir>/profile.json`` is the system_core resource descriptor, not a JSON UI document. A JSON/LVGL descriptor looks like this:
 
 .. code-block:: json
 
@@ -139,6 +159,34 @@ Resource Descriptor
    }
 
 ``icon_id`` locates the launcher icon within the package; ``root`` points to a standard JSON UI document; ``screen_flows[]`` specifies the startup flow. A regular app main screen should use ``AppDefault``, and ``AppTop`` is only for an app's own header, floating layer, or toolbar; a runtime app can only use ``Replace`` with ``z_order`` within ``0..100``. ``root.json`` is a standard JSON UI document and should reference a ``screenFlow`` asset.
+
+.. _system-core-app_package-gsp:
+
+Bundle Format and Page API
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A GSP package uses a different ``profile.json``. ``root`` names a deployable ``.gspb`` bundle built with the ``--deployable`` option of ``gspc compile``; an ordinary compiled bundle is insufficient. Pages are GSP scenes inside it, so ``screen_flows`` and ``preload_dom`` are not used:
+
+.. code-block:: json
+
+   {
+     "gui_backend": "gsp",
+     "root": "app.gspb"
+   }
+
+``manifest.gui.backend`` must also be ``gsp``. ``examples/app/gsp_js_device_control`` is a complete GSP package.
+
+A bundle that holds a copy of its scenes for each system theme can name the first scene for each theme, so the app does not flash the wrong theme while its JavaScript starts. A theme that is not listed starts on scene 0:
+
+.. code-block:: json
+
+   {
+     "gui_backend": "gsp",
+     "root": "app.gspb",
+     "start_scenes": {"light": 0, "dark": 12}
+   }
+
+JavaScript updates the page with ``brookesia.gsp_set_text(name, text)``, ``brookesia.gsp_set_value(name, value)``, ``brookesia.gsp_set_property(name, property, value)`` (a number, a boolean, or a ``#RRGGBB`` color, for the properties that the scene declares such as ``visible``, ``enabled``, ``color``, or a clock hand angle) and ``brookesia.gsp_show_page(scene)``. A burst of updates waits briefly when the GSP command queue is full.
 
 .. _system-core-app_package-sec-05:
 
@@ -157,7 +205,8 @@ Safety Constraints
 - ``runtime.entry`` and ``runtime.resource_dir`` must be safe relative paths, not absolute and not containing ``..``.
 - A package whose ``package.systems`` does not match the current system type is skipped.
 - A missing or wrongly typed ``package.id``, ``package.version``, ``runtime.type``, or ``runtime.entry`` fails manifest parsing.
-- The runtime GUI startup flow must be written in ``screen_flows[]`` of ``profile.json``.
+- An LVGL runtime GUI startup flow must be written in ``screen_flows[]`` of ``profile.json``.
+- A GSP package must set both ``manifest.gui.backend`` and ``profile.json`` ``gui_backend`` to ``gsp``. A damaged bundle, or a backend that does not match the firmware, is rejected at install and leaves an already installed version in place.
 
 .. _system-core-app_package-sec-07:
 

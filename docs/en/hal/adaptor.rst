@@ -71,6 +71,13 @@ Each device and sub-interface can be enabled or disabled individually under **ES
 
 To override default capability parameters before initialisation, call ``set_codec_player_info``, ``set_codec_recorder_info``, or ``set_ledc_backlight_info`` on the corresponding device singleton. Calls after initialisation typically have no effect.
 
+.. _hal-adaptor-audio-format:
+
+Audio Processor Format
+^^^^^^^^^^^^^^^^^^^^^^
+
+Before opening codecs that share an I2S clock, the audio processor aligns playback sample rate, bit depth, and channel count with the recorder's declared format. The codecs and processor metadata use that effective format; the caller's requested playback configuration remains unchanged. Set the recorder format before initialisation when playback needs a specific shared-clock format.
+
 .. _hal-adaptor-expansion-modules:
 
 Expansion Module Support
@@ -150,12 +157,49 @@ The component applies patches from ``hal/brookesia_hal_adaptor/tools`` according
      - Stop the capture pipeline in frame mode.
    * - ``esp_capture_v4l2_uyvy_support``
      - Support UYVY/YUYV format negotiation and cleanup after negotiation failure.
-   * - ``media_lib_sal_esp_tls_idf6``
-     - Adapt to the ESP-IDF 6 TLS interface.
+   * - ``esp_board_manager_adc_idf6``
+     - Use equivalent ADC LL channel counts when the old SOC macro is absent, retaining board ADC validation.
+   * - ``esp_codec_dev_adc_idf6``
+     - Use equivalent ADC LL channel counts when the old SOC macro is absent, retaining ADC capture and bounds checks.
 
 .. note::
 
    Configuration fails if a required patch cannot be applied or an incompatible older patch is detected. Check dependency versions and local changes; when restoring a dependency, use the version recorded in the lock file.
+
+.. _hal-adaptor-media-dependencies:
+
+Audio/Video Dependencies and Models
+-----------------------------------
+
+av_processor 0.7.0 uses GMF AI Audio 1.0.2, ESP-SR 2.5.3, and ESP-DL 3.3.13, retaining the old-P4 / IDF 6 speech library. media_lib_sal 1.0.2 includes the ESP-IDF 6 TLS fix; the old TLS patch is retired. Non-video board profiles and ESP32-C5 audio/console profiles set ``CONFIG_VIDEO_PROCESSOR_ENABLE=n`` so audio-only targets do not pull in ``esp_capture`` or ``esp_video``.
+
+HAL registers the SR 2.5.3 models using the upstream SR 2.5.5 compile requirements. Registering requirements enables global operator/kernel pruning (``DL_COMPILE_ALL=0``). Every native component loading additional ``.espdl`` models must register its own requirements; ESP-DL combines them with the SR requirements.
+
+Declare ``espressif/esp-dl`` as a dependency of the model component. In its ``CMakeLists.txt``, call ``idf_component_register()`` first, then register the requirement file using the resolved component name:
+
+.. code-block:: cmake
+
+    idf_build_get_property(build_components BUILD_COMPONENTS)
+    if("espressif__esp-dl" IN_LIST build_components)
+        idf_component_get_property(
+            dl_dir espressif__esp-dl COMPONENT_DIR)
+    else()
+        idf_component_get_property(
+            dl_dir esp-dl COMPONENT_DIR)
+    endif()
+    include("${dl_dir}/cmake/compile_register.cmake")
+    esp_dl_compile_add_yml(
+        "${CMAKE_CURRENT_LIST_DIR}/model.compile_req.yml")
+
+Derive the operators and kernels from each model. A model requiring only ``Relu`` can use this ``model.compile_req.yml``:
+
+.. code-block:: yaml
+
+    kernel_abi: 1
+    ops: [Relu]
+    kernels: []
+
+ESP-DL 3.3.13 rejects unknown operators, a ``kernel_abi`` newer than its supported ABI, or conflicting ABI values across requirement files. Unknown kernels produce a warning and are filtered out.
 
 .. _hal-adaptor-sec-05:
 

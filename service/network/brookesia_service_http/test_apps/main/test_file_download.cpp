@@ -20,7 +20,7 @@ BROOKESIA_TEST_CASE(download_response_to_file, "Test ServiceHttp - download resp
 
     std::remove(HTTP_DOWNLOAD_FILE_PATH.data());
 
-    HttpEventCollector collector;
+    auto &collector = get_http_event_collector();
     TEST_ASSERT_TRUE_MESSAGE(collector.start(), "Failed to start HTTP event collector");
 
     auto request = make_test_request();
@@ -69,7 +69,7 @@ BROOKESIA_TEST_CASE(file_download_limit_and_open_failure, "Test ServiceHttp - fi
 
     std::remove(HTTP_DOWNLOAD_LIMIT_FILE_PATH.data());
 
-    HttpEventCollector collector;
+    auto &collector = get_http_event_collector();
     TEST_ASSERT_TRUE_MESSAGE(collector.start(), "Failed to start HTTP event collector");
 
     auto limit_request = make_test_request();

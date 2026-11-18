@@ -16,10 +16,21 @@ menu "ESP-Brookesia: Service Display Configurations"
         help
             Timeout used when Display submits a frame through HAL panel draw_bitmap_sync().
 
+    config BROOKESIA_SERVICE_DISPLAY_ENABLE_TOUCH_COLLECTION
+        bool "Collect touch input in the Display service"
+        default y
+        help
+            Display reads the touchscreen. This is the usual LVGL setup.
+            A GSP example should call
+            Display::set_touch_collection_owner(External) before Display
+            starts, even when this option stays on. Otherwise Display and
+            GSP both read the same touchscreen.
+
     config BROOKESIA_SERVICE_DISPLAY_TOUCH_POLL_INTERVAL_MS
         int "Default touch polling interval (ms)"
         default 20
         range 5 1000
+        depends on BROOKESIA_SERVICE_DISPLAY_ENABLE_TOUCH_COLLECTION
         help
             Default interval used to refresh cached touch points when the HAL touch interface
             does not support interrupt mode.

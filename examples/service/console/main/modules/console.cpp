@@ -5,6 +5,10 @@
  */
 #include "esp_vfs_fat.h"
 #include "esp_console.h"
+#if defined(CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG)
+#include "esp_private/periph_ctrl.h"
+#include "hal/usb_serial_jtag_ll.h"
+#endif
 #include "console.hpp"
 #include "cmd_service.hpp"
 #include "cmd_debug.hpp"
@@ -103,6 +107,17 @@ bool Console::start(const Config &config)
         esp_console_dev_usb_cdc_config_t hw_config = ESP_CONSOLE_DEV_CDC_CONFIG_DEFAULT();
         result = esp_console_new_repl_usb_cdc(&hw_config, &repl_config, &repl);
 #elif defined(CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG)
+        // A CPU or USB-UART reset can leave stale USB-Serial/JTAG interrupt enables behind
+        // (for example SOF). ESP-IDF's driver ISR only handles RX/TX interrupts, so any leftover
+        // enable bits cause an immediate Interrupt WDT panic once the ISR is installed.
+#if !SOC_RCC_IS_INDEPENDENT
+        PERIPH_RCC_ATOMIC() {
+            usb_serial_jtag_ll_enable_bus_clock(true);
+        }
+#else
+        usb_serial_jtag_ll_enable_bus_clock(true);
+#endif
+        usb_serial_jtag_ll_disable_intr_mask(USB_SERIAL_JTAG_LL_INTR_MASK);
         esp_console_dev_usb_serial_jtag_config_t hw_config = ESP_CONSOLE_DEV_USB_SERIAL_JTAG_CONFIG_DEFAULT();
         result = esp_console_new_repl_usb_serial_jtag(&hw_config, &repl_config, &repl);
 #else

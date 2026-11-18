@@ -5,6 +5,7 @@
  */
 #pragma once
 
+#include <cstdint>
 #include <expected>
 #include <functional>
 #include <memory>
@@ -31,12 +32,43 @@ public:
                                 std::string
                             )>;
 
+    /**
+     * @brief One named update from JavaScript onto the owning app's GSP session.
+     */
+    struct GspUpdate {
+        enum class Kind {
+            SetText,
+            SetValue,
+            ShowPage,
+            SetProperty,
+        };
+
+        /** How `SetProperty` carries its value. */
+        enum class ValueKind {
+            Integer,
+            Boolean,
+            Text,
+        };
+
+        Kind kind = Kind::SetText;
+        std::string name;
+        /** Text for `SetText`, or the `#RRGGBB` color for a `SetProperty` text value. */
+        std::string text;
+        /** Semantic property name for `SetProperty`, for example `visible` or `color`. */
+        std::string property;
+        int32_t value = 0;
+        ValueKind value_kind = ValueKind::Integer;
+    };
+
+    using GspUpdater = std::function<std::expected<void, std::string>(runtime::AppId, const GspUpdate &)>;
+
     explicit SystemHostBridge(
         std::shared_ptr<runtime::RuntimeFunctionBridge> function_bridge =
             std::make_shared<runtime::RuntimeFunctionBridge>(),
         std::shared_ptr<lib_utils::TaskScheduler> task_scheduler = nullptr,
         StoragePathResolver storage_path_resolver = {},
-        EventDispatcher event_dispatcher = {}
+        EventDispatcher event_dispatcher = {},
+        GspUpdater gsp_updater = {}
     );
     ~SystemHostBridge() override;
 
@@ -48,6 +80,7 @@ public:
     bool consume_app_finish_request(runtime::AppId id) override;
     void release_app_resources(runtime::AppId id) override;
     void release_all_app_resources() override;
+    void stop_event_dispatch();
     void register_app_manifest(runtime::AppId id, AppManifest manifest);
     void unregister_app_manifest(runtime::AppId id);
 

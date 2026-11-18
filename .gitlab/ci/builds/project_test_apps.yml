@@ -7,6 +7,7 @@ build_test_apps_brookesia_hal_adaptor:
     - .build_template_without_large_artifacts
     - .build_idf_release_version_with_board
     - .rules:build:test_apps_brookesia_hal_adaptor
+  timeout: 3 hour
   variables:
     EXAMPLE_DIR: hal/brookesia_hal_adaptor/test_apps
 # brookesia_hal_interface
@@ -27,6 +28,7 @@ build_test_apps_brookesia_gui_interface:
     - .build_template
     - .build_idf_release_version_general
     - .rules:build:test_apps_brookesia_gui_interface
+  timeout: 3 hour
   variables:
     EXAMPLE_DIR: gui/brookesia_gui_interface/test_apps
 # brookesia_gui_lvgl
@@ -91,6 +93,7 @@ build_test_apps_brookesia_service_audio:
     - .build_template_without_large_artifacts
     - .build_idf_release_version_with_board
     - .rules:build:test_apps_brookesia_service_audio
+  timeout: 3 hour
   variables:
     EXAMPLE_DIR: service/media/brookesia_service_audio/test_apps
 # # brookesia_service_ble
@@ -131,6 +134,7 @@ build_test_apps_brookesia_service_device:
     - .build_template_without_large_artifacts
     - .build_idf_release_version_with_board
     - .rules:build:test_apps_brookesia_service_device
+  timeout: 3 hour
   variables:
     EXAMPLE_DIR: service/system/brookesia_service_device/test_apps
 # brookesia_service_display
@@ -147,6 +151,7 @@ build_test_apps_brookesia_service_picodet:
     - .build_template
     - .build_idf_release_version_general
     - .rules:build:test_apps_brookesia_service_picodet
+  timeout: 3 hour
   variables:
     EXAMPLE_DIR: service/media/brookesia_service_picodet/test_apps
 # brookesia_service_http
@@ -155,6 +160,7 @@ build_test_apps_brookesia_service_http:
     - .build_template_without_large_artifacts
     - .build_idf_release_version_general
     - .rules:build:test_apps_brookesia_service_http
+  timeout: 3 hour
   variables:
     EXAMPLE_DIR: service/network/brookesia_service_http/test_apps
 # brookesia_service_helper
@@ -179,6 +185,7 @@ build_test_apps_brookesia_emulation_nes:
     - .build_template_without_large_artifacts
     - .build_idf_release_version_general
     - .rules:build:test_apps_brookesia_emulation_nes
+  timeout: 3 hour
   variables:
     EXAMPLE_DIR: service/emulation/brookesia_emulation_nes/test_apps
 # brookesia_service_storage
@@ -195,6 +202,7 @@ build_test_apps_brookesia_service_sntp:
     - .build_template
     - .build_idf_release_version_general
     - .rules:build:test_apps_brookesia_service_sntp
+  timeout: 3 hour
   variables:
     EXAMPLE_DIR: service/network/brookesia_service_sntp/test_apps
 # brookesia_service_wifi
@@ -203,6 +211,7 @@ build_test_apps_brookesia_service_wifi:
     - .build_template
     - .build_idf_release_version_general
     - .rules:build:test_apps_brookesia_service_wifi
+  timeout: 3 hour
   variables:
     EXAMPLE_DIR: service/network/brookesia_service_wifi/test_apps
 # brookesia_service_video
@@ -267,6 +276,7 @@ build_test_apps_brookesia_lib_utils_log:
     - .build_template
     - .build_idf_release_version_general
     - .rules:build:test_apps_brookesia_lib_utils_log
+  timeout: 3 hour
   variables:
     EXAMPLE_DIR: utils/brookesia_lib_utils/test_apps/log
 # brookesia_lib_utils: memory_profiler

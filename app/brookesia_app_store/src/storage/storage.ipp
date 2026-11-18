@@ -83,45 +83,66 @@ void AppStoreApp::release_storage_service()
 
 void AppStoreApp::disconnect_http_events()
 {
+    auto mailbox = std::move(http_event_mailbox_);
+    if (mailbox) {
+        std::lock_guard lock(mailbox->mutex);
+        mailbox->open = false;
+        mailbox->events.clear();
+        mailbox->requests.clear();
+        mailbox->lost_early_requests.clear();
+        mailbox->pending_bytes = 0;
+    }
+    for (auto &connection : http_event_connections_) {
+        connection.disconnect_without_wait();
+    }
     http_event_connections_.clear();
 }
 
 void AppStoreApp::subscribe_http_events()
 {
-    if (!http_available_) {
+    if (!http_available_ || context_ == nullptr) {
         return;
     }
-
-    auto on_progress = [this](
+    disconnect_http_events();
+    stop_http_event_timer(*context_);
+    auto mailbox = std::make_shared<Impl::HttpEventMailbox>();
+    auto timer = context_->timer().start_periodic(HTTP_EVENT_TIMER_NAME, HTTP_EVENT_POLL_INTERVAL_MS);
+    if (!timer) {
+        BROOKESIA_LOGE("Failed to start App Store HTTP event timer: %1%", timer.error());
+        release_http_service();
+        return;
+    }
+    http_event_timer_id_ = *timer;
+    http_event_mailbox_ = std::move(mailbox);
+    const std::weak_ptr<Impl::HttpEventMailbox> weak_mailbox = http_event_mailbox_;
+    auto enqueue = [weak_mailbox](PendingHttpEventType type, double id,
+                                 const boost::json::object *response, const std::string *state = nullptr) {
+        if (auto mailbox = weak_mailbox.lock()) {
+            mailbox->enqueue(type, id, response, state);
+        }
+    };
+    auto on_progress = [enqueue](
                            const std::string &, double request_id, const boost::json::object & progress_json
     ) {
-        if (context_ != nullptr) {
-            schedule_http_event_processing(*context_, PendingHttpEventType::Progress, request_id, progress_json);
-        }
+        enqueue(PendingHttpEventType::Progress, request_id, &progress_json);
     };
-    auto on_completed = [this](
+    auto on_completed = [enqueue](
                             const std::string &, double request_id, const boost::json::object & response_json
     ) {
-        if (context_ != nullptr) {
-            schedule_http_event_processing(*context_, PendingHttpEventType::Completed, request_id, response_json);
-        }
+        enqueue(PendingHttpEventType::Completed, request_id, &response_json);
     };
-    auto on_failed = [this](
+    auto on_failed = [enqueue](
                          const std::string &, double request_id, const boost::json::object & response_json
     ) {
-        if (context_ != nullptr) {
-            schedule_http_event_processing(*context_, PendingHttpEventType::Failed, request_id, response_json);
-        }
+        enqueue(PendingHttpEventType::Failed, request_id, &response_json);
     };
-    auto on_canceled = [this](
+    auto on_canceled = [enqueue](
                            const std::string &, double request_id, const boost::json::object & response_json
     ) {
-        if (context_ != nullptr) {
-            schedule_http_event_processing(*context_, PendingHttpEventType::Canceled, request_id, response_json);
-        }
+        enqueue(PendingHttpEventType::Canceled, request_id, &response_json);
     };
-    auto on_general_state_changed = [this](const std::string &, const std::string & state) {
-        handle_http_general_state_changed(state);
+    auto on_general_state_changed = [enqueue](const std::string &, const std::string & state) {
+        enqueue(PendingHttpEventType::GeneralStateChanged, 0, nullptr, &state);
     };
 
     http_event_connections_.push_back(HttpHelper::subscribe_event(HttpHelper::EventId::RequestProgress, on_progress));
@@ -131,6 +152,14 @@ void AppStoreApp::subscribe_http_events()
     http_event_connections_.push_back(
         HttpHelper::subscribe_event(HttpHelper::EventId::GeneralStateChanged, on_general_state_changed)
     );
+    if (std::any_of(http_event_connections_.begin(), http_event_connections_.end(), [](const auto & connection) {
+    return !connection.connected();
+    })) {
+        BROOKESIA_LOGE("Failed to subscribe App Store HTTP events");
+        disconnect_http_events();
+        stop_http_event_timer(*context_);
+        release_http_service();
+    }
 }
 
 std::filesystem::path AppStoreApp::resolve_resource_dir(system::core::AppContext &context) const

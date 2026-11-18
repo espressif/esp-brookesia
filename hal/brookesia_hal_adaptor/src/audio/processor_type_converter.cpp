@@ -36,7 +36,7 @@ audio_playback_config_t AudioProcessorTypeConverter::convert(
 )
 {
     return {
-        .type = AUDIO_PLAY_TYPE_PLAYBACK,
+        .priority = AUDIO_POLICY_PRIORITY_DEFAULT,
         .event_cb = reinterpret_cast<playback_event_callback_t>(event_cb),
         .event_cb_ctx = event_cb_ctx,
         .task_config = convert(config.player_task),
@@ -45,6 +45,7 @@ audio_playback_config_t AudioProcessorTypeConverter::convert(
     };
 }
 
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
 av_processor_format_id_t AudioProcessorTypeConverter::convert(audio::CodecFormat format)
 {
     switch (format) {
@@ -202,5 +203,6 @@ audio_feeder_config_t AudioProcessorTypeConverter::convert(
 
     return result;
 }
+#endif
 
 } // namespace esp_brookesia::hal

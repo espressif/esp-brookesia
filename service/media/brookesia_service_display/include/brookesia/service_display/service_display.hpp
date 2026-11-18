@@ -89,11 +89,27 @@ public:
                                )>;
     using BufferOutputWriter = std::function<bool(BufferOutputView &view)>;
 
+    /**
+     * @brief Who reads the touchscreen.
+     *
+     * `Service` is the usual choice for LVGL: Display reads touches.
+     * `External` leaves the touchscreen to GSP.
+     * Set this before Display starts. Choosing `External` while Display
+     * is already running stops Display's touch reader.
+     */
+    enum class TouchCollectionOwner {
+        Service,
+        External,
+    };
+
     static Display &get_instance()
     {
         static Display instance;
         return instance;
     }
+
+    static void set_touch_collection_owner(TouchCollectionOwner owner);
+    static TouchCollectionOwner touch_collection_owner();
 
     std::vector<OutputInfo> get_outputs() const;
     std::vector<SourceInfo> get_sources() const;

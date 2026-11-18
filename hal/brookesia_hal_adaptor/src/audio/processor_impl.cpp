@@ -8,15 +8,17 @@
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
 #endif
 
-#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <new>
 #include <utility>
-
 #include "boost/thread.hpp"
-#include "esp_gmf_afe.h"
-#include "model_path.h"
+
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
+#   include <cstdlib>
+#   include "esp_gmf_afe.h"
+#   include "model_path.h"
+#endif
 #include "brookesia/lib_utils/function_guard.hpp"
 #include "private/utils.hpp"
 #include "processor_impl.hpp"
@@ -26,6 +28,9 @@
 
 namespace esp_brookesia::hal {
 
+constexpr size_t PLAYBACK_CLOSE_THREAD_STACK_SIZE = 8 * 1024;
+
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
 constexpr size_t GET_WAKE_WORDS_THREAD_STACK_SIZE = 5 * 1024;
 constexpr size_t RECORDER_THREAD_STACK_SIZE = 5 * 1024;
 
@@ -82,6 +87,7 @@ bool audio_recorder_close_wrapper(audio_recorder_handle_t recorder_handle)
 }
 
 } // namespace
+#endif
 
 AudioProcessorCore::AudioProcessorCore(
     std::shared_ptr<audio::CodecPlayerIface> player_iface,
@@ -96,8 +102,11 @@ AudioProcessorCore::AudioProcessorCore(
 
 AudioProcessorCore::~AudioProcessorCore()
 {
+    clear_playback_callback();
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
     stop_encoder();
     stop_decoder();
+#endif
 
     std::lock_guard lock(mutex_);
     open_ref_count_ = 0;
@@ -111,6 +120,7 @@ bool AudioProcessorCore::acquire(audio::PlaybackIface::EventCallback callback)
     std::lock_guard lock(mutex_);
     if (is_opened_) {
         if (callback) {
+            std::lock_guard callback_lock(playback_callback_mutex_);
             playback_callback_ = std::move(callback);
         }
         open_ref_count_++;
@@ -142,8 +152,36 @@ void AudioProcessorCore::clear_playback_callback()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    std::lock_guard lock(mutex_);
-    playback_callback_ = nullptr;
+    disable_playback_callback();
+    wait_playback_callbacks();
+}
+
+void AudioProcessorCore::disable_playback_callback()
+{
+    audio::PlaybackIface::EventCallback previous;
+    {
+        boost::lock_guard lock(playback_callback_mutex_);
+        previous = std::move(playback_callback_);
+    }
+}
+
+void AudioProcessorCore::wait_playback_callbacks()
+{
+    boost::unique_lock lock(playback_callback_mutex_);
+    // Drain before taking the lifecycle lock: a callback may still use the HAL.
+    playback_callback_condition_.wait(lock, [this]() {
+        return playback_callbacks_in_flight_ == 0;
+    });
+}
+
+bool AudioProcessorCore::inside_playback_callback() const
+{
+    for (auto *frame = playback_callback_frame_; frame != nullptr; frame = frame->previous) {
+        if (frame->owner == this) {
+            return true;
+        }
+    }
+    return false;
 }
 
 bool AudioProcessorCore::open_common(audio::PlaybackIface::EventCallback callback)
@@ -154,14 +192,15 @@ bool AudioProcessorCore::open_common(audio::PlaybackIface::EventCallback callbac
     BROOKESIA_CHECK_NULL_RETURN(recorder_iface_, false, "Invalid recorder interface");
     const auto &recorder_info = recorder_iface_->get_info();
     auto player_config = config_.playback.player;
+    // Player and recorder can share an I2S clock. The recorder has no dynamic
+    // format API, so keep both endpoints on its declared format.
     if ((player_config.bits != recorder_info.bits) ||
             (player_config.channels != recorder_info.channels) ||
             (player_config.sample_rate != recorder_info.sample_rate)) {
         BROOKESIA_LOGW(
-            "Playback codec config(%1%) does not match audio manager output(bits=%2%, channels=%3%, rate=%4%); "
-            "using audio manager output config",
-            BROOKESIA_DESCRIBE_TO_STR(player_config), recorder_info.bits, recorder_info.channels,
-            recorder_info.sample_rate
+            "Playback format differs from recorder; using recorder format(bits=%1%, channels=%2%, rate=%3%) "
+            "for shared-clock compatibility",
+            recorder_info.bits, recorder_info.channels, recorder_info.sample_rate
         );
         player_config.bits = recorder_info.bits;
         player_config.channels = recorder_info.channels;
@@ -189,30 +228,45 @@ bool AudioProcessorCore::open_common(audio::PlaybackIface::EventCallback callbac
         BROOKESIA_CHECK_NULL_RETURN(self->recorder_iface_, ESP_FAIL, "Invalid recorder interface");
 
         auto result = self->recorder_iface_->read_data(data, size);
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
         if (result) {
             self->on_recorder_input_data(data, size);
         }
+#endif
 
         return result ? ESP_OK : ESP_FAIL;
     };
 
     audio_manager_config_t manager_config = {
         .play_io = {
+            .audio_info = {
+                .sample_rate = player_config.sample_rate,
+                .sample_bits = player_config.bits,
+                .channels = player_config.channels,
+                .frame_duration = 0,
+            },
             .read_cb = nullptr,
             .read_ctx = nullptr,
             .write_cb = player_write_cb,
             .write_ctx = player_iface_.get(),
+            .drain_cb = nullptr,
+            .drain_ctx = nullptr,
         },
         .rec_io = {
+            .audio_info = {
+                .sample_rate = recorder_info.sample_rate,
+                .sample_bits = recorder_info.bits,
+                .channels = recorder_info.channels,
+                .frame_duration = 0,
+            },
             .read_cb = recorder_read_cb,
             .read_ctx = this,
             .write_cb = nullptr,
             .write_ctx = nullptr,
+            .drain_cb = nullptr,
+            .drain_ctx = nullptr,
         },
         .mic_layout = {0},
-        .board_sample_rate = static_cast<int>(recorder_info.sample_rate),
-        .board_bits = static_cast<int>(recorder_info.bits),
-        .board_channels = static_cast<int>(recorder_info.channels),
     };
     if (!recorder_info.mic_layout.empty()) {
         std::strncpy(
@@ -240,7 +294,10 @@ bool AudioProcessorCore::open_common(audio::PlaybackIface::EventCallback callbac
         false, "Failed to open playback"
     );
 
-    playback_callback_ = std::move(callback);
+    {
+        std::lock_guard callback_lock(playback_callback_mutex_);
+        playback_callback_ = std::move(callback);
+    }
     is_opened_ = true;
 
     manager_guard.release();
@@ -258,6 +315,10 @@ void AudioProcessorCore::close_common()
         return;
     }
 
+    {
+        std::lock_guard callback_lock(playback_callback_mutex_);
+        playback_callback_ = nullptr;
+    }
     if (playback_handle_ != nullptr) {
         BROOKESIA_CHECK_ESP_ERR_EXECUTE(
         audio_playback_close(AudioProcessorTypeConverter::to_playback_handle(playback_handle_)), {}, {
@@ -278,7 +339,6 @@ void AudioProcessorCore::close_common()
         recorder_iface_->close();
     }
 
-    playback_callback_ = nullptr;
     is_opened_ = false;
 }
 
@@ -326,6 +386,7 @@ bool AudioProcessorCore::stop()
     return true;
 }
 
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
 std::vector<std::string> AudioProcessorCore::get_afe_wake_words()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
@@ -568,6 +629,7 @@ bool AudioProcessorCore::feed_decoder_data(const uint8_t *data, size_t size)
 
     return true;
 }
+#endif
 
 void AudioProcessorCore::on_playback_event(uint8_t state)
 {
@@ -591,14 +653,27 @@ void AudioProcessorCore::on_playback_event(uint8_t state)
 
     audio::PlaybackIface::EventCallback callback;
     {
-        std::lock_guard lock(mutex_);
+        std::lock_guard lock(playback_callback_mutex_);
         callback = playback_callback_;
+        if (callback) {
+            ++playback_callbacks_in_flight_;
+        }
     }
     if (callback) {
+        PlaybackCallbackFrame frame{this, playback_callback_frame_};
+        playback_callback_frame_ = &frame;
+        lib_utils::FunctionGuard callback_guard([this, &frame]() {
+            playback_callback_frame_ = frame.previous;
+            std::lock_guard lock(playback_callback_mutex_);
+            if (--playback_callbacks_in_flight_ == 0) {
+                playback_callback_condition_.notify_all();
+            }
+        });
         callback(new_state);
     }
 }
 
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
 void AudioProcessorCore::on_recorder_event(void *event)
 {
     auto afe_evt = static_cast<esp_gmf_afe_evt_t *>(event);
@@ -649,6 +724,7 @@ void AudioProcessorCore::emit_afe_event(audio::AfeEvent event)
         callback(event);
     }
 }
+#endif
 
 AudioPlaybackImpl::AudioPlaybackImpl(std::shared_ptr<AudioProcessorCore> core)
     : core_(std::move(core))
@@ -664,54 +740,145 @@ bool AudioPlaybackImpl::open(EventCallback callback)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (is_opened_) {
-        return true;
+    auto lifecycle = lifecycle_;
+    auto core = core_;
+    {
+        boost::lock_guard lock(lifecycle->mutex);
+        if (lifecycle->opened) {
+            return true;
+        }
+        if (lifecycle->opening || lifecycle->closing || lifecycle->worker_active) {
+            return false;
+        }
+        lifecycle->opening = true;
+        lifecycle->worker_active = true;
     }
-    BROOKESIA_CHECK_NULL_RETURN(core_, false, "Invalid audio processor core");
-    BROOKESIA_CHECK_FALSE_RETURN(core_->acquire(std::move(callback)), false, "Failed to open audio playback");
-    is_opened_ = true;
+    try {
+        BROOKESIA_THREAD_CONFIG_GUARD({
+            .stack_size = PLAYBACK_CLOSE_THREAD_STACK_SIZE,
+            .stack_in_ext = false,
+        });
+        boost::thread(&AudioPlaybackImpl::run_close_worker, lifecycle, core).detach();
+    } catch (const std::exception &error) {
+        boost::lock_guard lock(lifecycle->mutex);
+        lifecycle->opening = false;
+        lifecycle->closing = false;
+        lifecycle->worker_active = false;
+        lifecycle->condition.notify_all();
+        BROOKESIA_LOGE("Failed to start playback cleanup worker: %1%", error.what());
+        return false;
+    }
+    bool acquired = false;
+    try {
+        acquired = core && core->acquire(std::move(callback));
+    } catch (...) {
+        boost::lock_guard lock(lifecycle->mutex);
+        lifecycle->opening = false;
+        lifecycle->condition.notify_all();
+        throw;
+    }
+    boost::unique_lock lock(lifecycle->mutex);
+    lifecycle->opening = false;
+    lifecycle->acquired = acquired;
+    lifecycle->opened = acquired && !lifecycle->closing;
+    lifecycle->condition.notify_all();
+    if (!acquired) {
+        lifecycle->condition.wait(lock, [&]() {
+            return !lifecycle->worker_active;
+        });
+    }
+    return lifecycle->opened;
+}
 
-    return true;
+void AudioPlaybackImpl::run_close_worker(
+    std::shared_ptr<Lifecycle> lifecycle, std::shared_ptr<AudioProcessorCore> core
+)
+{
+    bool acquired = false;
+    {
+        boost::unique_lock lock(lifecycle->mutex);
+        lifecycle->condition.wait(lock, [&]() {
+            return !lifecycle->opening && (lifecycle->closing || !lifecycle->acquired);
+        });
+        acquired = lifecycle->acquired;
+    }
+    auto *previous_close = active_close_lifecycle_;
+    active_close_lifecycle_ = lifecycle.get();
+    lib_utils::FunctionGuard close_guard([previous_close]() {
+        active_close_lifecycle_ = previous_close;
+    });
+    if (core && acquired) {
+        core->clear_playback_callback();
+        core->release();
+    }
+    boost::lock_guard lock(lifecycle->mutex);
+    lifecycle->acquired = false;
+    lifecycle->closing = false;
+    lifecycle->worker_active = false;
+    lifecycle->condition.notify_all();
 }
 
 void AudioPlaybackImpl::close()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (!is_opened_) {
+    auto lifecycle = lifecycle_;
+    auto core = core_;
+    const bool from_callback = core && core->inside_playback_callback();
+    {
+        boost::unique_lock lock(lifecycle->mutex);
+        if (lifecycle->closing) {
+            if (from_callback || active_close_lifecycle_ == lifecycle.get()) {
+                return;
+            }
+            lifecycle->condition.wait(lock, [&]() {
+                return !lifecycle->closing;
+            });
+            return;
+        }
+        if (!lifecycle->opened && !lifecycle->opening) {
+            return;
+        }
+        lifecycle->closing = true;
+        lifecycle->opened = false;
+        lifecycle->condition.notify_all();
+    }
+    if (from_callback) {
+        // The SDK closes by waiting for its event task; let the worker drain it.
+        core->disable_playback_callback();
         return;
     }
-    if (core_) {
-        core_->clear_playback_callback();
-        core_->release();
-    }
-    is_opened_ = false;
+    boost::unique_lock lock(lifecycle->mutex);
+    lifecycle->condition.wait(lock, [&]() {
+        return !lifecycle->closing;
+    });
 }
 
 bool AudioPlaybackImpl::play(const std::string &url)
 {
-    BROOKESIA_CHECK_FALSE_RETURN(is_opened_, false, "Audio playback is not opened");
+    BROOKESIA_CHECK_FALSE_RETURN(is_opened(), false, "Audio playback is not opened");
     return core_->play(url);
 }
 
 bool AudioPlaybackImpl::pause()
 {
-    BROOKESIA_CHECK_FALSE_RETURN(is_opened_, false, "Audio playback is not opened");
+    BROOKESIA_CHECK_FALSE_RETURN(is_opened(), false, "Audio playback is not opened");
     return core_->pause();
 }
 
 bool AudioPlaybackImpl::resume()
 {
-    BROOKESIA_CHECK_FALSE_RETURN(is_opened_, false, "Audio playback is not opened");
+    BROOKESIA_CHECK_FALSE_RETURN(is_opened(), false, "Audio playback is not opened");
     return core_->resume();
 }
 
 bool AudioPlaybackImpl::stop()
 {
-    BROOKESIA_CHECK_FALSE_RETURN(is_opened_, false, "Audio playback is not opened");
+    BROOKESIA_CHECK_FALSE_RETURN(is_opened(), false, "Audio playback is not opened");
     return core_->stop();
 }
 
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
 AudioEncoderImpl::AudioEncoderImpl(std::shared_ptr<AudioProcessorCore> core)
     : core_(std::move(core))
 {
@@ -804,6 +971,7 @@ bool AudioDecoderImpl::feed_data(const uint8_t *data, size_t size)
     BROOKESIA_CHECK_NULL_RETURN(core_, false, "Invalid audio processor core");
     return core_->feed_decoder_data(data, size);
 }
+#endif
 
 } // namespace esp_brookesia::hal
 #endif // BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_IMPL

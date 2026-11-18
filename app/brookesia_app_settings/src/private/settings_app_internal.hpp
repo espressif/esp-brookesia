@@ -6,15 +6,26 @@
 #pragma once
 
 #include <array>
+#include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <cstdio>
+#include <deque>
 #include <expected>
+#include <functional>
+#include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
+#include "private/settings_surface.hpp"
+
+#include "boost/thread/mutex.hpp"
+#include "boost/thread/lock_guard.hpp"
 #include "boost/json/array.hpp"
 #include "boost/json/value.hpp"
 
@@ -158,6 +169,9 @@ inline constexpr const char *PAGE_SOUND = "sound";
 inline constexpr const char *PAGE_DISPLAY = "display";
 inline constexpr const char *PAGE_MORE = "more";
 inline constexpr const char *PAGE_LANGUAGE = "language";
+inline constexpr const char *PAGE_THEME = "theme";
+inline constexpr const char *SOUND_UI_TIMER_NAME = "settings.sound.ui";
+inline constexpr uint32_t SOUND_UI_POLL_INTERVAL_MS = 100;
 inline constexpr const char *PAGE_TIME_ZONE = "time_zone";
 inline constexpr const char *PAGE_DEBUG = "debug";
 inline constexpr const char *ACTION_OPEN_HOME = "settings.open.home";
@@ -195,6 +209,10 @@ inline constexpr const char *ACTION_DEBUG_THREAD_IDLE_CPU =
 inline constexpr const char *ACTION_DEBUG_THREAD_STACK_HWM =
     "settings.debug.thread.stack_hwm";
 inline constexpr const char *WIFI_SCAN_RETRY_TIMER_NAME = "settings.wifi.scan.retry";
+inline constexpr const char *WIFI_UI_TIMER_NAME = "settings.wifi.ui";
+inline constexpr int WIFI_UI_POLL_INTERVAL_MS = 100;
+inline constexpr const char *BRIGHTNESS_UI_TIMER_NAME = "settings.display.brightness";
+inline constexpr int BRIGHTNESS_UI_POLL_INTERVAL_MS = 100;
 inline constexpr const char *WIFI_CONNECTED_HIDE_TIMER_NAME = "settings.wifi.connected.hide";
 inline constexpr const char *WIFI_CONNECTED_SCROLL_TIMER_NAME = "settings.wifi.connected.scroll";
 inline constexpr const char *TIME_ZONE_OPTION_UTC_ACTION = "settings.time_zone.utc";
@@ -275,7 +293,17 @@ inline constexpr size_t DEBUG_ENTRY_CLICK_COUNT = 3;
 inline constexpr uint32_t DEVICE_SERVICE_TIMEOUT_MS = 500;
 inline constexpr uint32_t WIFI_SERVICE_TIMEOUT_MS = 1000;
 inline constexpr uint32_t SNTP_SERVICE_TIMEOUT_MS = 500;
+inline constexpr const char *SNTP_UI_TIMER_NAME = "settings_sntp_ui";
+inline constexpr uint32_t SNTP_UI_POLL_INTERVAL_MS = 2000;
 inline constexpr uint32_t UTILS_DEBUG_SERVICE_TIMEOUT_MS = 500;
+inline constexpr const char *WIFI_PAGE_TIMER_NAME = "settings.wifi.page";
+inline constexpr const char *WIFI_CONNECT_TIMER_NAME = "settings.wifi.connect";
+inline constexpr int WIFI_PAGE_POLL_INTERVAL_MS = 100;
+inline constexpr int WIFI_CONNECT_POLL_INTERVAL_MS = 500;
+inline constexpr int WIFI_CONNECT_TIMEOUT_MS = 65000;
+inline constexpr int WIFI_STATE_POLL_INTERVAL_MS = 1000;
+inline constexpr int WIFI_TOGGLE_TIMEOUT_MS = 15000;
+inline constexpr int WIFI_SCAN_SETTLE_TIMEOUT_MS = 2000;
 inline constexpr uint32_t WIFI_SCAN_WINDOW_MS = 10000;
 inline constexpr size_t WIFI_SCAN_AP_LIMIT = 64;
 inline constexpr int WIFI_SCAN_RETRY_DELAY_MS = 250;
@@ -474,10 +502,145 @@ const service::EventItem *find_event_item(
 
 namespace esp_brookesia::app::settings {
 
+// Display callbacks only update this mailbox; the app task updates the UI.
+struct BrightnessCallbackState {
+    std::mutex mutex;
+    bool open = false;
+    uint32_t output_id = 0;
+    bool output_valid = false;
+    bool sync_queued = false;
+    int pending_brightness = 0;
+    system::core::TimerId timer_id = system::core::INVALID_TIMER_ID;
+};
+
+// Each page visit owns a separate mailbox. Service callbacks never retain the App or GUI.
+struct WifiPageMailbox {
+    boost::mutex mutex;
+    bool open = true;
+    bool state_changed = false;
+    bool scan_started = false;
+    bool scan_stopped = false;
+    std::optional<boost::json::array> scan_results;
+};
+
+// Service threads enqueue bounded work; only the System app task touches Settings state or GUI.
+struct WifiUiMailbox {
+    static constexpr size_t MAX_PENDING = 64;
+    boost::mutex mutex;
+    bool open = true;
+    bool overflowed = false;
+    std::deque<std::function<void(SettingsApp &)>> pending;
+
+    void enqueue(std::function<void(SettingsApp &)> work)
+    {
+        boost::lock_guard lock(mutex);
+        if (!open) {
+            return;
+        }
+        if (pending.size() == MAX_PENDING) {
+            overflowed = true;
+            return;
+        }
+        pending.push_back(std::move(work));
+    }
+
+    void close()
+    {
+        boost::lock_guard lock(mutex);
+        open = false;
+        pending.clear();
+    }
+};
+
+template<typename Handler>
+auto make_wifi_ui_result_handler(const std::shared_ptr<WifiUiMailbox> &mailbox, Handler handler)
+{
+    const std::weak_ptr<WifiUiMailbox> weak_mailbox = mailbox;
+    return [weak_mailbox, handler = std::move(handler)](service::FunctionResult && result) mutable {
+        if (auto active = weak_mailbox.lock())
+        {
+            auto payload = std::make_shared<service::FunctionResult>(std::move(result));
+            active->enqueue([handler, payload](SettingsApp &) mutable {
+                handler(std::move(*payload));
+            });
+        }
+    };
+}
+
+struct WifiSelectionOperation {
+    boost::mutex mutex;
+    bool valid = true;
+    bool done = false;
+    bool success = false;
+    bool saved = false;
+    std::string ssid;
+    std::string password;
+};
+
+struct WifiPageState {
+    std::shared_ptr<WifiPageMailbox> mailbox;
+    std::shared_ptr<WifiSelectionOperation> selection;
+    system::core::TimerId timer_id = system::core::INVALID_TIMER_ID;
+    detail::SteadyTimePoint next_state_read{};
+    detail::SteadyTimePoint deadline{};
+    std::optional<bool> toggle_target;
+    bool scan_requested = false;
+    bool scan_received = false;
+    bool scan_owned = false;
+    bool connect_pending = false;
+    std::string connect_ssid;
+    bool saved_list = false;
+    std::string forget_ssid;
+    std::string error;
+};
+
+// Service callbacks retain this small state, never SettingsApp or GUI objects.
+struct WifiConnectOperation {
+    enum class Phase { Saving, SettingTarget, SendingConnect, WaitingForConnection, Failed };
+    boost::mutex mutex;
+    bool valid = true;
+    bool connected_event_armed = false;
+    uint64_t connected_event_epoch = 0;
+    uint64_t connect_start_epoch = 0;
+    Phase phase = Phase::Saving;
+    std::string ssid;
+    std::string password;
+    std::string error;
+    detail::SteadyTimePoint deadline{};
+    esp_brookesia::lib_utils::scoped_connection connected_event_connection;
+};
+
+struct SoundUiMailbox {
+    boost::mutex mutex;
+    bool open = true;
+    std::optional<double> volume;
+    std::optional<bool> muted;
+    std::optional<std::string> error;
+    bool playback_started = false;
+    bool playback_finished = false;
+    uint64_t control_result_generation = 0;
+    bool control_result_pending = false;
+    bool control_result_success = false;
+
+    void close()
+    {
+        boost::lock_guard lock(mutex);
+        open = false;
+        volume.reset();
+        muted.reset();
+        error.reset();
+    }
+};
+
 struct SettingsApp::Impl {
     system::core::AppContext *context = nullptr;
+    // Owned by the App record; retained until uninstall for compiled bundle selection.
+    system::core::AppContext *installed_context = nullptr;
     std::vector<std::string> dynamic_wifi_paths;
     std::vector<std::string> dynamic_hardware_group_paths;
+    std::vector<detail::HardwareGroup> cached_hardware_groups;
+    std::string cached_device_name;
+    size_t my_device_page = 0;
     size_t saved_wifi_slot_count = 0;
     size_t available_wifi_slot_count = 0;
     size_t saved_wifi_page = 0;
@@ -501,10 +664,23 @@ struct SettingsApp::Impl {
     std::vector<esp_brookesia::lib_utils::scoped_connection> device_event_connections;
     std::vector<esp_brookesia::lib_utils::scoped_connection> wifi_event_connections;
     std::vector<esp_brookesia::lib_utils::scoped_connection> sntp_event_connections;
-    uint64_t wifi_operation_generation = 0;
+    std::shared_ptr<std::atomic<uint64_t>> wifi_operation_generation =
+                                            std::make_shared<std::atomic<uint64_t>>(0);
     DeviceUiState device_ui_state;
+    std::shared_ptr<SoundUiMailbox> sound_ui_mailbox;
+    system::core::TimerId sound_ui_timer_id = system::core::INVALID_TIMER_ID;
+    bool settings_tone_active = false;
+    detail::SteadyTimePoint settings_tone_deadline{};
+    uint64_t sound_control_generation = 0;
+    detail::SteadyTimePoint sound_control_deadline{};
     WifiUiState wifi_ui_state;
+    WifiPageState wifi_page;
+    std::shared_ptr<WifiUiMailbox> wifi_ui_mailbox;
+    system::core::TimerId wifi_ui_timer_id = system::core::INVALID_TIMER_ID;
+    std::shared_ptr<WifiConnectOperation> wifi_connect_operation;
+    system::core::TimerId wifi_connect_timer_id = system::core::INVALID_TIMER_ID;
     TimeZoneUiState time_zone_ui_state;
+    system::core::TimerId sntp_ui_timer_id = system::core::INVALID_TIMER_ID;
     DebugUiState debug_ui_state;
     detail::UtilsHelper::DebugCapabilities utils_debug_capabilities;
     std::vector<WifiNetworkState> saved_wifi_networks;
@@ -518,6 +694,7 @@ struct SettingsApp::Impl {
     size_t wifi_scan_retry_remaining = 0;
     std::string pending_language_locale;
     std::string pending_theme_id;
+    std::string preference_error;
     hal::InterfaceHandle<hal::system::GeneralIface> restart_iface;
     SettingsApp::RestartPromptKind restart_prompt_kind = SettingsApp::RestartPromptKind::None;
     bool restart_in_progress = false;
@@ -533,9 +710,14 @@ struct SettingsApp::Impl {
     std::string current_page;
     std::string current_locale;
     std::string current_theme_id;
+    bool theme_from_display = false;
     size_t debug_entry_click_count = 0;
     detail::SteadyTimePoint debug_entry_last_click_at{};
     bool utils_debug_unavailable_logged = false;
+    std::unique_ptr<SettingsSurface> surface;
+    std::shared_ptr<BrightnessCallbackState> brightness_callbacks = std::make_shared<BrightnessCallbackState>();
+    int logged_brightness = -1;
+    bool logged_brightness_enabled = false;
 };
 
 } // namespace esp_brookesia::app::settings
@@ -543,6 +725,9 @@ struct SettingsApp::Impl {
 #define context_ impl_->context
 #define dynamic_wifi_paths_ impl_->dynamic_wifi_paths
 #define dynamic_hardware_group_paths_ impl_->dynamic_hardware_group_paths
+#define cached_hardware_groups_ impl_->cached_hardware_groups
+#define cached_device_name_ impl_->cached_device_name
+#define my_device_page_ impl_->my_device_page
 #define saved_wifi_slot_count_ impl_->saved_wifi_slot_count
 #define available_wifi_slot_count_ impl_->available_wifi_slot_count
 #define saved_wifi_page_ impl_->saved_wifi_page
@@ -566,10 +751,16 @@ struct SettingsApp::Impl {
 #define device_event_connections_ impl_->device_event_connections
 #define wifi_event_connections_ impl_->wifi_event_connections
 #define sntp_event_connections_ impl_->sntp_event_connections
-#define wifi_operation_generation_ impl_->wifi_operation_generation
+#define wifi_operation_generation_ (*impl_->wifi_operation_generation)
 #define device_ui_state_ impl_->device_ui_state
 #define wifi_ui_state_ impl_->wifi_ui_state
+#define wifi_page_ impl_->wifi_page
+#define wifi_ui_mailbox_ impl_->wifi_ui_mailbox
+#define wifi_ui_timer_id_ impl_->wifi_ui_timer_id
+#define wifi_connect_operation_ impl_->wifi_connect_operation
+#define wifi_connect_timer_id_ impl_->wifi_connect_timer_id
 #define time_zone_ui_state_ impl_->time_zone_ui_state
+#define sntp_ui_timer_id_ impl_->sntp_ui_timer_id
 #define debug_ui_state_ impl_->debug_ui_state
 #define utils_debug_capabilities_ impl_->utils_debug_capabilities
 #define saved_wifi_networks_ impl_->saved_wifi_networks
@@ -595,7 +786,19 @@ struct SettingsApp::Impl {
 #define wifi_refresh_animation_id_ impl_->wifi_refresh_animation_id
 #define current_page_ impl_->current_page
 #define current_locale_ impl_->current_locale
+#define theme_from_display_ impl_->theme_from_display
+#define preference_error_ impl_->preference_error
+#define sound_ui_mailbox_ impl_->sound_ui_mailbox
+#define sound_ui_timer_id_ impl_->sound_ui_timer_id
+#define settings_tone_active_ impl_->settings_tone_active
+#define settings_tone_deadline_ impl_->settings_tone_deadline
+#define sound_control_generation_ impl_->sound_control_generation
+#define sound_control_deadline_ impl_->sound_control_deadline
 #define current_theme_id_ impl_->current_theme_id
 #define debug_entry_click_count_ impl_->debug_entry_click_count
 #define debug_entry_last_click_at_ impl_->debug_entry_last_click_at
 #define utils_debug_unavailable_logged_ impl_->utils_debug_unavailable_logged
+#define surface_ impl_->surface
+#define brightness_callbacks_ impl_->brightness_callbacks
+#define logged_brightness_ impl_->logged_brightness
+#define logged_brightness_enabled_ impl_->logged_brightness_enabled

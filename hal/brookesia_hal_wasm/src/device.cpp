@@ -1690,6 +1690,8 @@ public:
             case wifi::BasicAction::Deinit:
                 initialized_ = false;
                 started_ = false;
+                connected_ = false;
+                active_connected_ssid_.clear();
                 event = wifi::BasicEvent::Deinited;
                 break;
             case wifi::BasicAction::Start:
@@ -1699,6 +1701,7 @@ public:
             case wifi::BasicAction::Stop:
                 started_ = false;
                 connected_ = false;
+                active_connected_ssid_.clear();
                 event = wifi::BasicEvent::Stopped;
                 break;
             default:
@@ -1723,6 +1726,7 @@ public:
                 target_ap_ = wifi::ConnectApInfo("Brookesia Fake AP", "brookesia");
             }
             connected_ = true;
+            active_connected_ssid_ = target_ap_.ssid;
             last_connected_ap_ = target_ap_;
             connected_aps_.clear();
             connected_aps_.push_back(target_ap_);
@@ -1738,6 +1742,7 @@ public:
             return true;
         case wifi::StationAction::Disconnect:
             connected_ = false;
+            active_connected_ssid_.clear();
             if (station_callbacks_.on_event) {
                 station_callbacks_.on_event(wifi::StationEvent::Disconnected, true);
             }
@@ -1774,6 +1779,7 @@ public:
     wifi::SoftApIface::Callbacks softap_callbacks_;
     wifi::ConnectApInfo target_ap_;
     wifi::ConnectApInfo last_connected_ap_;
+    std::string active_connected_ssid_;
     wifi::ConnectApInfoList connected_aps_;
     wifi::ScanParams scan_params_;
     wifi::SoftApParams softap_params_{
@@ -1923,6 +1929,12 @@ public:
     const wifi::ConnectApInfo &get_last_connected_ap_info() const override
     {
         return backend_->last_connected_ap_;
+    }
+    bool get_connected_ssid(std::string &ssid) const override
+    {
+        std::lock_guard lock(backend_->mutex_);
+        ssid = backend_->connected_ ? backend_->active_connected_ssid_ : std::string{};
+        return true;
     }
     const wifi::ConnectApInfoList &get_connected_ap_infos() const override
     {

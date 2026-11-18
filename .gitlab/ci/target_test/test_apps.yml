@@ -437,7 +437,10 @@ target_test_apps_brookesia_service_wifi:
       artifacts: true
       optional: true
   parallel:
-    matrix: !reference [.target_test_idf_target_version_with_wifi_psram_default_matrix]
+    matrix:
+      - IDF_TARGET: esp32s3
+        IDF_VERSION: "6.0"
+        ENV_TAG: "generic,octal-psram"
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}
@@ -445,6 +448,17 @@ target_test_apps_brookesia_service_wifi:
     TEST_TARGET: ${IDF_TARGET}
     TEST_FOLDER: service/network/brookesia_service_wifi/test_apps
     TEST_ENV: ${ENV_TAG}
+target_test_apps_brookesia_service_wifi_p4x:
+  extends: target_test_apps_brookesia_service_wifi
+  parallel:
+    matrix:
+      - IDF_TARGET: esp32p4
+        IDF_VERSION: "6.0"
+        ENV_TAG: "esp32p4x_function_ev_board"
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+    - longtime
 # brookesia_service_video
 target_test_apps_brookesia_service_video:
   extends:

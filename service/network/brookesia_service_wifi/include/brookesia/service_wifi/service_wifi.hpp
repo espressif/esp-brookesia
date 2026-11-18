@@ -105,6 +105,7 @@ private:
     std::expected<std::string, std::string> function_get_general_state();
     std::expected<void, std::string> function_set_connect_ap(const std::string &ssid, const std::string &password);
     std::expected<boost::json::object, std::string> function_get_connect_ap();
+    std::expected<std::string, std::string> function_get_connected_ssid();
     std::expected<boost::json::array, std::string> function_get_connected_aps();
     std::expected<void, std::string> function_remove_connected_ap(const std::string &ssid);
     std::expected<void, std::string> function_set_scan_params(const boost::json::object &params);
@@ -200,6 +201,10 @@ private:
             BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
                 Helper, Helper::FunctionId::ResetData,
                 function_reset_data()
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
+                Helper, Helper::FunctionId::GetConnectedSsid,
+                function_get_connected_ssid()
             ),
         };
     }

@@ -10,7 +10,9 @@
 #include <filesystem>
 #include <mutex>
 
-#include "brookesia/gui_interface/parser.hpp"
+#if BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
+#   include "brookesia/gui_interface/parser.hpp"
+#endif
 #include "private/utils.hpp"
 #include "private/system/impl.hpp"
 
@@ -313,6 +315,11 @@ std::expected<void, std::string> SystemGuiAccess::set_binding_values(
     const std::vector<gui::BindingValueUpdate> &updates
 ) const
 {
+#if !BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
+    (void)document_id;
+    (void)updates;
+    return std::unexpected("JSON GUI is unavailable with the GSP backend");
+#else
     if (system_ == nullptr) {
         return std::unexpected("System GUI access is not available");
     }
@@ -344,6 +351,7 @@ std::expected<void, std::string> SystemGuiAccess::set_binding_values(
     },
     std::unexpected("Failed to post system GUI binding task")
            );
+#endif
 }
 
 std::expected<boost::json::value, std::string> SystemGuiAccess::get_constant_value(
@@ -373,6 +381,12 @@ std::expected<void, std::string> SystemGuiAccess::set_text(
     std::string_view text
 ) const
 {
+#if !BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
+    (void)document_id;
+    (void)absolute_path;
+    (void)text;
+    return std::unexpected("JSON GUI is unavailable with the GSP backend");
+#else
     if (system_ == nullptr) {
         return make_unavailable_error();
     }
@@ -421,6 +435,7 @@ std::expected<void, std::string> SystemGuiAccess::set_text(
     },
     std::unexpected("Failed to post system GUI text task")
            );
+#endif
 }
 
 std::expected<void, std::string> SystemGuiAccess::set_view_src(
@@ -429,6 +444,12 @@ std::expected<void, std::string> SystemGuiAccess::set_view_src(
     std::string_view src
 ) const
 {
+#if !BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
+    (void)document_id;
+    (void)absolute_path;
+    (void)src;
+    return std::unexpected("JSON GUI is unavailable with the GSP backend");
+#else
     if (system_ == nullptr) {
         return make_unavailable_error();
     }
@@ -465,6 +486,7 @@ std::expected<void, std::string> SystemGuiAccess::set_view_src(
     },
     std::unexpected("Failed to post system GUI image source task")
            );
+#endif
 }
 
 std::expected<void, std::string> SystemGuiAccess::preload_images(
@@ -650,6 +672,11 @@ std::expected<void, std::string> SystemGuiAccess::load_theme_file(
     std::string_view path
 ) const
 {
+#if !BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
+    (void)resource_dir;
+    (void)path;
+    return std::unexpected("JSON GUI is unavailable with the GSP backend");
+#else
     if (system_ == nullptr) {
         return make_unavailable_error();
     }
@@ -670,6 +697,7 @@ std::expected<void, std::string> SystemGuiAccess::load_theme_file(
     },
     std::unexpected("Failed to post system GUI theme load task")
            );
+#endif
 }
 
 std::expected<void, std::string> SystemGuiAccess::set_theme(
@@ -680,6 +708,20 @@ std::expected<void, std::string> SystemGuiAccess::set_theme(
     if (system_ == nullptr) {
         return make_unavailable_error();
     }
+#if !BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
+    if (theme_id.empty()) {
+        return std::unexpected("GUI theme is empty");
+    }
+    (void)reapply_loaded_documents;
+    auto result = system_->impl_->run_task_sync<std::expected<void, std::string>>(
+                      SYSTEM_GUI_TASK_GROUP,
+    [this, theme_id = std::string(theme_id)]() -> std::expected<void, std::string> {
+        system_->impl_->environment_.theme_id = theme_id;
+        return {};
+    },
+    std::unexpected("Failed to post system GUI theme set task")
+                  );
+#else
     auto result = system_->impl_->run_task_sync<std::expected<void, std::string>>(
                       SYSTEM_GUI_TASK_GROUP,
     [this, theme_id = std::string(theme_id), reapply_loaded_documents]() -> std::expected<void, std::string> {
@@ -696,6 +738,7 @@ std::expected<void, std::string> SystemGuiAccess::set_theme(
     },
     std::unexpected("Failed to post system GUI theme set task")
                   );
+#endif
     if (!result) {
         return result;
     }
@@ -747,6 +790,10 @@ std::expected<void, std::string> SystemGuiAccess::register_font_file(
 
 std::expected<void, std::string> SystemGuiAccess::register_image(const gui::RuntimeImageResource &resource) const
 {
+#if !BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
+    (void)resource;
+    return std::unexpected("JSON GUI is unavailable with the GSP backend");
+#else
     if (system_ == nullptr) {
         return make_unavailable_error();
     }
@@ -780,6 +827,7 @@ std::expected<void, std::string> SystemGuiAccess::register_image(const gui::Runt
     },
     std::unexpected("Failed to post system GUI image register task")
            );
+#endif
 }
 
 bool SystemGuiAccess::unregister_image(std::string_view id) const
@@ -873,6 +921,20 @@ std::expected<void, std::string> SystemGuiAccess::set_language(
     if (system_ == nullptr) {
         return make_unavailable_error();
     }
+#if !BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
+    if (language.empty()) {
+        return std::unexpected("GUI language is empty");
+    }
+    (void)reapply_loaded_documents;
+    auto result = system_->impl_->run_task_sync<std::expected<void, std::string>>(
+                      SYSTEM_GUI_TASK_GROUP,
+    [this, language = std::string(language)]() -> std::expected<void, std::string> {
+        system_->impl_->environment_.language = language;
+        return {};
+    },
+    std::unexpected("Failed to post system GUI language set task")
+                  );
+#else
     auto result = system_->impl_->run_task_sync<std::expected<void, std::string>>(
                       SYSTEM_GUI_TASK_GROUP,
     [this, language = std::string(language), reapply_loaded_documents]() -> std::expected<void, std::string> {
@@ -889,6 +951,7 @@ std::expected<void, std::string> SystemGuiAccess::set_language(
     },
     std::unexpected("Failed to post system GUI language set task")
                   );
+#endif
     if (!result) {
         return result;
     }

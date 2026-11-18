@@ -519,11 +519,9 @@ std::expected<void, std::string> Wifi::function_set_softap_params(const boost::j
         return std::unexpected("Wi-Fi SoftAP interface is not available");
     }
 
-    BROOKESIA_LOGD("Params: params(%1%)", BROOKESIA_DESCRIBE_TO_STR(params));
-
     SoftApParams ap_params;
     if (!BROOKESIA_DESCRIBE_FROM_JSON(params, ap_params)) {
-        return std::unexpected("Failed to deserialize AP params: " + BROOKESIA_DESCRIBE_TO_STR(params));
+        return std::unexpected("Failed to deserialize AP params");
     }
 
     if (!set_data<DataType::SoftApParams>(ap_params)) {
@@ -537,15 +535,15 @@ std::expected<void, std::string> Wifi::function_set_connect_ap(const std::string
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: ssid(%1%), password(%2%)", ssid, password);
+    BROOKESIA_LOGD("Setting connect AP '%1%'", ssid);
 
     ConnectApInfo ap_info(ssid, password);
     if (!ap_info.is_valid()) {
-        return std::unexpected("Invalid AP info: " + BROOKESIA_DESCRIBE_TO_STR(ap_info));
+        return std::unexpected("Invalid AP info for SSID: " + ssid);
     }
 
     if (!station_iface_->set_target_connect_ap_info(ap_info)) {
-        return std::unexpected("Failed to set connect AP info: " + BROOKESIA_DESCRIBE_TO_STR(ap_info));
+        return std::unexpected("Failed to set connect AP info for SSID: " + ssid);
     }
     connecting_ap_info_ = {};
     connect_retries_ = 0;
@@ -577,6 +575,18 @@ std::expected<boost::json::array, std::string> Wifi::function_get_connected_aps(
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     return BROOKESIA_DESCRIBE_TO_JSON(get_data<DataType::ConnectedAps>()).as_array();
+}
+
+std::expected<std::string, std::string> Wifi::function_get_connected_ssid()
+{
+    if (state_machine_->get_current_state() != GeneralState::Connected) {
+        return std::string{};
+    }
+    std::string ssid;
+    if (!station_iface_->get_connected_ssid(ssid)) {
+        return std::unexpected("Failed to query the currently connected AP SSID");
+    }
+    return ssid;
 }
 
 std::expected<void, std::string> Wifi::function_remove_connected_ap(const std::string &ssid)
@@ -665,7 +675,6 @@ void Wifi::try_load_data()
         // Skip saving to Storage, because the data is already loaded from Storage
         set_data<type>(kv_result.value(), false, true);
         BROOKESIA_LOGI("Loaded '%1%' from Storage", raw_key);
-        BROOKESIA_LOGD("\t Value: %1%", BROOKESIA_DESCRIBE_TO_STR(kv_result.value()));
         return true;
     };
 
@@ -776,9 +785,7 @@ bool Wifi::try_load_connected_ap_infos(const std::string &kv_namespace)
         }
         auto ap_info = std::move(ap_result.value());
         if (!ap_info.is_valid()) {
-            BROOKESIA_LOGW(
-                "Ignore invalid connected AP entry '%1%': %2%", entry.key, BROOKESIA_DESCRIBE_TO_STR(ap_info)
-            );
+            BROOKESIA_LOGW("Ignore invalid connected AP entry '%1%'", entry.key);
             continue;
         }
         connected_ap_infos.remove_if([&ap_info](const auto & existing) {
@@ -1096,16 +1103,16 @@ bool Wifi::handle_scan_ap_infos_policy(std::span<const ScanApInfo> ap_infos)
 
         if ((target_ap_info.is_valid()) && (scan_ap_info.ssid == target_ap_info.ssid)) {
             if (target_ap_info.is_connectable) {
-                BROOKESIA_LOGD("Detected target AP in scan result: %1%", BROOKESIA_DESCRIBE_TO_STR(target_ap_info));
+                BROOKESIA_LOGD("Detected target AP in scan result: %1%", target_ap_info.ssid);
                 return trigger_connect_to_ap(target_ap_info);
             }
-            BROOKESIA_LOGD("Target AP is not connectable, skip: %1%", BROOKESIA_DESCRIBE_TO_STR(target_ap_info));
+            BROOKESIA_LOGD("Target AP is not connectable, skip: %1%", target_ap_info.ssid);
             continue;
         }
 
         ConnectApInfo history_ap_info;
         if (get_connectable_ap_info_by_ssid(scan_ap_info.ssid, history_ap_info)) {
-            BROOKESIA_LOGD("Detected history AP in scan result: %1%", BROOKESIA_DESCRIBE_TO_STR(history_ap_info));
+            BROOKESIA_LOGD("Detected history AP in scan result: %1%", history_ap_info.ssid);
             return trigger_connect_to_ap(history_ap_info);
         }
     }
@@ -1460,7 +1467,7 @@ bool Wifi::trigger_auto_connect()
     if (target_ap_info.is_valid() && !target_ap_info.is_connectable) {
         BROOKESIA_LOGD(
             "Target AP is not connectable, try history connectable AP: %1%",
-            BROOKESIA_DESCRIBE_TO_STR(target_ap_info)
+            target_ap_info.ssid
         );
         if (!get_last_connectable_ap_info(target_ap_info)) {
             BROOKESIA_LOGD("No history connectable AP found, use target AP directly");
@@ -1472,7 +1479,7 @@ bool Wifi::trigger_auto_connect()
         return true;
     }
 
-    BROOKESIA_LOGD("Auto connect to AP: %1%", BROOKESIA_DESCRIBE_TO_STR(target_ap_info));
+    BROOKESIA_LOGD("Auto connect to AP: %1%", target_ap_info.ssid);
     return trigger_connect_to_ap(target_ap_info);
 }
 
@@ -1655,7 +1662,7 @@ bool Wifi::handle_unexpected_disconnected(bool was_connecting)
         return true;
     }
 
-    BROOKESIA_LOGD("Reconnect to history AP: %1%", BROOKESIA_DESCRIBE_TO_STR(history_ap_info));
+    BROOKESIA_LOGD("Reconnect to history AP: %1%", history_ap_info.ssid);
     return trigger_connect_to_ap(history_ap_info);
 }
 

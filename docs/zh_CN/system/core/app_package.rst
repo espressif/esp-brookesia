@@ -12,10 +12,12 @@
 概述
 --------------------
 
-App package 使用 ``manifest.json`` 描述包元信息和 runtime 入口；runtime 资源目录下的 ``profile.json`` 是 system_core resource descriptor，``root`` 指向真正的 JSON UI document，启动 flow 写在 ``screen_flows[]``。它有两种使用方式：
+App package 使用 ``manifest.json`` 描述包元信息和 runtime 入口；runtime 资源目录下的 ``profile.json`` 是 system_core resource descriptor，其 GUI 字段取决于 backend。它有两种使用方式：
 
 - ``.bpk``：ZIP 容器，运行时由 ``system::core::unpack_app_package_to()`` 解包。
 - unpacked package：直接部署 ``manifest.json + app/ + res/``，由 ``System::init()`` 扫描安装。
+
+包可以使用 LVGL 或 GSP 两种 GUI backend。各 backend 的 descriptor 见“Manifest 字段”中的 ``gui`` 和 :ref:`system-core-app_package-sec-04`。
 
 需要运行 ``.bpk`` 时，先调用 system_core package API（可选 ``verify_app_package_release()``，再 ``unpack_app_package_to()``）得到 ``AppManifest``，再用 ``make_runtime_app_config()`` 转成 ``runtime::AppConfig``。
 
@@ -23,6 +25,8 @@ App package 使用 ``manifest.json`` 描述包元信息和 runtime 入口；runt
 
 最小包结构
 --------------------
+
+以下示例使用 JSON/LVGL：
 
 .. code-block:: text
 
@@ -99,6 +103,18 @@ Manifest 字段
    * - ``arguments``
      - runtime 启动参数字符串数组
 
+可选的顶层 ``gui`` 对象声明 GUI backend。它与 ``runtime.type`` 中的 runtime 相互独立，JavaScript 应用可以使用任一种 GUI backend：
+
+.. list-table::
+   :header-rows: 1
+
+   * - 字段
+     - 说明
+   * - ``backend``
+     - ``lvgl``（默认）或 ``gsp``。现有 JSON UI 包不需要写 ``gui``。GSP 包写 ``"backend": "gsp"``
+
+GSP 包必须使用 GSP descriptor 并安装到 GSP 固件，不能装进 LVGL 固件。使用默认或显式 ``lvgl`` backend 的包，若 descriptor 含 JSON UI ``root``，就不能装进 GSP 固件。无 GUI 的包可以保留 ``lvgl`` 默认值，并在 ``profile.json`` 中省略 ``root``，这类包可安装到任一种 GUI backend 的固件。
+
 可选的顶层 ``services`` 数组声明 runtime app 所需的 service RPC：
 
 .. list-table::
@@ -121,12 +137,16 @@ Manifest 字段
 
 上述约束适用于通过 HostBridge 访问 service 的 runtime app。Native app 属于可信固件代码，其直接使用 C++ service 接口的行为不受 manifest 限制。
 
+``.bpk`` 先在 ``apps/.installing/`` 下解包并校验，再替换已安装的应用。更新会保留应用的 ``cache``、``data`` 和 ``files`` 目录。注册或提交失败时，系统会在条件允许时恢复旧版本；中断的更新会在启动时恢复。若无法查询或移动所需文件，系统会保留相应暂存目录以供恢复。加载失败的已安装应用会被跳过并给出警告，不会阻止系统启动。卸载会删除应用目录及其数据。
+
+恢复目标必须是安全的单级应用目录名，并与暂存的安装目标一致。只有目标目录中的安装事务标记匹配时，系统才会移走该目录。无法核验的暂存目录（包括缺少目标元数据的旧备份）会被保留以供检查，不会替换其他已安装应用。
+
 .. _system-core-app_package-sec-04:
 
 资源 descriptor
 --------------------
 
-``<runtime.resource_dir>/profile.json`` 是 system_core resource descriptor，不是 JSON UI document：
+``<runtime.resource_dir>/profile.json`` 是 system_core resource descriptor，不是 JSON UI document。JSON/LVGL descriptor 示例：
 
 .. code-block:: json
 
@@ -139,6 +159,34 @@ Manifest 字段
    }
 
 ``icon_id`` 用于在包内定位 launcher 图标；``root`` 指向标准 JSON UI document；``screen_flows[]`` 指定启动 flow。普通 app 主界面应使用 ``AppDefault``，``AppTop`` 只用于 app 自己的 header、浮层或工具栏；runtime app 只能使用 ``Replace``，``z_order`` 在 ``0..100`` 内。``root.json`` 是标准 JSON UI document，应引用一个 ``screenFlow`` asset。
+
+.. _system-core-app_package-gsp:
+
+包格式与页面 API
+^^^^^^^^^^^^^^^^^^^^
+
+GSP 包使用另一种 ``profile.json``。``root`` 指向通过 ``gspc compile`` 的 ``--deployable`` 选项生成的 deployable ``.gspb`` bundle，不能直接使用普通编译 bundle。页面是 bundle 里的 GSP scene，因此不使用 ``screen_flows`` 和 ``preload_dom``：
+
+.. code-block:: json
+
+   {
+     "gui_backend": "gsp",
+     "root": "app.gspb"
+   }
+
+``manifest.gui.backend`` 也必须是 ``gsp``。``examples/app/gsp_js_device_control`` 是一个完整的 GSP 包。
+
+如果 bundle 为每个系统主题各带一份场景,可以用 ``start_scenes`` 指定各主题的首个场景,避免 JavaScript 启动期间闪现错误主题。未列出的主题从 scene 0 开始:
+
+.. code-block:: json
+
+   {
+     "gui_backend": "gsp",
+     "root": "app.gspb",
+     "start_scenes": {"light": 0, "dark": 12}
+   }
+
+JavaScript 通过 ``brookesia.gsp_set_text(name, text)``、``brookesia.gsp_set_value(name, value)``、``brookesia.gsp_set_property(name, property, value)``(数值、布尔值或 ``#RRGGBB`` 颜色,用于场景声明过的 ``visible``、``enabled``、``color`` 或时钟指针角度等属性)以及 ``brookesia.gsp_show_page(scene)`` 更新页面。一批更新遇到 GSP 命令队列已满时会短暂等待。
 
 .. _system-core-app_package-sec-05:
 
@@ -157,7 +205,8 @@ Manifest 字段
 - ``runtime.entry`` 和 ``runtime.resource_dir`` 必须是安全相对路径，不能是绝对路径或包含 ``..``。
 - ``package.systems`` 与当前 system type 不匹配时跳过该 package。
 - ``package.id``、``package.version``、``runtime.type``、``runtime.entry`` 缺失或类型错误会导致 manifest 解析失败。
-- runtime GUI 启动 flow 必须写入 ``profile.json`` 的 ``screen_flows[]``。
+- LVGL runtime GUI 的启动 flow 必须写入 ``profile.json`` 的 ``screen_flows[]``。
+- GSP 包的 ``manifest.gui.backend`` 与 ``profile.json`` 的 ``gui_backend`` 必须同为 ``gsp``。bundle 损坏，或 backend 与固件不一致，会在安装时被拒绝，已安装的版本保持不变。
 
 .. _system-core-app_package-sec-07:
 

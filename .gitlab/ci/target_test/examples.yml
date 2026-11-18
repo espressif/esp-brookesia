@@ -168,6 +168,7 @@ target_test_examples_system_perf_eval:
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}
+    - longtime
   variables:
     TEST_TARGET: ${IDF_TARGET}
     TEST_FOLDER: examples/system/perf_eval

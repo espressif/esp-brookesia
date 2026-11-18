@@ -59,9 +59,11 @@ class UsbClient:
         serial, _ = _serial_module()
         self.port = port
         self.serial = serial.Serial(port, baudrate=baudrate, timeout=timeout, write_timeout=timeout)
+        # Opening asserts both lines. DTR low while RTS is still high resets the chip,
+        # so release RTS first.
         try:
-            self.serial.dtr = False
             self.serial.rts = False
+            self.serial.dtr = False
         except (OSError, AttributeError):
             pass
         self.timeout = timeout

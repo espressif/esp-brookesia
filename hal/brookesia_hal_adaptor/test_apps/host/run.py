@@ -28,18 +28,24 @@ def main():
         from lifecycle.suite import run as run_lifecycle
         from board_cleanup import run as run_board_cleanup
         from cleanup_dispatch.suite import run as run_cleanup_dispatch
+        from touch_timeout import main as run_touch_timeout
 
         print('Running core regressions: lifecycle, cleanup dispatch and Mosaico cleanup', flush=True)
         run_cleanup_dispatch()
         run_lifecycle()
         run_board_cleanup()
+        run_touch_timeout()
     if args.suite in ('dependencies', 'all'):
         from board_manager.suite import run as run_board_manager
         from media.suite import run as run_media
+        from audio_config.suite import run as run_audio_config
+        from dl_config.suite import run as run_dl_config
 
         print(f'Running dependency regressions against {args.managed_components}', flush=True)
         run_board_manager(args.managed_components)
         run_media(args.managed_components)
+        run_audio_config(args.managed_components)
+        run_dl_config(args.managed_components)
     print(f'PASS: {args.suite} host regressions', flush=True)
 
 

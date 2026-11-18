@@ -1,5 +1,17 @@
 # ChangeLog
 
+## v0.8.3 - 2026-11-10
+
+### Enhancements:
+
+- feat(playback): add idle-only requests that reject busy playback without interrupting or queueing.
+
+### Bug Fixes:
+
+- fix(storage): persist changed volume and mute values asynchronously without failing already applied controls.
+- fix(storage): report persistence errors in logs and skip writes for unchanged control values.
+- fix(deps): require Service Helper `>=0.8.7,<0.9` for idle-only playback configuration.
+
 ## v0.8.2 - 2026-07-27
 
 ### Enhancements:

@@ -1,0 +1,27 @@
+{
+  "package": {
+    "id": "brookesia.gsp.device_control",
+    "name": {
+      "en": "Device Control",
+      "zh_CN": "设备控制"
+    },
+    "version": "0.1.0",
+    "visible": true,
+    "systems": ["core", "super"]
+  },
+  "runtime": {
+    "type": "JavaScript",
+    "entry": "app/app.js",
+    "resource_dir": "res",
+    "arguments": []
+  },
+  "gui": {
+    "backend": "gsp"
+  },
+  "services": [
+    {
+      "name": "Display",
+      "version": "0.8.0"
+    }
+  ]
+}

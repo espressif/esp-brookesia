@@ -1,5 +1,17 @@
 # ChangeLog
 
+## v0.8.4 - 2026-11-10
+
+### Enhancements:
+
+- feat(wifi): add GetConnectedSsid independently of the next connection target, with an empty result when disconnected.
+
+### Bug Fixes:
+
+- fix(logging): omit Wi-Fi credentials from service logs and validation errors.
+- fix(tests): wait for SoftAP start and stop events during concurrent station reconnection tests.
+- fix(deps): require Service Helper `>=0.8.7,<0.9` for the connected-SSID function.
+
 ## v0.8.3 - 2026-10-27
 
 ### Bug Fixes:

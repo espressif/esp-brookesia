@@ -11,6 +11,10 @@
 #if defined(ESP_PLATFORM)
 #include "esp_system.h"
 #include "unity_test_utils.h"
+#if TEST_HTTP_USE_WIFI
+#include "esp_event.h"
+#include "esp_netif.h"
+#endif
 
 #define TEST_DEFAULT_LEAK_THRESHOLD (32)
 
@@ -24,20 +28,41 @@ void setUp(void)
 
 void tearDown(void)
 {
+    cleanup_http_test();
     esp_reent_cleanup();
     unity_utils_evaluate_leaks();
 }
 
 extern "C" void app_main(void)
 {
+#if TEST_HTTP_USE_WIFI
+    // These SDK resources live for the process, outside each test's heap baseline.
+    ESP_ERROR_CHECK(esp_netif_init());
+    const auto event_loop_result = esp_event_loop_create_default();
+    if (event_loop_result != ESP_ERR_INVALID_STATE) {
+        ESP_ERROR_CHECK(event_loop_result);
+    }
+#endif
     unity_run_menu();
 }
 #else
 
 namespace {
 
+class HttpTestObserver : public boost::unit_test::test_observer {
+public:
+    void test_unit_finish(const boost::unit_test::test_unit &unit, unsigned long) override
+    {
+        if (unit.p_type == boost::unit_test::TUT_CASE) {
+            cleanup_http_test();
+        }
+    }
+};
+
 bool init_unit_test()
 {
+    static HttpTestObserver observer;
+    boost::unit_test::framework::register_observer(observer);
     return true;
 }
 

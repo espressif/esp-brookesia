@@ -145,8 +145,21 @@ enum class GuiRootKind {
     None,
     File,
     JsonString,
+    GspBundle,
 };
-BROOKESIA_DESCRIBE_ENUM(GuiRootKind, None, File, JsonString)
+BROOKESIA_DESCRIBE_ENUM(GuiRootKind, None, File, JsonString, GspBundle)
+
+/**
+ * @brief GUI implementation selected by an app package.
+ *
+ * This is independent from runtime::BackendType, which selects the application
+ * execution backend such as JavaScript.
+ */
+enum class GuiBackend {
+    Lvgl,
+    Gsp,
+};
+BROOKESIA_DESCRIBE_ENUM(GuiBackend, Lvgl, Gsp)
 
 enum class GuiAppLayer {
     AppDefault,
@@ -175,6 +188,8 @@ struct AppGuiDescriptor {
     std::string root;
     AppGuiResources resources;
     std::vector<GuiScreenFlowEntry> screen_flows;
+    /// GSP bundle only: the scene to show first for each system theme id. A theme that is not listed starts on scene 0.
+    std::map<std::string, uint16_t> start_scenes{};
 };
 BROOKESIA_DESCRIBE_STRUCT(AppGuiDescriptor, (), (root_kind, root, resources, screen_flows))
 
@@ -220,6 +235,13 @@ struct AppManifest {
     std::string resource_dir;
     std::vector<std::string> arguments;
     std::vector<AppManifestService> services = {};
+    /**
+     * @brief GUI backend declared by the package.
+     *
+     * Omitted manifest.gui.backend means Lvgl, which keeps existing JSON UI packages valid.
+     * GSP packages must set this explicitly and point profile.json at a deployable bundle.
+     */
+    GuiBackend gui_backend = GuiBackend::Lvgl;
 };
 BROOKESIA_DESCRIBE_STRUCT(
     AppManifest,
@@ -240,7 +262,8 @@ BROOKESIA_DESCRIBE_STRUCT(
         entry,
         resource_dir,
         arguments,
-        services
+        services,
+        gui_backend
     )
 )
 

@@ -138,6 +138,11 @@ public:
         return backend_->get_last_connected_ap_info();
     }
 
+    bool get_connected_ssid(std::string &ssid) const override
+    {
+        return backend_->get_connected_ssid(ssid);
+    }
+
     const wifi::ConnectApInfoList &get_connected_ap_infos() const override
     {
         return backend_->get_connected_ap_infos();

@@ -4,26 +4,43 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+std::string SettingsApp::page_title_text(std::string_view page) const
+{
+    const auto locale = current_locale_.empty() ? std::string_view(LOCALE_EN) : std::string_view(current_locale_);
+    auto text = localized_text(locale, page);
+    if (text != page) {
+        return text;
+    }
+    if (page == PAGE_HOME) {
+        return "Settings";
+    }
+    if (page == PAGE_DISPLAY) {
+        return "Display & brightness";
+    }
+    return std::string(page);
+}
+
 std::expected<void, std::string> SettingsApp::refresh_header(system::core::AppContext &context)
 {
-    std::vector<gui::BindingValueUpdate> updates;
-    add_binding_update(
-        updates,
-        HEADER_BACK_PATH,
-        "commonProps.hidden",
-        current_page_ == PAGE_HOME ? "true" : "false"
-    );
-    add_binding_update(
-        updates,
-        HEADER_TITLE_PATH,
-        "labelProps.text",
-        localized_text(current_locale_, current_page_)
-    );
-    return context.gui().set_binding_values(updates);
+    return surface_->set_header(context, page_title_text(current_page_), current_page_ != PAGE_HOME);
 }
 
 std::expected<void, std::string> SettingsApp::refresh_theme_state(system::core::AppContext &context)
 {
+    if (settings_uses_gsp_backend()) {
+        PreferencePageView view;
+        view.labels = {localized_text(current_locale_, "light"), localized_text(current_locale_, "dark")};
+        view.values = {
+            pending_theme_id_ == THEME_LIGHT ? localized_text(current_locale_, "restart_required") :
+            current_theme_id_ == THEME_LIGHT ? localized_text(current_locale_, "current") : "",
+            pending_theme_id_ == THEME_DARK ? localized_text(current_locale_, "restart_required") :
+            current_theme_id_ == THEME_DARK ? localized_text(current_locale_, "current") : "",
+        };
+        view.status = !preference_error_.empty() ? preference_error_ :
+                      pending_theme_id_.empty() ? "" : localized_text(current_locale_, "theme.restart_required");
+        view.show_restart = restart_prompt_kind_ == RestartPromptKind::Theme;
+        return surface_->set_preferences(context, view);
+    }
     const bool dark = current_theme_id_ == THEME_DARK;
     auto tokens = load_selectable_theme_tokens(context, current_theme_id_);
     if (!tokens) {
@@ -56,6 +73,24 @@ std::expected<void, std::string> SettingsApp::refresh_theme_state(system::core::
 
 std::expected<void, std::string> SettingsApp::refresh_language_state(system::core::AppContext &context)
 {
+    if (settings_uses_gsp_backend()) {
+        PreferencePageView view;
+        view.labels = {
+            localized_text(current_locale_, "language.display.en"),
+            localized_text(current_locale_, "language.display.zh_CN"),
+        };
+        view.values = {
+            pending_language_locale_ == LOCALE_EN ? localized_text(current_locale_, "restart_required") :
+            current_locale_ == LOCALE_EN ? localized_text(current_locale_, "current") : "",
+            pending_language_locale_ == LOCALE_ZH_CN ? localized_text(current_locale_, "restart_required") :
+            current_locale_ == LOCALE_ZH_CN ? localized_text(current_locale_, "current") : "",
+        };
+        view.status = !preference_error_.empty() ? preference_error_ :
+                      pending_language_locale_.empty() ? "" :
+                      localized_text(current_locale_, "language.restart_required");
+        view.show_restart = restart_prompt_kind_ == RestartPromptKind::Language;
+        return surface_->set_preferences(context, view);
+    }
     std::vector<gui::BindingValueUpdate> updates;
     add_binding_update(
         updates,

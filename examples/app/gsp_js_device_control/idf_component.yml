@@ -1,0 +1,6 @@
+version: "0.1.0"
+description: Device Control, a GSP and JavaScript example app for ESP-Brookesia. Preinstalls the app in the LittleFS image.
+dependencies:
+  espressif/brookesia_system_core:
+    version: ">=0.8.7,<0.9"
+    override_path: ../../../system/brookesia_system_core

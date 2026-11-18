@@ -1,11 +1,16 @@
-version: "0.8.4"
+version: "0.8.5"
 description: ESP-Brookesia C++ settings app for the system-core app contract.
 url: https://github.com/espressif/esp-brookesia/tree/master/app/brookesia_app_settings
 repository: https://github.com/espressif/esp-brookesia.git
 issues: https://github.com/espressif/esp-brookesia/issues
 dependencies:
+  espressif/brookesia_lib_utils:
+    version: ">=0.8.3,<0.9"
+    override_path: ../../utils/brookesia_lib_utils
+    require: public
+
   espressif/brookesia_system_core:
-    version: "0.8.*"
+    version: ">=0.8.7,<0.9"
     override_path: ../../system/brookesia_system_core
     require: public
 
@@ -20,7 +25,7 @@ dependencies:
     require: public
 
   espressif/brookesia_service_wifi:
-    version: "0.8.*"
+    version: ">=0.8.4,<0.9"
     override_path: ../../service/network/brookesia_service_wifi
     require: public
 
@@ -30,6 +35,24 @@ dependencies:
     require: public
 
   espressif/brookesia_hal_interface:
-    version: "0.8.*"
+    version: ">=0.8.4,<0.9"
     override_path: ../../hal/brookesia_hal_interface
     require: public
+
+  espressif/brookesia_service_display:
+    version: "0.8.*"
+    override_path: ../../service/media/brookesia_service_display
+    require: public
+
+  espressif/brookesia_service_helper:
+    version: ">=0.8.7,<0.9"
+    override_path: ../../service/framework/brookesia_service_helper
+    require: public
+
+  espressif/brookesia_gui_gsp:
+    version: "0.8.*"
+    override_path: ../../gui/brookesia_gui_gsp
+    matches:
+      # The current backend choice has two values: GSP and LVGL. LVGL is
+      # exported even when the target hides GSP from sdkconfig.json.
+      - if: $CONFIG{BROOKESIA_GUI_BACKEND_LVGL} == False

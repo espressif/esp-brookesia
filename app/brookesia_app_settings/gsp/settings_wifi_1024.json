@@ -1,0 +1,681 @@
+{
+  "screen": "settings_wifi",
+  "w": 1024,
+  "h": 600,
+  "screen_bg": "#F4F5F7",
+  "font": "brookesia_gui_gsp/DejaVuSans.ttf",
+  "default_font_size": 24,
+  "objects": [
+    {
+      "type": "container",
+      "parent": -1,
+      "name": "page_background",
+      "x": 0,
+      "y": 0,
+      "w": 1024,
+      "h": 600,
+      "bg_color": {
+        "theme": "page_bg"
+      }
+    },
+    {
+      "type": "container",
+      "parent": -1,
+      "name": "header_bar",
+      "x": 0,
+      "y": 0,
+      "w": 1024,
+      "h": 74,
+      "bg_color": {
+        "theme": "surface"
+      }
+    },
+    {
+      "type": "button",
+      "parent_name": "header_bar",
+      "name": "header_back",
+      "x": 16,
+      "y": 9,
+      "w": 88,
+      "h": 56,
+      "text": "Back",
+      "font_size": 22,
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 16,
+      "callback": "header_back",
+      "enabled": true,
+      "bind": "header_back",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "label",
+      "parent_name": "header_bar",
+      "name": "header_title",
+      "bind": "header_title",
+      "x": 120,
+      "y": 16,
+      "w": 760,
+      "h": 42,
+      "text": "Wi-Fi",
+      "font_size": 32,
+      "fg_color": {
+        "theme": "text"
+      },
+      "font_charset": " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%&-.:'"
+    },
+    {
+      "type": "button",
+      "parent": -1,
+      "name": "wifi_toggle",
+      "bind": "wifi_toggle",
+      "x": 54,
+      "y": 86,
+      "w": 180,
+      "h": 44,
+      "text": "Wi-Fi: Off",
+      "font_size": 20,
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 12,
+      "callback": "wifi_toggle",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "enabled": true
+    },
+    {
+      "type": "button",
+      "parent": -1,
+      "name": "refresh",
+      "bind": "refresh",
+      "x": 814,
+      "y": 86,
+      "w": 156,
+      "h": 44,
+      "text": "Refresh",
+      "font_size": 20,
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 12,
+      "callback": "refresh",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "enabled": true
+    },
+    {
+      "type": "label",
+      "parent": -1,
+      "name": "connection_status",
+      "bind": "connection_status",
+      "x": 254,
+      "y": 94,
+      "w": 540,
+      "h": 28,
+      "text": "Not connected",
+      "font_size": 20,
+      "fg_color": {
+        "theme": "text"
+      },
+      "font_charset_file": "fonts/ssid_latin_greek_cyrillic.txt",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "label",
+      "parent": -1,
+      "name": "wifi_status",
+      "bind": "wifi_status",
+      "x": 54,
+      "y": 144,
+      "w": 340,
+      "h": 28,
+      "text": "Wi-Fi is off.",
+      "font_size": 20,
+      "fg_color": {
+        "theme": "text"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "button",
+      "parent": -1,
+      "name": "forget",
+      "bind": "forget",
+      "x": 646,
+      "y": 136,
+      "w": 156,
+      "h": 36,
+      "text": "Forget",
+      "font_size": 18,
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 10,
+      "callback": "forget",
+      "enabled": false,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "container",
+      "parent": -1,
+      "name": "network_0_group",
+      "bind": "network_0_group",
+      "bind_target": "visible",
+      "x": 54,
+      "y": 178,
+      "w": 916,
+      "h": 60,
+      "bg_color": "#00000000",
+      "hidden": true
+    },
+    {
+      "type": "button",
+      "name": "network_0",
+      "bind": "network_0",
+      "x": 0,
+      "y": 0,
+      "w": 916,
+      "h": 58,
+      "text": "",
+      "font_size": 20,
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 12,
+      "callback": "select_0",
+      "enabled": false,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "network_0_group"
+    },
+    {
+      "type": "label",
+      "name": "ssid_0",
+      "bind": "ssid_0",
+      "x": 16,
+      "y": 5,
+      "w": 870,
+      "h": 30,
+      "text": "",
+      "font_size": 22,
+      "fg_color": {
+        "theme": "text"
+      },
+      "font_charset_file": "fonts/ssid_latin_greek_cyrillic.txt",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "network_0_group"
+    },
+    {
+      "type": "label",
+      "name": "detail_0",
+      "bind": "detail_0",
+      "x": 16,
+      "y": 34,
+      "w": 870,
+      "h": 25,
+      "text": "",
+      "font_size": 16,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "network_0_group"
+    },
+    {
+      "type": "container",
+      "parent": -1,
+      "name": "network_1_group",
+      "bind": "network_1_group",
+      "bind_target": "visible",
+      "x": 54,
+      "y": 239,
+      "w": 916,
+      "h": 60,
+      "bg_color": "#00000000",
+      "hidden": true
+    },
+    {
+      "type": "button",
+      "name": "network_1",
+      "bind": "network_1",
+      "x": 0,
+      "y": 0,
+      "w": 916,
+      "h": 58,
+      "text": "",
+      "font_size": 20,
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 12,
+      "callback": "select_1",
+      "enabled": false,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "network_1_group"
+    },
+    {
+      "type": "label",
+      "name": "ssid_1",
+      "bind": "ssid_1",
+      "x": 16,
+      "y": 5,
+      "w": 870,
+      "h": 30,
+      "text": "",
+      "font_size": 22,
+      "fg_color": {
+        "theme": "text"
+      },
+      "font_charset_file": "fonts/ssid_latin_greek_cyrillic.txt",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "network_1_group"
+    },
+    {
+      "type": "label",
+      "name": "detail_1",
+      "bind": "detail_1",
+      "x": 16,
+      "y": 34,
+      "w": 870,
+      "h": 25,
+      "text": "",
+      "font_size": 16,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "network_1_group"
+    },
+    {
+      "type": "container",
+      "parent": -1,
+      "name": "network_2_group",
+      "bind": "network_2_group",
+      "bind_target": "visible",
+      "x": 54,
+      "y": 300,
+      "w": 916,
+      "h": 60,
+      "bg_color": "#00000000",
+      "hidden": true
+    },
+    {
+      "type": "button",
+      "name": "network_2",
+      "bind": "network_2",
+      "x": 0,
+      "y": 0,
+      "w": 916,
+      "h": 58,
+      "text": "",
+      "font_size": 20,
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 12,
+      "callback": "select_2",
+      "enabled": false,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "network_2_group"
+    },
+    {
+      "type": "label",
+      "name": "ssid_2",
+      "bind": "ssid_2",
+      "x": 16,
+      "y": 5,
+      "w": 870,
+      "h": 30,
+      "text": "",
+      "font_size": 22,
+      "fg_color": {
+        "theme": "text"
+      },
+      "font_charset_file": "fonts/ssid_latin_greek_cyrillic.txt",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "network_2_group"
+    },
+    {
+      "type": "label",
+      "name": "detail_2",
+      "bind": "detail_2",
+      "x": 16,
+      "y": 34,
+      "w": 870,
+      "h": 25,
+      "text": "",
+      "font_size": 16,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "network_2_group"
+    },
+    {
+      "type": "container",
+      "parent": -1,
+      "name": "network_3_group",
+      "bind": "network_3_group",
+      "bind_target": "visible",
+      "x": 54,
+      "y": 361,
+      "w": 916,
+      "h": 60,
+      "bg_color": "#00000000",
+      "hidden": true
+    },
+    {
+      "type": "button",
+      "name": "network_3",
+      "bind": "network_3",
+      "x": 0,
+      "y": 0,
+      "w": 916,
+      "h": 58,
+      "text": "",
+      "font_size": 20,
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 12,
+      "callback": "select_3",
+      "enabled": false,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "network_3_group"
+    },
+    {
+      "type": "label",
+      "name": "ssid_3",
+      "bind": "ssid_3",
+      "x": 16,
+      "y": 5,
+      "w": 870,
+      "h": 30,
+      "text": "",
+      "font_size": 22,
+      "fg_color": {
+        "theme": "text"
+      },
+      "font_charset_file": "fonts/ssid_latin_greek_cyrillic.txt",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "network_3_group"
+    },
+    {
+      "type": "label",
+      "name": "detail_3",
+      "bind": "detail_3",
+      "x": 16,
+      "y": 34,
+      "w": 870,
+      "h": 25,
+      "text": "",
+      "font_size": 16,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "network_3_group"
+    },
+    {
+      "type": "container",
+      "parent": -1,
+      "name": "network_4_group",
+      "bind": "network_4_group",
+      "bind_target": "visible",
+      "x": 54,
+      "y": 422,
+      "w": 916,
+      "h": 60,
+      "bg_color": "#00000000",
+      "hidden": true
+    },
+    {
+      "type": "button",
+      "name": "network_4",
+      "bind": "network_4",
+      "x": 0,
+      "y": 0,
+      "w": 916,
+      "h": 58,
+      "text": "",
+      "font_size": 20,
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 12,
+      "callback": "select_4",
+      "enabled": false,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "network_4_group"
+    },
+    {
+      "type": "label",
+      "name": "ssid_4",
+      "bind": "ssid_4",
+      "x": 16,
+      "y": 5,
+      "w": 870,
+      "h": 30,
+      "text": "",
+      "font_size": 22,
+      "fg_color": {
+        "theme": "text"
+      },
+      "font_charset_file": "fonts/ssid_latin_greek_cyrillic.txt",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "network_4_group"
+    },
+    {
+      "type": "label",
+      "name": "detail_4",
+      "bind": "detail_4",
+      "x": 16,
+      "y": 34,
+      "w": 870,
+      "h": 25,
+      "text": "",
+      "font_size": 16,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "network_4_group"
+    },
+    {
+      "type": "button",
+      "parent": -1,
+      "name": "previous",
+      "bind": "previous",
+      "x": 54,
+      "y": 500,
+      "w": 130,
+      "h": 44,
+      "text": "Previous",
+      "font_size": 20,
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 12,
+      "callback": "previous",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "enabled": true
+    },
+    {
+      "type": "label",
+      "parent": -1,
+      "name": "pagination",
+      "bind": "pagination",
+      "x": 216,
+      "y": 510,
+      "w": 550,
+      "h": 30,
+      "text": "0 networks   1 / 1",
+      "font_size": 20,
+      "fg_color": {
+        "theme": "text"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "button",
+      "parent": -1,
+      "name": "next",
+      "bind": "next",
+      "x": 840,
+      "y": 500,
+      "w": 130,
+      "h": 44,
+      "text": "Next",
+      "font_size": 20,
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 12,
+      "callback": "next",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "enabled": true
+    },
+    {
+      "type": "label",
+      "parent": -1,
+      "name": "connection_notice",
+      "bind": "connection_notice",
+      "x": 54,
+      "y": 558,
+      "w": 916,
+      "h": 28,
+      "text": "Tap a network to connect. Saved credentials are reused when available.",
+      "font_size": 18,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "font_charset_file": "fonts/ssid_latin_greek_cyrillic.txt"
+    },
+    {
+      "type": "button",
+      "parent": -1,
+      "name": "disconnect",
+      "bind": "disconnect",
+      "x": 814,
+      "y": 136,
+      "w": 156,
+      "h": 36,
+      "text": "Disconnect",
+      "font_size": 18,
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 10,
+      "callback": "disconnect",
+      "enabled": false,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "button",
+      "parent": -1,
+      "name": "nearby_networks",
+      "bind": "nearby_networks",
+      "x": 410,
+      "y": 136,
+      "w": 108,
+      "h": 36,
+      "text": "Nearby",
+      "font_size": 18,
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 10,
+      "callback": "nearby_networks",
+      "enabled": false,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "button",
+      "parent": -1,
+      "name": "saved_networks",
+      "bind": "saved_networks",
+      "x": 524,
+      "y": 136,
+      "w": 108,
+      "h": 36,
+      "text": "Saved",
+      "font_size": 18,
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 10,
+      "callback": "saved_networks",
+      "enabled": false,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    }
+  ],
+  "themes": {
+    "control": {
+      "type": "color",
+      "default": "#E8E8EA",
+      "dynamic": true
+    },
+    "muted": {
+      "type": "color",
+      "default": "#636366",
+      "dynamic": true
+    },
+    "page_bg": {
+      "type": "color",
+      "default": "#F4F5F7",
+      "dynamic": true
+    },
+    "surface": {
+      "type": "color",
+      "default": "#FFFFFF",
+      "dynamic": true
+    },
+    "text": {
+      "type": "color",
+      "default": "#1C1C1E",
+      "dynamic": true
+    }
+  }
+}

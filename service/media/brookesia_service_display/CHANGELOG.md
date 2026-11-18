@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.8.3 - 2026-11-10
+
+### Enhancements:
+
+- feat(touch): add build-time touch collection control and runtime ownership handoff to external renderers.
+
 ## v0.8.2 - 2026-07-27
 
 ### Enhancements:

@@ -29,7 +29,7 @@ Service Names
 Permission Boundaries
 ---------------------
 
-A runtime app can query system information, operate only its own GUI document, manage only its own timers, and cannot start or stop other apps through a service. A native app calls ``SystemApi``, ``AppGuiRuntime``, and ``AppTimerRuntime`` directly through ``AppContext``, and is currently treated as a trusted built-in app.
+A runtime app can query system information, manage only its own timers, and, on JSON/LVGL, operate only its own GUI document. It cannot start, stop, or uninstall apps through a service. A native app calls ``SystemApi``, ``AppGuiRuntime``, and ``AppTimerRuntime`` directly through ``AppContext``, and is currently treated as a trusted built-in app.
 
 .. _system-core-services-sec-03:
 
@@ -53,14 +53,14 @@ Core Service
      - Return the installed app list
    * - ``RequestCloseApp``
      - Request to close an app
-   * - ``StartApp`` / ``StopApp``
-     - Start or stop the specified app
+   * - ``StartApp`` / ``StopApp`` / ``UninstallApp``
+     - Start, stop, or uninstall the specified app
    * - ``ShowLoading`` / ``HideLoading``
      - Show or hide the calling app's loading overlay
    * - ``ShowKeyboard`` / ``HideKeyboard``
      - Show or cancel the calling app's system keyboard request
 
-Events include ``AppChanged`` (app state change) and ``KeyboardClosed`` (keyboard input completed or canceled, containing ``RequestId``, ``AppId``, ``Confirmed``, ``Text``). A regular runtime app may call the query functions; ``RequestCloseApp``, ``ShowLoading`` / ``HideLoading``, and ``ShowKeyboard`` / ``HideKeyboard`` act only on itself, and ``StartApp`` and ``StopApp`` are rejected; a native app should use ``SystemApi`` through ``AppContext::system_service()``.
+Events include ``AppChanged`` (app state change) and ``KeyboardClosed`` (keyboard input completed or canceled, containing ``RequestId``, ``AppId``, ``Confirmed``, ``Text``). A regular runtime app may call the query functions; ``RequestCloseApp``, ``ShowLoading`` / ``HideLoading``, and ``ShowKeyboard`` / ``HideKeyboard`` act only on itself, and ``StartApp``, ``StopApp``, and ``UninstallApp`` are rejected; a native app should use ``SystemApi`` through ``AppContext::system_service()``. A host connected over USB can call ``UninstallApp`` with ``brookesia-usb call``.
 
 A runtime app can call ``ShowKeyboard`` to request the system keyboard; ``Options`` supports ``title``, ``placeholder``, ``initial_text``, ``max_length``, ``password``, ``mode`` (``text`` / ``upper`` / ``number`` / ``special``), and ``allowedModes``. If ``mode`` is not in ``allowedModes``, the Shell uses the first item of ``allowedModes``; when unset, all four layouts are allowed by default. After the user confirms or cancels, ``KeyboardClosed`` returns ``RequestId``, ``AppId``, ``Confirmed``, and ``Text``.
 
@@ -71,7 +71,7 @@ A runtime app can call ``ShowKeyboard`` to request the system keyboard; ``Option
 GUI Service
 --------------------
 
-``SystemGui`` is the restricted service a runtime app uses to operate its own GUI document, with the fixed service name ``SystemGui``.
+``SystemGui`` is the restricted service a runtime app uses to operate its own JSON/LVGL document, with the fixed service name ``SystemGui``. The document and screen-flow APIs in this section are unavailable on GSP. For GSP package resources and page updates, see :ref:`system-core-app_package-gsp`.
 
 .. list-table::
    :header-rows: 1
@@ -147,7 +147,7 @@ Most mutating functions are asynchronous: a success return means the request was
 
 v1 supports the ``SetBindings``, ``SetViewSrc``, ``StopAnimation``, and ``StartViewAnimation`` commands, executed in array order, stopping the rest on failure, with per-command results in ``Results``.
 
-A runtime app must declare the startup flow in ``screen_flows[]`` of ``profile.json``, and the core auto-starts it before ``on_start()``. ``TriggerScreenFlow(ScreenFlow, Action)`` switches screens by the current state and transition action, with an exact ``from[]`` transition prioritized over an any-source transition; if ``transitions`` is empty, the document still mounts ``initial`` but ``TriggerScreenFlow`` returns an error. A runtime app can only use the ``Replace`` mount mode with ``z_order`` within ``0..100``, and cannot specify a ``DocumentId``, layer, or another app's flow.
+A JSON/LVGL runtime app with a GUI must declare the startup flow in ``screen_flows[]`` of ``profile.json``, and the core auto-starts it before ``on_start()``. ``TriggerScreenFlow(ScreenFlow, Action)`` switches screens by the current state and transition action, with an exact ``from[]`` transition prioritized over an any-source transition; if ``transitions`` is empty, the document still mounts ``initial`` but ``TriggerScreenFlow`` returns an error. A runtime app can only use the ``Replace`` mount mode with ``z_order`` within ``0..100``, and cannot specify a ``DocumentId``, layer, or another app's flow.
 
 ``SubscribeAction(action)`` subscribes to a GUI action in the current app document; on trigger, a native app enters ``IApp::on_action()`` and a runtime app enters ``brookesia_app.on_action()``. An action does not run directly inside the LVGL callback stack: the event enters ``SystemGuiInput`` first, then posts to ``SystemAppInput``, sharing the app callback gate with regular timer callbacks.
 

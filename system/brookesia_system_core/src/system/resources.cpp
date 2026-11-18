@@ -12,12 +12,15 @@
 #include "private/utils.hpp"
 #include "private/system/impl.hpp"
 
-#include "brookesia/gui_interface/parser.hpp"
+#if BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
+#   include "brookesia/gui_interface/parser.hpp"
+#endif
 #include "brookesia/service_helper/system/storage.hpp"
 
 namespace esp_brookesia::system::core {
 namespace {
 
+#if BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
 constexpr const char *APP_ICON_IMAGE_DIR = "images";
 constexpr const char *IMAGE_DESCRIPTOR_EXTENSION = ".json";
 constexpr uint32_t STORAGE_FS_TIMEOUT_MS = 5000;
@@ -34,6 +37,7 @@ bool append_unique_path(std::vector<std::filesystem::path> &paths, const std::fi
     paths.push_back(normalized);
     return true;
 }
+#endif
 
 std::string join_resource_path(std::string_view resource_dir, std::string_view path)
 {
@@ -85,6 +89,7 @@ gui::RuntimeImageResource resolve_image_resource_sources(
     return resource;
 }
 
+#if BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
 std::vector<std::filesystem::path> make_icon_search_dirs(
     const AppManifest &manifest,
     const std::filesystem::path &resource_dir
@@ -209,6 +214,7 @@ std::expected<std::optional<gui::ImageAsset>, std::string> load_app_icon_image(
     }
     return *matched;
 }
+#endif
 
 } // namespace
 
@@ -285,6 +291,10 @@ void System::Impl::unregister_app_icon_resource(AppRecord &record)
 
 std::expected<void, std::string> System::Impl::register_app_icon_resource(AppRecord &record)
 {
+#if !BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
+    (void)record;
+    return {};
+#else
     if (!record.info.manifest.visible) {
         return {};
     }
@@ -335,6 +345,7 @@ std::expected<void, std::string> System::Impl::register_app_icon_resource(AppRec
         resource_id
     );
     return {};
+#endif
 }
 
 

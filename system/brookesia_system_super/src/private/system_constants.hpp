@@ -237,6 +237,7 @@ inline constexpr const char *SUPER_EXPANSION_NOTIFICATION_TIMER_NAME = "super.ex
 inline constexpr const char *SUPER_GESTURE_EXIT_HOLD_TIMER_NAME = "super.gesture.exit_hold";
 inline constexpr const char *SUPER_STATUS_PEEK_AUTO_HIDE_TIMER_NAME = "super.status.peek_auto_hide";
 inline constexpr const char *SUPER_STATUS_CLOCK_TIMER_NAME = "super.status.clock";
+inline constexpr const char *SUPER_STATUS_EVENT_TIMER_NAME = "super.status.events";
 inline constexpr const char *SUPER_MESSAGE_DIALOG_INFORMATION_IMAGE_ID = "msg_dialog/information";
 inline constexpr const char *SUPER_MESSAGE_DIALOG_QUESTION_IMAGE_ID = "msg_dialog/question";
 inline constexpr const char *SUPER_MESSAGE_DIALOG_WARNING_IMAGE_ID = "msg_dialog/warning";

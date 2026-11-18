@@ -104,7 +104,7 @@ BROOKESIA_TEST_CASE(concurrent_async_request_stress, "Test ServiceHttp - concurr
     const auto batch_size = get_concurrent_batch_size();
     TEST_ASSERT_GREATER_THAN(0, batch_size);
 
-    HttpEventCollector collector;
+    auto &collector = get_http_event_collector();
     TEST_ASSERT_TRUE_MESSAGE(collector.start(), "Failed to start HTTP event collector");
 
     for (size_t round = 0; round < HTTP_STRESS_CONCURRENT_ROUNDS; round++) {
@@ -139,7 +139,7 @@ BROOKESIA_TEST_CASE(concurrent_request_limit_stress, "Test ServiceHttp - concurr
     });
     TEST_ASSERT_TRUE_MESSAGE(connect_wifi_sta(), "Failed to connect WiFi STA");
 
-    HttpEventCollector collector;
+    auto &collector = get_http_event_collector();
     TEST_ASSERT_TRUE_MESSAGE(collector.start(), "Failed to start HTTP event collector");
 
     const auto service_limit = static_cast<size_t>(BROOKESIA_SERVICE_HTTP_MAX_CONCURRENT_REQUESTS);

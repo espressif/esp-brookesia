@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -39,10 +40,14 @@ public:
 
     system::core::AppManifest get_manifest() const override;
     system::core::AppGuiDescriptor get_gui_descriptor() const override;
+    std::span<const std::byte> gui_bundle() const override;
+    const void *gui_runtime_config() const override;
     std::expected<void, std::string> on_install(system::core::AppContext &context) override;
     void on_uninstall(system::core::AppContext &context) override;
     std::expected<void, std::string> on_start(system::core::AppContext &context) override;
     std::expected<void, std::string> on_stop(system::core::AppContext &context) override;
+    std::expected<void, std::string> on_pause(system::core::AppContext &context) override;
+    std::expected<void, std::string> on_resume(system::core::AppContext &context) override;
     std::expected<void, std::string> on_action(
         system::core::AppContext &context,
         std::string_view action
@@ -64,6 +69,8 @@ private:
         int brightness = 0;
         int volume = 0;
         bool muted = false;
+        std::string sound_error;
+        bool sound_pending = false;
     };
 
     struct WifiNetworkState {
@@ -75,8 +82,10 @@ private:
         std::string password;
         bool saved = false;
         bool locked = true;
+        bool enterprise = false;
         int signal_level = 0;
         int channel = 0;
+        int rssi = 0;
     };
 
     enum class WifiConnectedCardState {
@@ -131,9 +140,25 @@ private:
     std::expected<void, std::string> refresh_language_state(system::core::AppContext &context);
     std::expected<void, std::string> refresh_device_state(system::core::AppContext &context);
     std::expected<void, std::string> refresh_my_device_state(system::core::AppContext &context);
+    std::expected<void, std::string> refresh_gsp_home_summaries(system::core::AppContext &context);
     void clear_hardware_groups(system::core::AppContext &context);
     std::expected<void, std::string> refresh_display_state(system::core::AppContext &context);
     std::expected<void, std::string> refresh_sound_state(system::core::AppContext &context);
+    std::expected<void, std::string> load_audio_state();
+    std::expected<void, std::string> drain_sound_events(system::core::AppContext &context);
+    std::expected<void, std::string> play_test_sound(system::core::AppContext &context);
+    std::expected<void, std::string> start_gsp_pages(system::core::AppContext &context);
+    std::expected<void, std::string> handle_gsp_action(
+        system::core::AppContext &context,
+        std::string_view action
+    );
+    void load_backlight_state();
+    void shutdown_brightness_callbacks();
+    void apply_scheduled_brightness(system::core::AppContext &context, uint64_t timer_id);
+    std::string page_title_text(std::string_view page) const;
+    std::string brightness_status_text() const;
+    std::string brightness_caption_text() const;
+    void subscribe_brightness_events();
     void subscribe_device_events();
     void disconnect_device_events();
     void handle_brightness_event(const gui::Event &event);
@@ -180,6 +205,19 @@ private:
         service::ServiceBase::FunctionResultHandler handler = nullptr
     );
     void apply_wifi_enabled_preference_to_service();
+    std::expected<void, std::string> open_wifi_page(system::core::AppContext &context);
+    void close_wifi_page(system::core::AppContext &context);
+    void subscribe_wifi_page_events();
+    std::expected<void, std::string> sync_wifi_page(system::core::AppContext &context);
+    std::expected<void, std::string> render_wifi_page(system::core::AppContext &context);
+    std::expected<void, std::string> scan_wifi_page(system::core::AppContext &context);
+    std::expected<void, std::string> toggle_wifi_page(system::core::AppContext &context);
+    std::expected<void, std::string> forget_wifi_page_network(system::core::AppContext &context);
+    std::expected<void, std::string> select_wifi_page_network(system::core::AppContext &context, size_t row);
+    void cancel_wifi_page_selection();
+    std::expected<void, std::string> back_wifi_connect(system::core::AppContext &context);
+    std::expected<void, std::string> read_wifi_page_state();
+    void stop_wifi_page_scan();
     void subscribe_wifi_events();
     void disconnect_wifi_events();
     void request_saved_wifi_networks_refresh();
@@ -199,6 +237,8 @@ private:
         const WifiNetworkState &network,
         std::string_view password
     );
+    void invalidate_wifi_connect_operation(system::core::AppContext &context);
+    bool sync_wifi_connect_operation(system::core::AppContext &context);
     std::expected<void, std::string> disconnect_wifi(system::core::AppContext &context);
     std::expected<void, std::string> disconnect_current_wifi(system::core::AppContext &context);
     void reset_available_wifi_scan_visibility();

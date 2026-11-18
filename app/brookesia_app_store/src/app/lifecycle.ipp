@@ -289,16 +289,12 @@ std::expected<void, std::string> AppStoreApp::on_timer(
     }
 
     if (name == HTTP_EVENT_TIMER_NAME) {
-        {
-            std::lock_guard lock(pending_http_events_mutex_);
-            if (timer_id != http_event_timer_id_) {
-                BROOKESIA_LOGW(
-                    "Ignore stale App Store HTTP event timer: timer_id(%1%), pending(%2%)",
-                    timer_id, http_event_timer_id_
-                );
-                return {};
-            }
-            http_event_timer_id_ = system::core::INVALID_TIMER_ID;
+        if (timer_id != http_event_timer_id_) {
+            BROOKESIA_LOGW(
+                "Ignore stale App Store HTTP event timer: timer_id(%1%), pending(%2%)",
+                timer_id, http_event_timer_id_
+            );
+            return {};
         }
         process_pending_http_events(context);
         return {};

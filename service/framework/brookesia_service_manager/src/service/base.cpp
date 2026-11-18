@@ -174,7 +174,7 @@ bool ServiceBase::call_function_async(
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: name(%1%), parameters_map(%2%), handler(%3%)", name, parameters_map, handler);
+    BROOKESIA_LOGD("Calling function '%1%'", name);
 
     std::string error_prefix = (boost::format("[%1%:%2%] ") % impl_->attributes.name % name).str();
 
@@ -234,6 +234,7 @@ bool ServiceBase::call_function_async(
             lock.unlock();
         }
 
+        [[maybe_unused]] const bool call_success = result.success;
         if (handler)
         {
             BROOKESIA_LOGD("Has handler, calling it");
@@ -242,7 +243,7 @@ bool ServiceBase::call_function_async(
             }, {});
         }
 
-        BROOKESIA_LOGD("%1%: call completed, result: %2%", error_prefix, result);
+        BROOKESIA_LOGD("%1%: call completed, success: %2%", error_prefix, call_success);
     };
 
     // If the function does not require scheduler, invoke the task directly
@@ -268,7 +269,7 @@ bool ServiceBase::call_function_async(
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: name(%1%), parameters_values(%2%), handler(%3%)", name, parameters_values, handler);
+    BROOKESIA_LOGD("Calling function '%1%'", name);
 
     std::string error_prefix = (boost::format("[%1%:%2%] ") % impl_->attributes.name % name).str();
 
@@ -301,7 +302,7 @@ bool ServiceBase::call_function_async(
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: name(%1%), parameters_json(%2%), handler(%3%)", name, parameters_json, handler);
+    BROOKESIA_LOGD("Calling function '%1%'", name);
 
     std::string error_prefix = (boost::format("[%1%:%2%] ") % impl_->attributes.name % name).str();
 
@@ -317,7 +318,7 @@ bool ServiceBase::call_functions_async(std::vector<FunctionCall> calls, Function
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: calls(%1%), handler(%2%)", calls, handler);
+    BROOKESIA_LOGD("Calling %1% functions", calls.size());
 
     const std::string error_prefix = (boost::format("[%1%:batch] ") % impl_->attributes.name).str();
 
@@ -419,7 +420,7 @@ FunctionResult ServiceBase::call_function_sync(
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: name(%1%), parameters_map(%2%), timeout_ms(%3%)", name, parameters_map, timeout_ms);
+    BROOKESIA_LOGD("Calling function '%1%' with timeout %2% ms", name, timeout_ms);
 
     std::string error_prefix = (boost::format("[%1%:%2%] ") % impl_->attributes.name % name).str();
 
@@ -524,7 +525,7 @@ FunctionResult ServiceBase::call_function_sync(
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: name(%1%), parameters_values(%2%), timeout_ms(%3%)", name, parameters_values, timeout_ms);
+    BROOKESIA_LOGD("Calling function '%1%' with timeout %2% ms", name, timeout_ms);
 
     std::string error_prefix = (boost::format("[%1%:%2%] ") % impl_->attributes.name % name).str();
 
@@ -563,7 +564,7 @@ FunctionResult ServiceBase::call_function_sync(
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: name(%1%), parameters_json(%2%), timeout_ms(%3%)", name, parameters_json, timeout_ms);
+    BROOKESIA_LOGD("Calling function '%1%' with timeout %2% ms", name, timeout_ms);
 
     std::string error_prefix = (boost::format("[%1%:%2%] ") % impl_->attributes.name % name).str();
 
@@ -582,7 +583,7 @@ FunctionBatchResult ServiceBase::call_functions_sync(std::vector<FunctionCall> c
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: calls(%1%), timeout_ms(%2%)", calls, timeout_ms);
+    BROOKESIA_LOGD("Calling %1% functions with timeout %2% ms", calls.size(), timeout_ms);
 
     const std::string error_prefix = (boost::format("[%1%:batch] ") % impl_->attributes.name).str();
 
@@ -782,10 +783,7 @@ bool ServiceBase::publish_event(const std::string &event_name, EventItemMap even
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD(
-        "Params: event_name(%1%), event_items(%2%), use_dispatch(%3%)", event_name,
-        BROOKESIA_DESCRIBE_TO_STR(event_items), BROOKESIA_DESCRIBE_TO_STR(use_dispatch)
-    );
+    BROOKESIA_LOGD("Publishing event '%1%', use_dispatch(%2%)", event_name, use_dispatch);
 
     // Thread-safe get the copies of event_registry and task_scheduler
     std::shared_ptr<EventRegistry> registry;
@@ -868,10 +866,7 @@ bool ServiceBase::publish_event(const std::string &event_name, std::vector<Event
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD(
-        "Params: event_name(%1%), data_values(%2%), use_dispatch(%3%)", event_name,
-        BROOKESIA_DESCRIBE_TO_STR(data_values), BROOKESIA_DESCRIBE_TO_STR(use_dispatch)
-    );
+    BROOKESIA_LOGD("Publishing event '%1%', use_dispatch(%2%)", event_name, use_dispatch);
 
     // Thread-safe generate the event items map
     EventItemMap event_items;
@@ -905,10 +900,7 @@ bool ServiceBase::publish_event(const std::string &event_name, boost::json::obje
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD(
-        "Params: event_name(%1%), data_json(%2%), use_dispatch(%3%)", event_name,
-        BROOKESIA_DESCRIBE_TO_STR(data_json), BROOKESIA_DESCRIBE_TO_STR(use_dispatch)
-    );
+    BROOKESIA_LOGD("Publishing event '%1%', use_dispatch(%2%)", event_name, use_dispatch);
 
     EventItemMap event_items;
     BROOKESIA_CHECK_FALSE_RETURN(

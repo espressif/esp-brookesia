@@ -1,0 +1,3 @@
+littlefs/apps/*
+littlefs/system/*
+littlefs/settings-tone.wav

@@ -1,5 +1,29 @@
 # ChangeLog
 
+## v0.8.5 - 2026-11-10
+
+### Enhancements:
+
+- feat(gsp): add 1024x600 Settings pages while retaining the JSON/LVGL interface and shared preferences.
+- feat(wifi): add scanning, personal-network password input, saved-network removal, and connection status in GSP.
+- feat(wifi): display common Chinese, accented Latin, Greek, and Cyrillic network names in GSP.
+- feat(settings): add GSP brightness, volume, mute, and idle-only test playback controls.
+- feat(settings): add GSP language and theme preferences with restart confirmation.
+- feat(settings): add GSP device information and time-zone pages with current network and SNTP status.
+
+### Bug Fixes:
+
+- fix(wifi): allow inline service completions without locking the connect operation twice.
+- fix(sound): retain requested control values while pending and recover from missing completions.
+- fix(wifi): keep page controls available when the connected SSID cannot be queried.
+- fix(sntp): deliver Settings state updates through the app mailbox without retaining the app in service callbacks.
+- fix(display): deliver brightness updates safely while Settings is stopping.
+- fix(deps): require the System Core, Service Helper, Wi-Fi, and HAL Interface versions used by GSP Settings.
+
+### Documentation:
+
+- docs(gsp): describe supported pages, password input, appearance settings, and current interface limits.
+
 ## v0.8.4 - 2026-10-27
 
 ### Enhancements:

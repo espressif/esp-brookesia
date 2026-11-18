@@ -105,6 +105,7 @@ private:
         Completed,
         Failed,
         Canceled,
+        GeneralStateChanged,
     };
 
     enum class IconUpdatePurpose {
@@ -206,7 +207,9 @@ private:
     struct PendingHttpEvent {
         PendingHttpEventType type = PendingHttpEventType::Completed;
         double request_id = 0;
-        boost::json::object response;
+        boost::json::object response{};
+        std::string state{};
+        size_t memory_bytes = 0;
     };
 
     struct DeferredOperation {
@@ -460,12 +463,6 @@ private:
     void stop_refresh_result_timer(system::core::AppContext &context);
     void process_pending_refresh_result(system::core::AppContext &context);
     void handle_request_progress(double request_id, const boost::json::object &progress_json);
-    void schedule_http_event_processing(
-        system::core::AppContext &context,
-        PendingHttpEventType type,
-        double request_id,
-        const boost::json::object &response_json
-    );
     void stop_http_event_timer(system::core::AppContext &context);
     void process_pending_http_events(system::core::AppContext &context);
     void handle_request_completed(double request_id, const boost::json::object &response_json);

@@ -1,5 +1,17 @@
 # ChangeLog
 
+## v0.8.7 - 2026-11-10
+
+### Enhancements:
+
+- feat(audio): expose idle-only playback admission without interrupting or queueing behind existing playback.
+- feat(wifi): add GetConnectedSsid to query the established connection without returning saved credentials.
+
+### Bug Fixes:
+
+- fix(logging): omit stored values from storage deserialization errors.
+- fix(deps): require HAL Interface `>=0.8.4,<0.9` for the expanded Wi-Fi scan-result contract.
+
 ## v0.8.6 - 2026-10-27
 
 ### Enhancements:

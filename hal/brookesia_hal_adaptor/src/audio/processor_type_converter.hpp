@@ -9,6 +9,7 @@
 
 #include "audio_processor.h"
 #include "brookesia/lib_utils/thread_config.hpp"
+#include "brookesia/hal_adaptor/macro_configs.h"
 #include "brookesia/hal_adaptor/audio/device.hpp"
 #include "brookesia/hal_interface/interfaces/audio/processor.hpp"
 
@@ -31,6 +32,7 @@ public:
     static audio_playback_config_t convert(
         const AudioProcessorPlaybackConfig &config, const void *event_cb, void *event_cb_ctx
     );
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
     static av_processor_format_id_t convert(audio::CodecFormat format);
     static av_processor_audio_info_t convert(const audio::CodecGeneralConfig &config);
     static av_processor_encoder_config_t convert(const audio::EncoderDynamicConfig &config);
@@ -56,16 +58,19 @@ public:
     {
         return reinterpret_cast<audio_feeder_handle_t>(handle);
     }
+#endif
 
     static audio_playback_handle_t to_playback_handle(void *handle)
     {
         return reinterpret_cast<audio_playback_handle_t>(handle);
     }
 
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
     static audio_recorder_handle_t to_recorder_handle(void *handle)
     {
         return reinterpret_cast<audio_recorder_handle_t>(handle);
     }
+#endif
 };
 
 } // namespace esp_brookesia::hal
