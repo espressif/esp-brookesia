@@ -68,10 +68,12 @@ def parse_upload_config(workflow_path: Path) -> Tuple[str, List[str]]:
         raise ValueError(f'{workflow_path}: upload step is missing "with" mapping')
 
     raw_namespace = with_cfg.get('namespace')
-    if raw_namespace is None or str(raw_namespace).strip() == '':
+    if raw_namespace is None or (isinstance(raw_namespace, str) and raw_namespace.strip() == ''):
         namespace = DEFAULT_REGISTRY_NAMESPACE
+    elif isinstance(raw_namespace, str):
+        namespace = raw_namespace.strip().lower()
     else:
-        namespace = str(raw_namespace).strip().lower()
+        raise ValueError(f'{workflow_path}: upload step "with.namespace" must be a string')
 
     raw_directories = with_cfg.get('directories')
     if not isinstance(raw_directories, str) or not raw_directories.strip():
@@ -83,20 +85,33 @@ def parse_upload_config(workflow_path: Path) -> Tuple[str, List[str]]:
     return namespace, directories
 
 
+def _validate_optional_str_field(manifest_path: Path, dep_key: str, field_name: str, value: object) -> Optional[str]:
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f'{manifest_path}: dependency "{dep_key}" has invalid {field_name} {value!r}')
+    return value.strip()
+
+
 def parse_component_manifest(manifest_path: Path) -> Tuple[Optional[str], Dict[str, Dict[str, Optional[str]]]]:
-    """Parse top-level version and dependencies from an ESP-IDF idf_component.yml via PyYAML."""
+    """Parse top-level version and dependency metadata (including source type) via PyYAML."""
     try:
         data = yaml.safe_load(manifest_path.read_text(encoding='utf-8'))
     except yaml.YAMLError as exc:
         raise ValueError(f'{manifest_path}: invalid YAML: {exc}') from exc
 
+    if data is None:
+        data = {}
     if not isinstance(data, dict):
         raise ValueError(f'{manifest_path}: manifest root must be a YAML mapping')
 
     raw_version = data.get('version')
-    version = str(raw_version).strip() if raw_version is not None else None
-    if version == '':
+    if raw_version is None:
         version = None
+    elif isinstance(raw_version, bool) or not isinstance(raw_version, (str, int, float)):
+        raise ValueError(f'{manifest_path}: invalid "version" value {raw_version!r}')
+    else:
+        version = str(raw_version).strip() or None
 
     raw_deps = data.get('dependencies')
     if raw_deps is None:
@@ -109,18 +124,52 @@ def parse_component_manifest(manifest_path: Path) -> Tuple[Optional[str], Dict[s
         if not isinstance(dep_key, str) or not dep_key.strip():
             raise ValueError(f'{manifest_path}: invalid dependency key {dep_key!r}')
 
+        is_idf = dep_key.strip().lower() == 'idf'
         if dep_cfg is None:
-            dependencies[dep_key] = {'version': None, 'override_path': None}
+            dependencies[dep_key] = {
+                'source': 'idf' if is_idf else 'registry',
+                'version': None,
+                'override_path': None,
+                'git': None,
+                'path': None,
+            }
         elif isinstance(dep_cfg, str):
-            dependencies[dep_key] = {'version': dep_cfg.strip() or None, 'override_path': None}
+            dependencies[dep_key] = {
+                'source': 'idf' if is_idf else 'registry',
+                'version': dep_cfg.strip() or None,
+                'override_path': None,
+                'git': None,
+                'path': None,
+            }
         elif isinstance(dep_cfg, dict):
             raw_dep_ver = dep_cfg.get('version')
-            raw_override = dep_cfg.get('override_path')
-            if raw_override is not None and (not isinstance(raw_override, str) or not raw_override.strip()):
-                raise ValueError(f'{manifest_path}: dependency "{dep_key}" has invalid override_path {raw_override!r}')
+            if raw_dep_ver is not None and (
+                isinstance(raw_dep_ver, bool) or not isinstance(raw_dep_ver, (str, int, float))
+            ):
+                raise ValueError(f'{manifest_path}: dependency "{dep_key}" has invalid version {raw_dep_ver!r}')
+            git_url = _validate_optional_str_field(manifest_path, dep_key, 'git', dep_cfg.get('git'))
+            local_path = _validate_optional_str_field(manifest_path, dep_key, 'path', dep_cfg.get('path'))
+            override_path = _validate_optional_str_field(
+                manifest_path, dep_key, 'override_path', dep_cfg.get('override_path')
+            )
+
+            if is_idf:
+                source = 'idf'
+            elif git_url is not None:
+                source = 'git'
+            elif local_path is not None:
+                source = 'path'
+            elif override_path is not None:
+                source = 'override_path'
+            else:
+                source = 'registry'
+
             dependencies[dep_key] = {
-                'version': str(raw_dep_ver).strip() if raw_dep_ver is not None else None,
-                'override_path': raw_override.strip() if isinstance(raw_override, str) else None,
+                'source': source,
+                'version': (str(raw_dep_ver).strip() or None) if raw_dep_ver is not None else None,
+                'override_path': override_path,
+                'git': git_url,
+                'path': local_path,
             }
         else:
             raise ValueError(
@@ -130,14 +179,17 @@ def parse_component_manifest(manifest_path: Path) -> Tuple[Optional[str], Dict[s
     return version, dependencies
 
 
-def discover_repo_components(repo_root: Path) -> Dict[str, str]:
-    """Return mapping from lowercase component name to repo-relative directory for top-level components."""
-    components: Dict[str, str] = {}
+def discover_repo_components(repo_root: Path) -> List[str]:
+    """Return sorted repo-relative POSIX paths of publishable top-level components in the repository."""
+    components: List[str] = []
     for manifest in sorted(repo_root.rglob('idf_component.yml')):
         rel_dir = manifest.parent.relative_to(repo_root)
-        if any(part in EXCLUDED_DIR_NAMES or part.startswith('build_') for part in rel_dir.parts):
+        if any(
+            part.startswith('.') or part in EXCLUDED_DIR_NAMES or part.startswith('build_')
+            for part in rel_dir.parts
+        ):
             continue
-        components[rel_dir.name.lower()] = rel_dir.as_posix()
+        components.append(rel_dir.as_posix())
     return components
 
 
@@ -154,7 +206,11 @@ def check_upload_components(repo_root: Path, workflow_rel_path: Path = DEFAULT_W
         print(f'ERROR: {exc}', file=sys.stderr)
         return 1
 
-    repo_components = discover_repo_components(repo_root)
+    repo_component_dirs = discover_repo_components(repo_root)
+    repo_dirs_by_name: Dict[str, List[str]] = {}
+    for repo_comp_dir in repo_component_dirs:
+        repo_dirs_by_name.setdefault(Path(repo_comp_dir).name.lower(), []).append(repo_comp_dir)
+
     violations: List[str] = []
 
     seen_dirs: Dict[str, int] = {}
@@ -224,6 +280,15 @@ def check_upload_components(repo_root: Path, workflow_rel_path: Path = DEFAULT_W
         resolved_dir_to_id[resolved_dir] = published_id
         normalized_dirs.append(comp_dir)
 
+    for repo_comp_dir in repo_component_dirs:
+        resolved_repo_dir = (repo_root / repo_comp_dir).resolve()
+        if resolved_repo_dir not in resolved_dir_to_id:
+            comp_name = resolved_repo_dir.name.lower()
+            violations.append(
+                f'Repository component "{repo_comp_dir}" ("{upload_namespace}/{comp_name}") '
+                f'is missing from {workflow_rel_path}'
+            )
+
     for idx, comp_dir in enumerate(normalized_dirs):
         if comp_dir is None:
             continue
@@ -241,17 +306,24 @@ def check_upload_components(repo_root: Path, workflow_rel_path: Path = DEFAULT_W
             violations.append(f'#{pos} "{comp_dir}": idf_component.yml is missing a version field')
 
         for dep_key, dep_meta in dependencies.items():
-            if dep_key.strip().lower() == 'idf':
+            source = dep_meta.get('source')
+            if source == 'idf':
                 continue
 
-            dep_ns, dep_name, dep_id = _normalize_registry_id(dep_key)
+            if source in ('git', 'path'):
+                violations.append(
+                    f'#{pos} "{comp_dir}" dependency "{dep_key}" uses unsupported "{source}" source '
+                    f'(ESP Component Registry uploads do not support git or local path dependencies)'
+                )
+                continue
+
+            _, dep_name, dep_id = _normalize_registry_id(dep_key)
             override_path = dep_meta.get('override_path')
             resolved_override = (full_dir / override_path).resolve() if override_path else None
 
             is_internal = (
-                override_path is not None
-                or dep_name in repo_components
-                or (dep_ns == upload_namespace and dep_name.startswith('brookesia_'))
+                source == 'override_path'
+                or (source == 'registry' and dep_name in repo_dirs_by_name)
             )
             if not is_internal:
                 continue
@@ -270,7 +342,8 @@ def check_upload_components(repo_root: Path, workflow_rel_path: Path = DEFAULT_W
                         f'but override_path "{override_path}" targets published component "{expected_id}"'
                     )
                 else:
-                    hint = f' (found in repo at "{repo_components[dep_name]}")' if dep_name in repo_components else ''
+                    matching_dirs = repo_dirs_by_name.get(dep_name, [])
+                    hint = f' (found in repo at "{matching_dirs[0]}")' if matching_dirs else ''
                     violations.append(
                         f'#{pos} "{comp_dir}" depends on "{dep_key}" ("{dep_id}"), '
                         f'which is missing from {workflow_rel_path}{hint}'

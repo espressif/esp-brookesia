@@ -54,10 +54,10 @@ class CheckUploadComponentsTests(unittest.TestCase):
     def test_current_repository_passes(self):
         rc, out, err = _run_check(REPO_ROOT)
         self.assertEqual(rc, 0, msg=err)
-        self.assertIn('Upload component workflow check passed', out)
+        self.assertIn('Upload component workflow check passed (40 components, namespace=espressif)', out)
 
     def test_inline_dependencies_mapping_catches_out_of_order(self):
-        """P2 regression: inline flow `dependencies: {...}` must not be skipped as empty."""
+        """Inline flow `dependencies: {...}` must not be skipped as empty."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             _write_file(
@@ -82,7 +82,7 @@ class CheckUploadComponentsTests(unittest.TestCase):
             self.assertIn('must appear earlier', err)
 
     def test_single_inline_dependency_catches_wrong_override_path(self):
-        """P2 regression: single inline dependency mapping must validate override_path."""
+        """Single inline dependency mapping must validate override_path."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             _write_file(
@@ -107,7 +107,7 @@ class CheckUploadComponentsTests(unittest.TestCase):
             self.assertIn('override_path', err)
 
     def test_trailing_hash_note_in_folded_directories_scalar_is_rejected(self):
-        """P3 regression: `# note` inside `directories: >` is literal string content in YAML."""
+        """`# note` inside `directories: >` is literal string content in YAML."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             _write_file(root / 'gui/brookesia_gui_gsp/idf_component.yml', 'version: "0.8.0"\n')
@@ -135,7 +135,7 @@ class CheckUploadComponentsTests(unittest.TestCase):
             self.assertEqual(rc_ok, 0, msg=err_ok)
 
     def test_namespace_mismatch_with_valid_override_path_is_rejected(self):
-        """P3 regression: wrong Registry namespace must fail even when override_path points into repo."""
+        """Wrong Registry namespace must fail even when override_path points into repo."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             _write_file(root / 'gui/brookesia_gui_gsp/idf_component.yml', 'version: "0.8.0"\n')
@@ -227,6 +227,84 @@ class CheckUploadComponentsTests(unittest.TestCase):
             self.assertEqual(rc, 1)
             self.assertIn('missing from', err)
             self.assertIn('gui/brookesia_gui_gsp', err)
+
+    def test_omitted_standalone_component_is_rejected(self):
+        """Publishable components in the repo must be listed even without in-repo consumers."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _write_file(root / 'service/network/brookesia_service_bt/idf_component.yml', 'version: "0.8.0"\n')
+            _write_file(root / 'service/network/brookesia_service_ble/idf_component.yml', 'version: "0.8.0"\n')
+            _write_file(
+                root / '.github/workflows/upload_component.yml',
+                _build_workflow('            service/network/brookesia_service_bt;\n'),
+            )
+            rc, _, err = _run_check(root)
+            self.assertEqual(rc, 1)
+            self.assertIn('service/network/brookesia_service_ble', err)
+            self.assertIn('missing from', err)
+
+            _write_file(
+                root / '.github/workflows/upload_component.yml',
+                _build_workflow(
+                    '            service/network/brookesia_service_bt;\n'
+                    '            service/network/brookesia_service_ble;\n'
+                ),
+            )
+            rc_ok, _, err_ok = _run_check(root)
+            self.assertEqual(rc_ok, 0, msg=err_ok)
+
+    def test_external_brookesia_prefixed_registry_dependency_passes(self):
+        """External Registry packages starting with `brookesia_` (not in repo, no override_path) pass."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _write_file(
+                root / 'system/brookesia_system_core/idf_component.yml',
+                'version: "0.8.7"\n'
+                'dependencies:\n'
+                '  espressif/brookesia_not_in_repo: "0.8.*"\n',
+            )
+            _write_file(
+                root / '.github/workflows/upload_component.yml',
+                _build_workflow('            system/brookesia_system_core;\n'),
+            )
+            rc, _, err = _run_check(root)
+            self.assertEqual(rc, 0, msg=err)
+
+    def test_git_and_path_dependency_sources_report_unsupported_source(self):
+        """`git` and `path` sources must be reported as unsupported sources, not missing/order errors."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _write_file(
+                root / 'system/brookesia_system_core/idf_component.yml',
+                'version: "0.8.7"\n'
+                'dependencies:\n'
+                '  espressif/brookesia_foo:\n'
+                '    git: "https://github.com/espressif/esp-brookesia.git"\n'
+                '    path: "foo"\n'
+                '    version: "main"\n',
+            )
+            _write_file(
+                root / '.github/workflows/upload_component.yml',
+                _build_workflow('            system/brookesia_system_core;\n'),
+            )
+            rc_git, _, err_git = _run_check(root)
+            self.assertEqual(rc_git, 1)
+            self.assertIn('uses unsupported "git" source', err_git)
+            self.assertNotIn('missing from', err_git)
+            self.assertNotIn('must appear earlier', err_git)
+
+            _write_file(
+                root / 'system/brookesia_system_core/idf_component.yml',
+                'version: "0.8.7"\n'
+                'dependencies:\n'
+                '  espressif/brookesia_foo:\n'
+                '    path: "../external_foo"\n',
+            )
+            rc_path, _, err_path = _run_check(root)
+            self.assertEqual(rc_path, 1)
+            self.assertIn('uses unsupported "path" source', err_path)
+            self.assertNotIn('missing from', err_path)
+            self.assertNotIn('must appear earlier', err_path)
 
 
 if __name__ == '__main__':

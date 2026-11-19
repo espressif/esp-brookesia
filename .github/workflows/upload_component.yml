@@ -36,6 +36,7 @@ jobs:
             service/emulation/brookesia_emulation_nes;
             service/expression/brookesia_expression_emote;
             service/network/brookesia_service_bt;
+            service/network/brookesia_service_ble;
             service/media/brookesia_service_picodet;
             service/media/brookesia_service_video;
             service/system/brookesia_service_device;
