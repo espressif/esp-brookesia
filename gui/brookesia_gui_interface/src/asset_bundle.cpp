@@ -54,7 +54,11 @@ struct Crc32Table {
 };
 constexpr Crc32Table kCrcTable{};
 
-uint32_t crc32(const uint8_t *data, size_t len)
+// Pin the table and the loop against published CRC-32 constants, so a broken generator or a
+// regression fails the build instead of silently sending every bundle read to the per-file
+// fallback. "123456789" -> 0xCBF43926 is the standard CRC-32 check value, and 0x53b39330 is
+// the published entry that once shipped mistyped as 0x53b39333.
+constexpr uint32_t crc32(const uint8_t *data, size_t len)
 {
     uint32_t crc = 0xFFFFFFFF;
     for (size_t i = 0; i < len; ++i) {
@@ -62,6 +66,16 @@ uint32_t crc32(const uint8_t *data, size_t len)
     }
     return crc ^ 0xFFFFFFFF;
 }
+
+static_assert([] {
+    constexpr uint8_t kCheck[] {'1', '2', '3', '4', '5', '6', '7', '8', '9'};
+    return crc32(kCheck, sizeof(kCheck)) == 0xCBF43926u;
+}());
+static_assert(kCrcTable.entries[0] == 0x00000000u);
+static_assert(kCrcTable.entries[1] == 0x77073096u);
+static_assert(kCrcTable.entries[128] == 0xEDB88320u);
+static_assert(kCrcTable.entries[242] == 0x53b39330u);
+static_assert(kCrcTable.entries[255] == 0x2D02EF8Du);
 
 uint32_t read_u32_le(const uint8_t *bytes)
 {
