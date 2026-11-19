@@ -117,6 +117,7 @@ repos:
         name: Check upload_component.yml dependencies and order
         entry: python .gitlab/tools/check_upload_components.py
         language: python
+        additional_dependencies: [PyYAML]
         pass_filenames: false
         always_run: true
   - repo: https://github.com/espressif/conventional-precommit-linter

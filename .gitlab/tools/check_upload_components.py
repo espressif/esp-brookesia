@@ -8,239 +8,284 @@ import re
 import sys
 from typing import Dict, List, Optional, Tuple
 
+import yaml
+
 
 DEFAULT_WORKFLOW_REL_PATH = Path('.github/workflows/upload_component.yml')
+DEFAULT_REGISTRY_NAMESPACE = 'espressif'
+UPLOAD_ACTION_PREFIX = 'espressif/upload-components-ci-action'
 EXCLUDED_DIR_NAMES = {'components', 'managed_components', 'build', 'main', 'examples', 'test_apps', 'host_test', 'tests'}
-KEY_VALUE_RE = re.compile(r'^(?P<indent>[ \t]*)(?P<key>[^:#\s][^:#]*?)\s*:\s*(?P<value>.*)$')
 
 
-def _strip_quotes(value: str) -> str:
-    value = value.strip()
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"):
-        return value[1:-1]
-    return value
+def _normalize_registry_id(dep_key: str) -> Tuple[str, str, str]:
+    """Normalize a Component Manager dependency key to (namespace, name, 'namespace/name')."""
+    if '/' in dep_key:
+        raw_ns, raw_name = dep_key.split('/', 1)
+        namespace = raw_ns.strip().lower()
+        name = raw_name.strip().lower()
+    else:
+        namespace = DEFAULT_REGISTRY_NAMESPACE
+        name = dep_key.strip().lower()
+    return namespace, name, f'{namespace}/{name}'
 
 
-def _strip_inline_comment(value: str) -> str:
-    in_quote: Optional[str] = None
-    for index, ch in enumerate(value):
-        if ch in ('"', "'"):
-            if in_quote is None:
-                in_quote = ch
-            elif in_quote == ch:
-                in_quote = None
-        elif ch == '#' and in_quote is None and (index == 0 or value[index - 1].isspace()):
-            return value[:index].rstrip()
-    return value.strip()
+def parse_upload_config(workflow_path: Path) -> Tuple[str, List[str]]:
+    """Parse upload namespace and semicolon-separated directories from upload_component.yml.
 
+    Mirrors `espressif/upload-components-ci-action` (`upload.sh`): YAML parses the workflow first
+    (preserving any `#` text inside folded/literal scalars as literal string content), then all
+    whitespace is stripped and the string is split on `;`.
+    """
+    data = yaml.safe_load(workflow_path.read_text(encoding='utf-8'))
+    if not isinstance(data, dict):
+        raise ValueError(f'{workflow_path}: workflow root must be a YAML mapping')
 
-def parse_upload_directories(workflow_path: Path) -> List[str]:
-    """Extract semicolon-separated component directories from upload_component.yml."""
-    lines = workflow_path.read_text(encoding='utf-8').splitlines()
-    for idx, line in enumerate(lines):
-        stripped = line.lstrip()
-        if not stripped or stripped.startswith('#'):
+    jobs = data.get('jobs')
+    if not isinstance(jobs, dict):
+        raise ValueError(f'{workflow_path}: missing "jobs" mapping')
+
+    upload_steps: List[dict] = []
+    for job_cfg in jobs.values():
+        if not isinstance(job_cfg, dict):
             continue
-        match = KEY_VALUE_RE.match(line)
-        if not match or match.group('key').strip() != 'directories':
+        steps = job_cfg.get('steps')
+        if not isinstance(steps, list):
             continue
+        for step in steps:
+            if not isinstance(step, dict):
+                continue
+            uses = str(step.get('uses') or '')
+            if uses.startswith(UPLOAD_ACTION_PREFIX):
+                upload_steps.append(step)
 
-        base_indent = len(match.group('indent'))
-        raw_value = _strip_inline_comment(match.group('value'))
-        chunks: List[str] = []
-        if raw_value in ('>', '>-', '>+', '|', '|-', '|+'):
-            for subline in lines[idx + 1:]:
-                sub_stripped = subline.strip()
-                if not sub_stripped:
-                    continue
-                sub_indent = len(subline) - len(subline.lstrip())
-                if sub_indent <= base_indent:
-                    break
-                if sub_stripped.startswith('#'):
-                    continue
-                chunks.append(_strip_inline_comment(sub_stripped))
-        elif raw_value:
-            chunks.append(_strip_quotes(raw_value))
+    if not upload_steps:
+        raise ValueError(f'{workflow_path}: no "{UPLOAD_ACTION_PREFIX}" step found')
+    if len(upload_steps) > 1:
+        raise ValueError(f'{workflow_path}: multiple "{UPLOAD_ACTION_PREFIX}" steps are not supported')
 
-        joined = ''.join(ch for ch in ''.join(chunks) if not ch.isspace())
-        return [item.strip('/') for item in joined.split(';') if item.strip('/')]
+    with_cfg = upload_steps[0].get('with')
+    if not isinstance(with_cfg, dict):
+        raise ValueError(f'{workflow_path}: upload step is missing "with" mapping')
 
-    return []
+    raw_namespace = with_cfg.get('namespace')
+    if raw_namespace is None or str(raw_namespace).strip() == '':
+        namespace = DEFAULT_REGISTRY_NAMESPACE
+    else:
+        namespace = str(raw_namespace).strip().lower()
+
+    raw_directories = with_cfg.get('directories')
+    if not isinstance(raw_directories, str) or not raw_directories.strip():
+        raise ValueError(f'{workflow_path}: upload step "with.directories" must be a non-empty string')
+
+    compact = re.sub(r'\s+', '', raw_directories)
+    trimmed = compact[:-1] if compact.endswith(';') else compact
+    directories = trimmed.split(';')
+    return namespace, directories
 
 
 def parse_component_manifest(manifest_path: Path) -> Tuple[Optional[str], Dict[str, Dict[str, Optional[str]]]]:
-    """Parse top-level version and dependencies (with optional override_path) using stdlib only."""
-    lines = manifest_path.read_text(encoding='utf-8').splitlines()
-    version: Optional[str] = None
+    """Parse top-level version and dependencies from an ESP-IDF idf_component.yml via PyYAML."""
+    try:
+        data = yaml.safe_load(manifest_path.read_text(encoding='utf-8'))
+    except yaml.YAMLError as exc:
+        raise ValueError(f'{manifest_path}: invalid YAML: {exc}') from exc
+
+    if not isinstance(data, dict):
+        raise ValueError(f'{manifest_path}: manifest root must be a YAML mapping')
+
+    raw_version = data.get('version')
+    version = str(raw_version).strip() if raw_version is not None else None
+    if version == '':
+        version = None
+
+    raw_deps = data.get('dependencies')
+    if raw_deps is None:
+        return version, {}
+    if not isinstance(raw_deps, dict):
+        raise ValueError(f'{manifest_path}: "dependencies" must be a YAML mapping')
+
     dependencies: Dict[str, Dict[str, Optional[str]]] = {}
+    for dep_key, dep_cfg in raw_deps.items():
+        if not isinstance(dep_key, str) or not dep_key.strip():
+            raise ValueError(f'{manifest_path}: invalid dependency key {dep_key!r}')
 
-    in_dependencies = False
-    dep_section_indent = -1
-    dep_item_indent: Optional[int] = None
-    dep_field_indent: Optional[int] = None
-    current_dep: Optional[str] = None
-
-    for line in lines:
-        stripped = line.strip()
-        if not stripped or stripped.startswith('#'):
-            continue
-
-        indent = len(line) - len(line.lstrip())
-        if in_dependencies and indent <= dep_section_indent:
-            in_dependencies = False
-            dep_item_indent = None
-            dep_field_indent = None
-            current_dep = None
-
-        if not in_dependencies:
-            if indent == 0:
-                match = KEY_VALUE_RE.match(line)
-                if not match:
-                    continue
-                key = _strip_quotes(match.group('key').strip())
-                raw_value = _strip_inline_comment(match.group('value'))
-                if key == 'version':
-                    version = _strip_quotes(raw_value)
-                elif key == 'dependencies':
-                    in_dependencies = True
-                    dep_section_indent = indent
-            continue
-
-        if stripped.startswith('-'):
-            continue
-
-        match = KEY_VALUE_RE.match(line)
-        if not match:
-            continue
-
-        if dep_item_indent is None:
-            dep_item_indent = indent
-
-        key = _strip_quotes(match.group('key').strip())
-        raw_value = _strip_inline_comment(match.group('value'))
-
-        if indent == dep_item_indent:
-            current_dep = key
-            dep_field_indent = None
-            dependencies[current_dep] = {
-                'version': _strip_quotes(raw_value) if raw_value else None,
-                'override_path': None,
+        if dep_cfg is None:
+            dependencies[dep_key] = {'version': None, 'override_path': None}
+        elif isinstance(dep_cfg, str):
+            dependencies[dep_key] = {'version': dep_cfg.strip() or None, 'override_path': None}
+        elif isinstance(dep_cfg, dict):
+            raw_dep_ver = dep_cfg.get('version')
+            raw_override = dep_cfg.get('override_path')
+            if raw_override is not None and (not isinstance(raw_override, str) or not raw_override.strip()):
+                raise ValueError(f'{manifest_path}: dependency "{dep_key}" has invalid override_path {raw_override!r}')
+            dependencies[dep_key] = {
+                'version': str(raw_dep_ver).strip() if raw_dep_ver is not None else None,
+                'override_path': raw_override.strip() if isinstance(raw_override, str) else None,
             }
-        elif current_dep is not None and indent > dep_item_indent:
-            if dep_field_indent is None:
-                dep_field_indent = indent
-            if indent == dep_field_indent:
-                if key == 'override_path':
-                    dependencies[current_dep]['override_path'] = _strip_quotes(raw_value)
-                elif key == 'version':
-                    dependencies[current_dep]['version'] = _strip_quotes(raw_value)
+        else:
+            raise ValueError(
+                f'{manifest_path}: dependency "{dep_key}" must be a version string or mapping, got {type(dep_cfg).__name__}'
+            )
 
     return version, dependencies
 
 
 def discover_repo_components(repo_root: Path) -> Dict[str, str]:
-    """Return mapping from component name to repo-relative directory for top-level components."""
+    """Return mapping from lowercase component name to repo-relative directory for top-level components."""
     components: Dict[str, str] = {}
     for manifest in sorted(repo_root.rglob('idf_component.yml')):
         rel_dir = manifest.parent.relative_to(repo_root)
         if any(part in EXCLUDED_DIR_NAMES or part.startswith('build_') for part in rel_dir.parts):
             continue
-        components[rel_dir.name] = rel_dir.as_posix()
+        components[rel_dir.name.lower()] = rel_dir.as_posix()
     return components
 
 
-def _split_dep_name(dep_key: str) -> Tuple[str, str]:
-    if '/' in dep_key:
-        namespace, name = dep_key.split('/', 1)
-        return namespace, name
-    return '', dep_key
-
-
 def check_upload_components(repo_root: Path, workflow_rel_path: Path = DEFAULT_WORKFLOW_REL_PATH) -> int:
+    repo_root = repo_root.resolve()
     workflow_path = repo_root / workflow_rel_path
     if not workflow_path.is_file():
         print(f'ERROR: Upload workflow not found: {workflow_path}', file=sys.stderr)
         return 1
 
-    upload_dirs = parse_upload_directories(workflow_path)
-    if not upload_dirs:
-        print(f'ERROR: No component directories found in {workflow_rel_path}', file=sys.stderr)
+    try:
+        upload_namespace, raw_upload_dirs = parse_upload_config(workflow_path)
+    except (ValueError, yaml.YAMLError) as exc:
+        print(f'ERROR: {exc}', file=sys.stderr)
         return 1
 
     repo_components = discover_repo_components(repo_root)
     violations: List[str] = []
 
     seen_dirs: Dict[str, int] = {}
-    name_to_index: Dict[str, int] = {}
-    name_to_dir: Dict[str, str] = {}
+    published_id_to_index: Dict[str, int] = {}
+    published_id_to_dir: Dict[str, str] = {}
+    published_name_to_id: Dict[str, str] = {}
+    resolved_dir_to_id: Dict[Path, str] = {}
+    normalized_dirs: List[Optional[str]] = []
 
-    for idx, comp_dir in enumerate(upload_dirs):
+    for idx, raw_dir in enumerate(raw_upload_dirs):
         pos = idx + 1
+        if not raw_dir:
+            violations.append(f'#{pos}: empty directory entry in {workflow_rel_path}')
+            normalized_dirs.append(None)
+            continue
+
+        if Path(raw_dir).is_absolute():
+            violations.append(f'#{pos} "{raw_dir}": must be a repository-relative path')
+            normalized_dirs.append(None)
+            continue
+
+        comp_dir = raw_dir.rstrip('/')
+        if not comp_dir:
+            violations.append(f'#{pos} "{raw_dir}": invalid directory entry')
+            normalized_dirs.append(None)
+            continue
+
         if comp_dir in seen_dirs:
             violations.append(f'Duplicate directory entry "{comp_dir}" at #{pos} (first seen at #{seen_dirs[comp_dir] + 1})')
+            normalized_dirs.append(None)
             continue
         seen_dirs[comp_dir] = idx
 
         full_dir = repo_root / comp_dir
+        try:
+            resolved_dir = full_dir.resolve()
+            resolved_dir.relative_to(repo_root)
+        except ValueError:
+            violations.append(f'#{pos} "{comp_dir}": directory resolves outside repository root')
+            normalized_dirs.append(None)
+            continue
+
         manifest_path = full_dir / 'idf_component.yml'
         if not full_dir.is_dir():
             violations.append(f'#{pos} "{comp_dir}": directory does not exist')
+            normalized_dirs.append(None)
             continue
         if not manifest_path.is_file():
             violations.append(f'#{pos} "{comp_dir}": missing idf_component.yml')
+            normalized_dirs.append(None)
             continue
 
-        comp_name = full_dir.name
-        if comp_name in name_to_index:
+        comp_name = resolved_dir.name.lower()
+        published_id = f'{upload_namespace}/{comp_name}'
+        if published_id in published_id_to_index:
+            prev_idx = published_id_to_index[published_id]
             violations.append(
-                f'Duplicate component name "{comp_name}" at #{pos} "{comp_dir}" '
-                f'(already listed at #{name_to_index[comp_name] + 1} "{name_to_dir[comp_name]}")'
+                f'Duplicate component "{published_id}" at #{pos} "{comp_dir}" '
+                f'(already listed at #{prev_idx + 1} "{published_id_to_dir[published_id]}")'
             )
+            normalized_dirs.append(None)
             continue
-        name_to_index[comp_name] = idx
-        name_to_dir[comp_name] = comp_dir
 
-    for idx, comp_dir in enumerate(upload_dirs):
+        published_id_to_index[published_id] = idx
+        published_id_to_dir[published_id] = comp_dir
+        published_name_to_id[comp_name] = published_id
+        resolved_dir_to_id[resolved_dir] = published_id
+        normalized_dirs.append(comp_dir)
+
+    for idx, comp_dir in enumerate(normalized_dirs):
+        if comp_dir is None:
+            continue
         pos = idx + 1
         full_dir = repo_root / comp_dir
         manifest_path = full_dir / 'idf_component.yml'
-        if not manifest_path.is_file():
+
+        try:
+            version, dependencies = parse_component_manifest(manifest_path)
+        except ValueError as exc:
+            violations.append(f'#{pos} "{comp_dir}": {exc}')
             continue
 
-        version, dependencies = parse_component_manifest(manifest_path)
         if not version:
             violations.append(f'#{pos} "{comp_dir}": idf_component.yml is missing a version field')
 
         for dep_key, dep_meta in dependencies.items():
-            if dep_key == 'idf':
+            if dep_key.strip().lower() == 'idf':
                 continue
 
-            namespace, dep_name = _split_dep_name(dep_key)
+            dep_ns, dep_name, dep_id = _normalize_registry_id(dep_key)
             override_path = dep_meta.get('override_path')
+            resolved_override = (full_dir / override_path).resolve() if override_path else None
+
             is_internal = (
                 override_path is not None
-                or (namespace in ('', 'espressif') and (dep_name in repo_components or dep_name.startswith('brookesia_')))
+                or dep_name in repo_components
+                or (dep_ns == upload_namespace and dep_name.startswith('brookesia_'))
             )
             if not is_internal:
                 continue
 
-            if dep_name not in name_to_index:
-                hint = f' (found in repo at "{repo_components[dep_name]}")' if dep_name in repo_components else ''
-                violations.append(
-                    f'#{pos} "{comp_dir}" depends on "{dep_key}", which is missing from {workflow_rel_path}{hint}'
-                )
+            if dep_id not in published_id_to_index:
+                if dep_name in published_name_to_id:
+                    expected_id = published_name_to_id[dep_name]
+                    violations.append(
+                        f'#{pos} "{comp_dir}" dependency "{dep_key}" resolves to Registry ID "{dep_id}", '
+                        f'but {workflow_rel_path} publishes "{expected_id}" (namespace mismatch)'
+                    )
+                elif resolved_override is not None and resolved_override in resolved_dir_to_id:
+                    expected_id = resolved_dir_to_id[resolved_override]
+                    violations.append(
+                        f'#{pos} "{comp_dir}" dependency "{dep_key}" resolves to Registry ID "{dep_id}", '
+                        f'but override_path "{override_path}" targets published component "{expected_id}"'
+                    )
+                else:
+                    hint = f' (found in repo at "{repo_components[dep_name]}")' if dep_name in repo_components else ''
+                    violations.append(
+                        f'#{pos} "{comp_dir}" depends on "{dep_key}" ("{dep_id}"), '
+                        f'which is missing from {workflow_rel_path}{hint}'
+                    )
                 continue
 
-            dep_idx = name_to_index[dep_name]
-            dep_dir = name_to_dir[dep_name]
+            dep_idx = published_id_to_index[dep_id]
+            dep_dir = published_id_to_dir[dep_id]
             if dep_idx >= idx:
                 violations.append(
                     f'#{pos} "{comp_dir}" depends on "{dep_key}" (#{dep_idx + 1} "{dep_dir}"), '
                     f'which must appear earlier in {workflow_rel_path}'
                 )
 
-            if override_path is not None:
-                resolved_override = (full_dir / override_path).resolve()
+            if resolved_override is not None:
                 expected_dir = (repo_root / dep_dir).resolve()
                 if resolved_override != expected_dir:
                     violations.append(
@@ -254,7 +299,7 @@ def check_upload_components(repo_root: Path, workflow_rel_path: Path = DEFAULT_W
             print(f'  - {violation}', file=sys.stderr)
         return 1
 
-    print(f'Upload component workflow check passed ({len(upload_dirs)} components)')
+    print(f'Upload component workflow check passed ({len(published_id_to_index)} components, namespace={upload_namespace})')
     return 0
 
 
