@@ -20,6 +20,28 @@ check_readme_links:
   script:
     - python ${CI_PROJECT_DIR}/.gitlab/tools/check_readme_links.py
 
+check_upload_components_tests:
+  extends:
+    - .pre_check_template
+  before_script:
+    - pip install PyYAML "idf-component-manager~=2.0" "flake8==5.0.4"
+  script:
+    - python .gitlab/tools/tests/test_check_upload_components.py -v
+    - python -m flake8 --config=.flake8 .gitlab/tools/check_upload_components.py .gitlab/tools/tests/test_check_upload_components.py
+    - |
+      fail=0
+      for f in .gitlab/tools/check_upload_components.py .gitlab/tools/tests/test_check_upload_components.py; do
+        head -8 "$f" | grep -q "SPDX-License-Identifier: Apache-2.0" || { echo "missing SPDX header: $f"; fail=1; }
+      done
+      exit $fail
+  rules:
+    - changes:
+        - .gitlab-ci.yml
+        - .gitlab/ci/pre/check.yml
+        - .gitlab/tools/check_upload_components.py
+        - .gitlab/tools/tests/test_check_upload_components.py
+        - .github/workflows/upload_component.yml
+
 check_host_regressions:
   extends:
     - .pre_check_template

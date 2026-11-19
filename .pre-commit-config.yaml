@@ -113,6 +113,13 @@ repos:
         language: python
         pass_filenames: false
         always_run: true
+      - id: check-upload-components
+        name: Check upload_component.yml dependencies and order
+        entry: python .gitlab/tools/check_upload_components.py
+        language: python
+        additional_dependencies: [PyYAML, 'idf-component-manager~=2.0']
+        pass_filenames: false
+        always_run: true
   - repo: https://github.com/espressif/conventional-precommit-linter
     rev: v1.8.0
     hooks:
