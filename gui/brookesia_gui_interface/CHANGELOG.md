@@ -10,6 +10,9 @@
 
 ### Bug Fixes:
 
+- fix(asset): the bundle CRC-32 table is computed at compile time instead of hand-transcribed,
+  so a mistyped entry cannot make every packed asset fail verification and fall back to
+  per-file reads (found on device: one wrong entry rejected all 75 bundle hits).
 - fix(asset): reject a bundle whose entry count, path length, or key order cannot be searched, so a
   corrupt file falls back to per-file reads.
 - fix(runtime): keep a displayed transient screen out of the resident eviction queue.
