@@ -189,6 +189,10 @@ public:
     bool has_screen_flow(DocumentId id, std::string_view flow_id) const;
     std::optional<std::string> get_screen_flow_state(DocumentId id, std::string_view flow_id) const;
     View find_view(DocumentId id, std::string_view absolute_path) const;
+    std::expected<void, std::string> with_native_object(
+        const View &view,
+        const std::function<void(void *)> &fn
+    );
     std::expected<View, std::string> create_view(
         DocumentId id,
         std::string_view template_id,

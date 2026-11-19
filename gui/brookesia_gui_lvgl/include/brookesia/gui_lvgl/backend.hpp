@@ -98,6 +98,7 @@ public:
     void bind_events(BackendHandle handle, const std::vector<EventBinding> &events) override;
     std::vector<GuiDisplayInfo> list_displays() const override;
     std::vector<GuiLayer> list_layers() const override;
+    void *get_native_object(BackendHandle handle) override;
     bool mount_screen(BackendHandle handle, const MountTarget &target) override;
     bool unmount_screen(BackendHandle handle) override;
     bool register_font_resource(const RuntimeFontResource &resource) override;

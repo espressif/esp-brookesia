@@ -15,6 +15,12 @@ namespace esp_brookesia::system::core {
 
 thread_local const void *current_system_task_owner = nullptr;
 thread_local lib_utils::TaskScheduler::Group current_system_task_group;
+// True while a native view callback executes on the GUI task group. Native apps must not perform
+// cross-group synchronous calls (notably stop_app/request_close_app) from inside such a callback,
+// because the outer action already owns the app callback mutex and is blocked waiting for the GUI
+// task to return; scheduling stop_app back onto an app group would wait for that same mutex and
+// deadlock. stop_app checks this flag and fails fast instead of deadlocking.
+thread_local bool in_native_view_callback = false;
 
 namespace {
 

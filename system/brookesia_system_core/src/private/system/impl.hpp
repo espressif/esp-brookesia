@@ -67,6 +67,9 @@ inline constexpr const char *SYSTEM_TIMER_TASK_GROUP = "SystemTimer";
 
 extern thread_local const void *current_system_task_owner;
 extern thread_local lib_utils::TaskSchedulerGroup current_system_task_group;
+// See task.cpp for the rationale. True only while a native view callback runs on the GUI task
+// group; stop_app/request_close_app consult it to fail fast instead of deadlocking.
+extern thread_local bool in_native_view_callback;
 
 class System::Impl {
 public:
@@ -199,7 +202,16 @@ public:
         auto result_promise = std::make_shared<boost::promise<Result>>();
         auto result_future = result_promise->get_future();
         auto task = [result_promise, fn = std::forward<Fn>(fn)]() mutable {
-            result_promise->set_value(fn());
+            try
+            {
+                result_promise->set_value(fn());
+            } catch (...)
+            {
+                try {
+                    result_promise->set_exception(boost::current_exception());
+                } catch (const std::exception &) {
+                }
+            }
         };
         if (!task_scheduler_->post(std::move(task), nullptr, group)) {
             return std::move(post_error_result);

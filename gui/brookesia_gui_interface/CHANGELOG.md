@@ -1,5 +1,15 @@
 # ChangeLog
 
+## v0.8.8 - 2026-11-23
+
+### Enhancements:
+
+- feat(runtime): expose a callback-based `Runtime::with_native_object` for backend-native integrations.
+
+### Bug Fixes:
+
+- fix(runtime): reject a native object callback when the view belongs to another runtime.
+
 ## v0.8.7 - 2026-11-19
 
 ### Enhancements:

@@ -1103,6 +1103,13 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
 std::expected<void, std::string> System::stop_app(AppId app_id)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    // A native view callback runs on the GUI task group while the outer action owns the app callback
+    // mutex and is blocked waiting for that GUI task. Scheduling stop_app back onto an app group
+    // here would wait for the same mutex and deadlock, so fail fast instead. Callers must defer the
+    // close request until after the callback returns.
+    if (in_native_view_callback) {
+        return std::unexpected("cannot stop app from within a native view callback");
+    }
     if (impl_->should_schedule_app_task()) {
         return impl_->run_task_sync<std::expected<void, std::string>>(
                    SYSTEM_APP_TASK_GROUP,

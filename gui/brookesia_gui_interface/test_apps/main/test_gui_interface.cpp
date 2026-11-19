@@ -11,6 +11,7 @@
 #include <sstream>
 #endif
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -593,6 +594,16 @@ public:
         return {GuiLayer::Default, GuiLayer::System};
     }
 
+    void *get_native_object(BackendHandle handle) override
+    {
+        if (!handle.is_valid()) {
+            return nullptr;
+        }
+        // Return a stable address inside the backend without allocating heap.
+        // The test only checks that the pointer is non-null and distinct per handle.
+        return reinterpret_cast<void *>(static_cast<uintptr_t>(handle.value() + 1));
+    }
+
     bool mount_screen(BackendHandle handle, const MountTarget &target) override
     {
         (void)target;
@@ -1026,6 +1037,126 @@ BROOKESIA_TEST_CASE(
     TEST_ASSERT_TRUE(runtime.scroll_view_to_visible(document_id.value(), "/test_screen/title", false));
     TEST_ASSERT_TRUE(runtime.unmount_screen(document_id.value(), "/test_screen"));
     TEST_ASSERT_TRUE(runtime.unload(document_id.value()));
+}
+
+BROOKESIA_TEST_CASE(
+    test_gui_interface_runtime_with_native_object_invokes_view_callback,
+    "GUI interface invokes native callbacks for valid View handles only",
+    "[gui][interface][runtime][native_handle]"
+)
+{
+    auto backend = std::make_unique<MockBackend>();
+    Runtime runtime(std::move(backend));
+
+    Environment environment;
+    auto document_id = runtime.load_json("test/root.json", ROOT_JSON, "test", environment);
+    TEST_ASSERT_TRUE(document_id.has_value());
+    TEST_ASSERT_TRUE(document_id->is_valid());
+
+    auto mounted = runtime.mount_screen(document_id.value(), "/test_screen");
+    TEST_ASSERT_TRUE(mounted.has_value());
+    TEST_ASSERT_TRUE(mounted->valid());
+
+    auto root = runtime.find_view(document_id.value(), "/test_screen");
+    auto child = runtime.find_view(document_id.value(), "/test_screen/title");
+    TEST_ASSERT_TRUE(root.valid());
+    TEST_ASSERT_TRUE(child.valid());
+
+    bool root_called = false;
+    bool child_called = false;
+    void *root_object = nullptr;
+    void *child_object = nullptr;
+    TEST_ASSERT_TRUE(runtime.with_native_object(root, [&](void *object) {
+        root_called = true;
+        root_object = object;
+    }).has_value());
+    TEST_ASSERT_TRUE(runtime.with_native_object(child, [&](void *object) {
+        child_called = true;
+        child_object = object;
+    }).has_value());
+    TEST_ASSERT_TRUE(root_called);
+    TEST_ASSERT_TRUE(child_called);
+    TEST_ASSERT_NOT_EQUAL(root_object, child_object);
+    TEST_ASSERT_NOT_NULL(root_object);
+    TEST_ASSERT_NOT_NULL(child_object);
+
+    auto missing = runtime.find_view(document_id.value(), "/missing/view");
+    TEST_ASSERT_FALSE(missing.valid());
+    bool missing_called = false;
+    TEST_ASSERT_FALSE(runtime.with_native_object(missing, [&](void *) {
+        missing_called = true;
+    }).has_value());
+    TEST_ASSERT_FALSE(missing_called);
+
+    TEST_ASSERT_TRUE(runtime.unmount_screen(document_id.value(), "/test_screen"));
+    bool root_after_unmount = false;
+    bool child_after_unmount = false;
+    TEST_ASSERT_TRUE(runtime.with_native_object(root, [&](void *) {
+        root_after_unmount = true;
+    }).has_value());
+    TEST_ASSERT_TRUE(runtime.with_native_object(child, [&](void *) {
+        child_after_unmount = true;
+    }).has_value());
+    TEST_ASSERT_TRUE(root_after_unmount);
+    TEST_ASSERT_TRUE(child_after_unmount);
+}
+
+BROOKESIA_TEST_CASE(
+    test_gui_interface_runtime_with_native_object_rejects_invalid_views,
+    "GUI interface rejects calls with invalid View handles",
+    "[gui][interface][runtime][native]"
+)
+{
+    auto backend = std::make_unique<MockBackend>();
+    Runtime runtime(std::move(backend));
+
+    Environment environment;
+    auto document_id = runtime.load_json("test/root.json", ROOT_JSON, "test", environment);
+    TEST_ASSERT_TRUE(document_id.has_value());
+
+    auto mounted = runtime.mount_screen(document_id.value(), "/test_screen");
+    TEST_ASSERT_TRUE(mounted.has_value());
+
+    bool called = false;
+    TEST_ASSERT_FALSE(runtime.with_native_object(View{}, [&](void *) {
+        called = true;
+    }).has_value());
+    TEST_ASSERT_FALSE(called);
+}
+
+BROOKESIA_TEST_CASE(
+    test_gui_interface_runtime_with_native_object_rejects_foreign_runtime_view,
+    "GUI interface rejects a View owned by another runtime with the same document id",
+    "[gui][interface][runtime][native]"
+)
+{
+    Runtime runtime_a(std::make_unique<MockBackend>());
+    Runtime runtime_b(std::make_unique<MockBackend>());
+
+    Environment environment;
+    auto document_a = runtime_a.load_json("test/root.json", ROOT_JSON, "test", environment);
+    auto document_b = runtime_b.load_json("test/root.json", ROOT_JSON, "test", environment);
+    TEST_ASSERT_TRUE(document_a.has_value());
+    TEST_ASSERT_TRUE(document_b.has_value());
+    TEST_ASSERT_TRUE(document_a->value() == document_b->value());
+
+    TEST_ASSERT_TRUE(runtime_a.mount_screen(document_a.value(), "/test_screen").has_value());
+    TEST_ASSERT_TRUE(runtime_b.mount_screen(document_b.value(), "/test_screen").has_value());
+
+    auto view_a = runtime_a.find_view(document_a.value(), "/test_screen/title");
+    TEST_ASSERT_TRUE(view_a.valid());
+
+    bool foreign_called = false;
+    TEST_ASSERT_FALSE(runtime_b.with_native_object(view_a, [&](void *) {
+        foreign_called = true;
+    }).has_value());
+    TEST_ASSERT_FALSE(foreign_called);
+
+    bool owner_called = false;
+    TEST_ASSERT_TRUE(runtime_a.with_native_object(view_a, [&](void *) {
+        owner_called = true;
+    }).has_value());
+    TEST_ASSERT_TRUE(owner_called);
 }
 
 BROOKESIA_TEST_CASE(

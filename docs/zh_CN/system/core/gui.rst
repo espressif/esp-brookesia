@@ -45,8 +45,11 @@ AppGuiRuntime
 - ``load_theme_file(resource_dir, path)``
 - ``set_theme(theme_id, reapply_loaded_documents)``
 - ``get_theme()``
+- ``with_native_view(path, callback)``
 
 这些接口都隐式作用于当前 app 的 document。``set_binding_values(updates)`` 是批量 binding 写入接口，适合游戏循环或脚本 app 高频刷新多个 binding 的场景；Runtime 会按节点合并 dirty mask 后再触发 backend apply。
+
+``with_native_view(path, callback)`` 是受限的 native 集成出口：回调在 GUI 任务组中执行，参数是当前 app 自己 document 中该 view 对应的 opaque native handle。该 handle 仅在回调期间有效，不能保存或跨线程使用；卸载 document、销毁视图（如通过 ``destroy_view`` 或 Dynamic 屏幕 unmount）或任何删除底层对象的后端操作会使 handle 失效，而普通 Eager 屏幕 unmount 仅隐藏对象，本身不会使 handle 失效。回调期间 GUI thread guard 已由任务组持有，调用方不得再次加锁。该接口只通过 ``AppGuiRuntime`` 暴露给可信 native 应用；runtime 应用的 ``SystemGui`` service 不提供它，也不能替代 binding、``update()`` 或 ``setText()`` 等语义化 API。
 
 ``get_constant_value(path)`` 读取当前 app GUI document 中 parser 合并后的 constant 值，``path`` 是 ``${constant.<path>}`` 里的点路径部分，不包含 ``${}`` 或 ``constant.`` 前缀，返回值保持原始 JSON 类型。
 

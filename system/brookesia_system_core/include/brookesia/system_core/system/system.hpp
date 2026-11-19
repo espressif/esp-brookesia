@@ -556,6 +556,12 @@ private:
     friend class SystemGuiAccess;
     friend class GspSystemShellApp;
 
+    std::expected<void, std::string> gui_with_native_view(
+        AppId app_id,
+        std::string_view absolute_path,
+        const std::function<void(void *)> &fn
+    );
+
     class Impl;
     std::expected<void, std::string> show_next_message_dialog();
     std::expected<MessageDialogRequestId, std::string> enqueue_message_dialog(

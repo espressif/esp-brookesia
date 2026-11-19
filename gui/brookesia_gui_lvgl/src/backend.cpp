@@ -295,8 +295,14 @@ BackendHandle BackendImpl::create_node(
         child_handles[parent.value()].push_back(handle.value());
     }
     auto *created_record = find_record(handle);
-    if (created_record != nullptr && requires_mount_refresh(*created_record)) {
-        adjust_mount_refresh_ancestors(handle, true);
+    if (created_record != nullptr) {
+        // Invalidate this handle the moment LVGL frees the widget, including direct lv_obj_delete/
+        // lv_obj_clean from a native view callback. Without this, lv_obj_is_valid()'s address-only
+        // check would accept a recycled address and hand a different widget to a later callback.
+        lv_obj_add_event_cb(object, &BackendImpl::on_native_object_delete, LV_EVENT_DELETE, created_record);
+        if (requires_mount_refresh(*created_record)) {
+            adjust_mount_refresh_ancestors(handle, true);
+        }
     }
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
     BROOKESIA_LOGI(
@@ -1851,6 +1857,39 @@ bool Backend::unmount_image_assets(char fs_letter)
     BROOKESIA_LOGD("Params: fs_letter(%1%)", fs_letter);
 
     return impl_->unmount_image_assets(fs_letter);
+}
+void *BackendImpl::get_native_object(BackendHandle handle)
+{
+    ThreadLockGuard lock;
+
+    if (!handle.is_valid()) {
+        return nullptr;
+    }
+    auto *record = find_record(handle);
+    if (record == nullptr || record->object == nullptr || !lv_obj_is_valid(record->object)) {
+        return nullptr;
+    }
+    return record->object;
+}
+
+void BackendImpl::on_native_object_delete(lv_event_t *event)
+{
+    auto *record = static_cast<Record *>(lv_event_get_user_data(event));
+    if (record != nullptr) {
+        // The widget is being freed by LVGL; drop the stale address so a later recycled address can
+        // never pass lv_obj_is_valid() for this handle. destroy_node also clears it, but native view
+        // callbacks may delete widgets without going through destroy_node.
+        record->object = nullptr;
+    }
+}
+
+void *Backend::get_native_object(BackendHandle handle)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: handle(%1%)", handle.value());
+
+    return impl_->get_native_object(handle);
 }
 
 } // namespace esp_brookesia::gui::lvgl

@@ -341,7 +341,12 @@ public:
     void bind_events(BackendHandle handle, const std::vector<EventBinding> &events);
     std::vector<GuiDisplayInfo> list_displays() const;
     std::vector<GuiLayer> list_layers() const;
+    void *get_native_object(BackendHandle handle);
     lv_obj_t *resolve_layer_parent(lv_display_t *display, GuiLayer layer) const;
+    // Clears the owning Record's object pointer when LVGL deletes the widget, so a recycled address
+    // can never be mistaken for the original handle in get_native_object(). Registered for every
+    // created widget via LV_EVENT_DELETE; covers both destroy_node and direct lv_obj_delete/clean.
+    static void on_native_object_delete(lv_event_t *event);
     bool mount_screen(BackendHandle handle, const MountTarget &target);
     bool unmount_screen(BackendHandle handle);
     std::vector<RuntimeFontResource> list_font_resources() const;

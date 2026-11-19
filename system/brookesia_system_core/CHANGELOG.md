@@ -1,5 +1,21 @@
 # ChangeLog
 
+## v0.8.8 - 2026-11-19
+
+### Enhancements:
+
+- feat(gui): add `AppGuiRuntime::with_native_view` as a restricted native-integration escape hatch.
+- feat(gui): route the callback through the GUI task group with the GUI thread guard already held.
+
+### Bug Fixes:
+
+- fix(gui): return an error when a native view callback throws, instead of leaving the caller blocked.
+- fix(deps): require GUI Interface `>=0.8.8,<0.9`.
+
+### Documentation:
+
+- docs(gui): document the native integration boundary, handle lifetime, and usage restrictions.
+
 ## v0.8.7 - 2026-11-10
 
 ### Breaking Changes:

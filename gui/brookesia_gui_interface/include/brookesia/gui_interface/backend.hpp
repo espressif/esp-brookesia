@@ -237,6 +237,11 @@ public:
     }
     virtual std::vector<GuiDisplayInfo> list_displays() const = 0;
     virtual std::vector<GuiLayer> list_layers() const = 0;
+    virtual void *get_native_object(BackendHandle handle)
+    {
+        (void)handle;
+        return nullptr;
+    }
     virtual bool mount_screen(BackendHandle handle, const MountTarget &target) = 0;
     virtual bool unmount_screen(BackendHandle handle) = 0;
     virtual bool register_font_resource(const RuntimeFontResource &resource) = 0;
