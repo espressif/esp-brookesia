@@ -15,6 +15,10 @@
   per-file reads (found on device: one wrong entry rejected all 75 bundle hits).
 - fix(asset): reject a bundle whose entry count, path length, or key order cannot be searched, so a
   corrupt file falls back to per-file reads.
+- perf(asset): bundle reads copy the hold under the registry lock and do the flash I/O outside it,
+  so an image read no longer serializes with another thread's document load or unload. A read that
+  serves bytes without a document read scope logs a warning, keeping the isolation contract
+  visible.
 - fix(runtime): keep a displayed transient screen out of the resident eviction queue.
 - fix(runtime): drop a document's resident-screen queue when that document is unloaded.
 - fix(deps): require lib_utils `>=0.8.4,<0.9` for `can_read_local_files()`.

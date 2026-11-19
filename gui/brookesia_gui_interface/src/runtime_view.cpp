@@ -425,6 +425,9 @@ std::expected<void, std::string> Runtime::Impl::update(
     // A live-preview parse leaves the hold id at 0, which drops this document's hold before
     // images are read and makes later reads skip a bundle another document still holds.
     adopt_asset_bundle_hold(*tree, parsed_document.asset_bundle_root, parsed_document.asset_bundle_hold);
+    // A failure from here on leaves the document without its old screens, flows and image
+    // preloads: the rejected-reload guarantee only covers the parse and validation above, so
+    // this path reports the error and the document stays torn down instead of half-restored.
     auto preload_result = preload_tree_image_resources(*tree);
     if (!preload_result) {
         release_tree_image_resources(*tree);

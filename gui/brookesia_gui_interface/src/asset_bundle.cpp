@@ -330,29 +330,53 @@ std::optional<std::string> read_bundled_asset_bytes(const std::filesystem::path 
             return std::nullopt;
         }
         if (!frame.bypass && path_in_root(path, frame.root)) {
-            std::lock_guard<std::mutex> lock(registry_mutex());
-            const auto it = registry().find(frame.root);
-            if (it == registry().end()) {
+            // Copy the hold under the lock and read outside it: the read is flash I/O and must
+            // not serialize with register/unregister on another thread. The shared_ptr keeps
+            // the stream alive if the hold is dropped while the read runs, and
+            // AssetBundle::read guards its own stream.
+            std::shared_ptr<AssetBundle> bundle;
+            {
+                std::lock_guard<std::mutex> lock(registry_mutex());
+                const auto it = registry().find(frame.root);
+                if (it == registry().end()) {
+                    return std::nullopt;
+                }
+                for (const BundleHold &hold : it->second.holds) {
+                    if (hold.id == frame.hold_id) {
+                        bundle = hold.bundle;
+                        break;
+                    }
+                }
+            }
+            if (bundle == nullptr) {
                 return std::nullopt;
             }
-            for (const BundleHold &hold : it->second.holds) {
-                if (hold.id != frame.hold_id) {
-                    continue;
-                }
-                return read_one_bundle(hold.bundle, path);
-            }
-            return std::nullopt;
+            return read_one_bundle(bundle, path);
         }
     }
 
-    std::lock_guard<std::mutex> lock(registry_mutex());
-    for (const auto &[root, entry] : registry()) {
-        (void)root;
-        for (const BundleHold &hold : entry.holds) {
-            auto bytes = read_one_bundle(hold.bundle, path);
-            if (bytes.has_value()) {
-                return bytes;
+    // No active read scope. Every current reader opens one (preload, build, release), so a
+    // hit here means a future call site broke the isolation contract: a bypass document
+    // would get another document's bundle bytes. Snapshot the holds, read outside the lock,
+    // and make the contract break visible in the log.
+    std::vector<std::shared_ptr<AssetBundle>> bundles;
+    {
+        std::lock_guard<std::mutex> lock(registry_mutex());
+        for (const auto &[unused_root, entry] : registry()) {
+            for (const BundleHold &hold : entry.holds) {
+                bundles.push_back(hold.bundle);
             }
+        }
+    }
+    for (const auto &bundle : bundles) {
+        auto bytes = read_one_bundle(bundle, path);
+        if (bytes.has_value()) {
+            BROOKESIA_LOGW(
+                "Bundle bytes served without a document read scope: '%1%'. Open a scope at every "
+                "read site so documents stay isolated.",
+                path.generic_string()
+            );
+            return bytes;
         }
     }
     return std::nullopt;

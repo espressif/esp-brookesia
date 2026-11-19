@@ -588,10 +588,13 @@ void apply_keyboard_layouts(BackendImpl &impl, Record &record, const KeyboardPro
             storage.map.data(),
             storage.controls.data()
         );
-        // The layout copy keeps the decoded images for draw callbacks. The backing entry
-        // only has to keep the map pointers LVGL borrowed, so drop the image refs here
-        // before the previous backing entry for this mode is released below.
+        // The record payload keeps the decoded images for the draw callbacks, which run after
+        // the document read scope ends. Its map and controls copies are never borrowed by
+        // LVGL: only the backing entry below owns the arrays LVGL points into.
         keyboard.layouts[*index] = storage;
+        // The backing only has to keep the map pointers LVGL borrowed, so its image refs are
+        // dropped here: they would otherwise hold decoded bytes alive until the previous
+        // backing entry for this mode is released below.
         storage.image_sources.clear();
         fresh_backing.push_back(BackendImpl::KeyboardLayoutBacking{
             .owner = record.handle.value(),
