@@ -29,6 +29,7 @@ jobs:
             service/framework/brookesia_service_helper;
             utils/brookesia_mcp_utils;
             gui/brookesia_gui_interface;
+            gui/brookesia_gui_gsp;
             runtime/brookesia_runtime_elf;
             runtime/brookesia_runtime_js;
             runtime/brookesia_runtime_wasm;
