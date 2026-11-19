@@ -6,8 +6,9 @@ import argparse
 from pathlib import Path
 import re
 import sys
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
+from idf_component_tools import semver
 import yaml
 
 
@@ -106,12 +107,9 @@ def parse_component_manifest(manifest_path: Path) -> Tuple[Optional[str], Dict[s
         raise ValueError(f'{manifest_path}: manifest root must be a YAML mapping')
 
     raw_version = data.get('version')
-    if raw_version is None:
-        version = None
-    elif isinstance(raw_version, bool) or not isinstance(raw_version, (str, int, float)):
-        raise ValueError(f'{manifest_path}: invalid "version" value {raw_version!r}')
-    else:
-        version = str(raw_version).strip() or None
+    version = raw_version.strip() if isinstance(raw_version, str) else None
+    if raw_version is not None and (not version or not semver.validate(version)):
+        raise ValueError(f'{manifest_path}: invalid "version" value {raw_version!r} (expected a concrete component version)')
 
     raw_deps = data.get('dependencies')
     if raw_deps is None:
@@ -206,11 +204,6 @@ def check_upload_components(repo_root: Path, workflow_rel_path: Path = DEFAULT_W
         print(f'ERROR: {exc}', file=sys.stderr)
         return 1
 
-    repo_component_dirs = discover_repo_components(repo_root)
-    repo_dirs_by_name: Dict[str, List[str]] = {}
-    for repo_comp_dir in repo_component_dirs:
-        repo_dirs_by_name.setdefault(Path(repo_comp_dir).name.lower(), []).append(repo_comp_dir)
-
     violations: List[str] = []
 
     seen_dirs: Dict[str, int] = {}
@@ -219,6 +212,7 @@ def check_upload_components(repo_root: Path, workflow_rel_path: Path = DEFAULT_W
     published_name_to_id: Dict[str, str] = {}
     resolved_dir_to_id: Dict[Path, str] = {}
     normalized_dirs: List[Optional[str]] = []
+    local_override_dirs: Set[Path] = set()
 
     for idx, raw_dir in enumerate(raw_upload_dirs):
         pos = idx + 1
@@ -280,15 +274,6 @@ def check_upload_components(repo_root: Path, workflow_rel_path: Path = DEFAULT_W
         resolved_dir_to_id[resolved_dir] = published_id
         normalized_dirs.append(comp_dir)
 
-    for repo_comp_dir in repo_component_dirs:
-        resolved_repo_dir = (repo_root / repo_comp_dir).resolve()
-        if resolved_repo_dir not in resolved_dir_to_id:
-            comp_name = resolved_repo_dir.name.lower()
-            violations.append(
-                f'Repository component "{repo_comp_dir}" ("{upload_namespace}/{comp_name}") '
-                f'is missing from {workflow_rel_path}'
-            )
-
     for idx, comp_dir in enumerate(normalized_dirs):
         if comp_dir is None:
             continue
@@ -321,13 +306,6 @@ def check_upload_components(repo_root: Path, workflow_rel_path: Path = DEFAULT_W
             override_path = dep_meta.get('override_path')
             resolved_override = (full_dir / override_path).resolve() if override_path else None
 
-            is_internal = (
-                source == 'override_path'
-                or (source == 'registry' and dep_name in repo_dirs_by_name)
-            )
-            if not is_internal:
-                continue
-
             if dep_id not in published_id_to_index:
                 if dep_name in published_name_to_id:
                     expected_id = published_name_to_id[dep_name]
@@ -341,13 +319,13 @@ def check_upload_components(repo_root: Path, workflow_rel_path: Path = DEFAULT_W
                         f'#{pos} "{comp_dir}" dependency "{dep_key}" resolves to Registry ID "{dep_id}", '
                         f'but override_path "{override_path}" targets published component "{expected_id}"'
                     )
-                else:
-                    matching_dirs = repo_dirs_by_name.get(dep_name, [])
-                    hint = f' (found in repo at "{matching_dirs[0]}")' if matching_dirs else ''
-                    violations.append(
-                        f'#{pos} "{comp_dir}" depends on "{dep_key}" ("{dep_id}"), '
-                        f'which is missing from {workflow_rel_path}{hint}'
-                    )
+                elif (
+                    resolved_override is not None
+                    and repo_root / 'local' in resolved_override.parents
+                    and resolved_override.name.lower() in (dep_name, dep_id.replace('/', '__'))
+                ):
+                    # This local checkout supplies a Registry dependency during development.
+                    local_override_dirs.add(resolved_override)
                 continue
 
             dep_idx = published_id_to_index[dep_id]
@@ -365,6 +343,15 @@ def check_upload_components(repo_root: Path, workflow_rel_path: Path = DEFAULT_W
                         f'#{pos} "{comp_dir}" dependency "{dep_key}" has override_path "{override_path}" '
                         f'resolving to "{resolved_override}", expected "{expected_dir}"'
                     )
+
+    for repo_comp_dir in discover_repo_components(repo_root):
+        resolved_repo_dir = (repo_root / repo_comp_dir).resolve()
+        if resolved_repo_dir not in resolved_dir_to_id and resolved_repo_dir not in local_override_dirs:
+            comp_name = resolved_repo_dir.name.lower()
+            violations.append(
+                f'Repository component "{repo_comp_dir}" ("{upload_namespace}/{comp_name}") '
+                f'is missing from {workflow_rel_path}'
+            )
 
     if violations:
         print(f'Component upload workflow validation failed ({len(violations)} issue(s)):', file=sys.stderr)

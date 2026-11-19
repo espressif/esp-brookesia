@@ -24,7 +24,7 @@ check_upload_components_tests:
   extends:
     - .pre_check_template
   before_script:
-    - pip install PyYAML "flake8==5.0.4"
+    - pip install PyYAML "idf-component-manager~=2.0" "flake8==5.0.4"
   script:
     - python .gitlab/tools/tests/test_check_upload_components.py -v
     - python -m flake8 --config=.flake8 .gitlab/tools/check_upload_components.py .gitlab/tools/tests/test_check_upload_components.py
