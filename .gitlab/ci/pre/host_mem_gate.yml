@@ -13,11 +13,29 @@ gui_if_host_mem_gate:
   extends:
     - .gui_host_mem_gate_template
   before_script:
-    - apt-get update
-    # Packages map to find_package(Boost): json/thread/system/chrono are
-    # REQUIRED by gui_interface/lib_utils/service_manager, test provides
-    # Boost.Test for pc_platform.cmake's unit_test_framework branch.
-    - DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends cmake g++ make libboost-json-dev libboost-thread-dev libboost-system-dev libboost-chrono-dev libboost-test-dev
+    # Same robust apt pattern as check_host_regressions: the build-runner
+    # network occasionally drops one apt index while apt-get update still
+    # exits 0, and the install then fails with "no installation candidate"
+    # (jobs 106636649/106636652). The dry run proves every package resolves
+    # before the real install, and an incomplete index retries the update.
+    - |
+      set -e
+      # Packages map to find_package(Boost): json/thread/system/chrono are
+      # REQUIRED by gui_interface/lib_utils/service_manager, test provides
+      # Boost.Test for pc_platform.cmake's unit_test_framework branch.
+      PKGS="cmake g++ make libboost-json-dev libboost-thread-dev libboost-system-dev libboost-chrono-dev libboost-test-dev"
+      ok=
+      for attempt in 1 2 3; do
+        if apt-get update && \
+           apt-get install --dry-run --no-install-recommends $PKGS >/dev/null 2>&1; then
+          ok=1
+          break
+        fi
+        echo "apt index incomplete (attempt ${attempt}/3), retrying in 10s"
+        sleep 10
+      done
+      [ -n "$ok" ] || { echo "ERROR: apt indexes still incomplete after 3 attempts"; exit 1; }
+      DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $PKGS
   script:
     - cmake -S gui/brookesia_gui_interface/test_apps -B build_pc -DBROOKESIA_GUI_INTERFACE_TEST_APPS_FORCE_PC=ON
     # --target is required: a bare `cmake --build build_pc` also compiles
