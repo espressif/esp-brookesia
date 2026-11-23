@@ -183,6 +183,9 @@ struct Record {
     struct KeyboardLayoutStorage {
         std::vector<std::string> labels;
         std::vector<KeyboardKey> keys;
+        // Parallel to keys. Captured while the document read scope is active, because the
+        // key-image draw callback runs later and cannot see that scope.
+        std::vector<std::shared_ptr<BinaryImageSource>> image_sources;
         std::vector<const char *> map;
         std::vector<lv_buttonmatrix_ctrl_t> controls;
     };
@@ -373,6 +376,10 @@ public:
 
     boost::unordered_flat_map<NodeType, Creator, EnumHash> creators;
     std::unordered_map<BackendHandle::Value, Record> records;
+    // Records whose placement currently uses PlacementMode::Relative. Every apply_props/style/
+    // layout/placement refreshes relative placements, which is O(records); this counter lets the
+    // common case (no relative placement anywhere) skip that scan in O(1).
+    std::size_t relative_placement_record_count = 0;
     // Keep tree traversal proportional to the visited subtree. Storing child lists only for
     // parents avoids adding a vector to every Record, including leaf-heavy JSON documents.
     std::unordered_map<BackendHandle::Value, std::vector<BackendHandle::Value>> child_handles;
@@ -391,7 +398,14 @@ public:
     std::size_t placement_cache_hits = 0;
     std::size_t placement_cache_misses = 0;
 #endif
-    std::vector<std::shared_ptr<Record::KeyboardLayoutStorage>> keyboard_layout_backing_store;
+    // LVGL borrows the map and control pointers until the layout is replaced or the keyboard
+    // is destroyed. Image bytes stay on the Record layout copy; this store does not keep them.
+    struct KeyboardLayoutBacking {
+        BackendHandle::Value owner = 0;
+        std::size_t layout_index = 0;
+        std::shared_ptr<Record::KeyboardLayoutStorage> storage;
+    };
+    std::vector<KeyboardLayoutBacking> keyboard_layout_backing_store;
     std::unordered_map<char, FontAssetsMountRecord> font_asset_mounts;
     std::unordered_map<char, ImageAssetsMountRecord> image_asset_mounts;
     std::unordered_map<BackendHandle::Value, MountTarget> mounted_targets;

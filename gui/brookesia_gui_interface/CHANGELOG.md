@@ -1,5 +1,76 @@
 # ChangeLog
 
+## v0.8.7 - 2026-11-19
+
+### Enhancements:
+
+- feat(asset): bundles can now carry media files, and `brookesia/gui_interface/asset_source.hpp`
+  lets any component read an asset through the bundle that the loaded document registered, so the
+  LVGL image loader no longer opens one file per image.
+
+### Bug Fixes:
+
+- fix(asset): the bundle CRC-32 table is computed at compile time instead of hand-transcribed,
+  so a mistyped entry cannot make every packed asset fail verification and fall back to
+  per-file reads (found on device: one wrong entry rejected all 75 bundle hits).
+- fix(asset): reject a bundle whose entry count, path length, or key order cannot be searched, so a
+  corrupt file falls back to per-file reads.
+- perf(asset): bundle reads copy the hold under the registry lock and do the flash I/O outside it,
+  so an image read no longer serializes with another thread's document load or unload. A read that
+  serves bytes without a document read scope logs a warning, keeping the isolation contract
+  visible.
+- fix(runtime): keep a displayed transient screen out of the resident eviction queue.
+- fix(runtime): drop a document's resident-screen queue when that document is unloaded.
+- fix(deps): require lib_utils `>=0.8.4,<0.9` for `can_read_local_files()`.
+- fix(runtime): a backend that cannot report input-idle time returns `UINT32_MAX`, so it does not
+  look like a touch in the current tick and block prewarm.
+- fix(parser): live preview reloads the changed source files and drops that document's hold on
+  the registered bundle after the reload parses. Each open is its own hold, so another document
+  on the same root keeps its stream, and the previewed document's later image reads skip that
+  bundle. Unload drops only that document's hold. `parse_document()`, `parse_document_file()`,
+  and `parse_document_file_with_metadata()` release the hold before they return, because they
+  do not create a document that can be unloaded.
+
+## v0.8.6 - 2026-11-19
+
+### Enhancements:
+
+- feat(runtime): add a keep-alive for unmounted Dynamic screens, so a re-mount reuses the built
+  subtree instead of rebuilding it. It defaults on for PSRAM builds and is bounded by
+  `BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS_MAX`, so a document cannot retain every screen it
+  ever visited. esp32_p4x_function_ev: mount 193 ms -> 15 ms, about 365 KB resident PSRAM, and
+  about +0.2 ms per text-binding flush. esp32_p4_function_ev against feat/gui-perf-baseline
+  (perf_eval, 11 screens): mount_ms 197.1 -> 17.8 ms and screen_cycle mount_all_screens_ms
+  52.7 -> 18.8 ms, about 215 KB more resident PSRAM, flush_apply_ms 1.00 -> 2.69 ms.
+- feat(runtime): serve interned `SparseResolvedStyle` objects from a fixed-capacity pool when
+  `BROOKESIA_GUI_INTERFACE_STYLE_POOL_SLOTS` is set, which reduces small-block PSRAM fragmentation.
+- perf(runtime): build the scoped binding store key once per update instead of once per write and
+  once per notification, cutting the binding flush apply time by ~10%.
+- test(runtime): add opt-in flush/apply profiling (`GUI binding flush profile`, `GUI binding reapply
+  profile`, `GUI props apply profile`) behind `BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG`, so a
+  binding-latency regression can be attributed to store, lookup, binding or backend work.
+- feat(runtime): prewarm Dynamic screens during the idle pass (opt-in, budgeted) so the first mount
+  reuses a built subtree instead of paying the build on the interaction path.
+- feat(runtime): delay the prewarm pass (`..._PREWARM_DYNAMIC_SCREENS_DELAY_MS`, default 5 s) so the
+  background builds do not race the boot-time mount path for the LVGL lock.
+- perf(parser): read text assets in large chunks without a preceding file_size() stat, cutting
+  document load by 25-39% (a 30-asset document: 1187 -> 885 ms).
+- perf(parser): copy a node object only when it actually references interaction templates, cutting
+  screen parsing by 34% (a 30-asset document: 885 -> 724 ms).
+- perf(parser): reuse the already parsed child type, cache duplicated field lookups and pass
+  string defaults as views while walking a screen into sparse nodes.
+- test(parser): add an opt-in per-screen timing breakdown (template/style/self-props/children)
+  behind the existing profile-log switch.
+- perf(parser): match the camelCase and normalized key fallbacks without allocating, cutting the
+  screen walk by 37% (parse_flows_screens 274 -> 172 ms, self time per node 550 -> 251 us).
+- perf(parser): parse a shared viewTemplate in place when it has no slots and no overrides,
+  instead of deep-copying the JSON just to inject the instance id.
+- perf(parser): validate string and integer style fields from the value already located, dropping
+  the duplicate key lookup per field.
+- feat(parser): read JSON assets from a packed `assets.bundle` when
+  `BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE` is enabled, replacing one open per asset with a
+  single open plus a seek. Missing or malformed bundles fall back to the per-file path.
+
 ## v0.8.5 - 2026-11-10
 
 ### Bug Fixes:

@@ -1,5 +1,16 @@
 # ChangeLog
 
+## v0.8.6 - 2026-11-19
+
+### Enhancements:
+
+- feat(example): with `BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE` enabled, the Super example
+  packs each document's JSON into `assets.bundle` in a staged copy of the LittleFS tree when the
+  `tools/gui_asset_bundle` packing tool is available (e.g. inside the esp-brookesia monorepo).
+  When the example is downloaded standalone (e.g. from the ESP Registry) and the tool is absent,
+  the build emits a warning and falls back to per-file reads from the staged resource tree.
+  With the option off, the image is always built from the staged resource tree.
+
 ## v0.8.5 - 2026-11-11
 
 ### Bug Fixes:

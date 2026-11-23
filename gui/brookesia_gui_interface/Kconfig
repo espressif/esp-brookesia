@@ -35,6 +35,19 @@ menu "ESP-Brookesia: GUI Interface Configurations"
             This is a profiling aid only; keep it disabled in production builds
             because the extra snapshots and logging add CPU and log overhead.
 
+    config BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE
+        bool "Read GUI JSON assets from a packed assets.bundle"
+        default n
+        help
+            When enabled, the parser looks for <resource root>/assets.bundle, produced
+            by tools/gui_asset_bundle, and serves the JSON assets from it. That replaces
+            one littlefs open per asset (about 5.25 ms each) with a single open plus a
+            seek per asset. Each entry stores an IEEE 802.3 CRC32 of its payload, so a
+            bundle that is structurally intact but byte-corrupted is detected at read
+            time and the parser falls back to the source file. A missing or malformed
+            bundle also falls back to the per-file path, so apps that have not been
+            packed keep working unchanged.
+
     config BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
         bool "Enable parser/runtime profile logs"
         default y if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
@@ -49,6 +62,118 @@ menu "ESP-Brookesia: GUI Interface Configurations"
             The v1.8 performance baseline carrier also enables this switch: its
             document-load metric reads the same per-stage timings, so both uses
             share one gate and nothing extra runs when it is off.
+
+    config BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS
+        bool "Keep unmounted dynamic screens resident (B4 keep-alive)"
+        # Rebuilding a Dynamic screen costs 20-180 ms depending on its size, while
+        # keeping it resident costs PSRAM. On PSRAM builds that trade is clearly
+        # worth it, so this defaults on there; targets without PSRAM keep the
+        # previous behaviour because the retained trees would compete with the
+        # rest of the heap.
+        default y if SPIRAM
+        default n
+        help
+            When a dynamic screen is unmounted, its built LVGL subtree is kept
+            (hidden) instead of being destroyed, so a later re-mount reuses it
+            and skips the rebuild. This defaults to enabled only when SPIRAM is
+            on; targets without SPIRAM keep the previous destroy-on-unmount
+            behaviour. Use BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS_MAX to
+            bound how many screens stay resident. Validate per board against
+            the v1.8 page_switch_ms and resident-memory dimensions.
+
+            esp32_p4x_function_ev: mount 193 ms -> 15 ms, about 365 KB resident
+            PSRAM, and about +0.2 ms per text-binding flush.
+
+            esp32_p4_function_ev against feat/gui-perf-baseline (perf_eval, 11
+            screens): mount_ms 197.1 -> 17.8 ms (-91.0%) and screen_cycle
+            mount_all_screens_ms 52.7 -> 18.8 ms (-64.3%). About 215 KB more
+            resident PSRAM, flush_apply_ms 1.00 -> 2.69 ms (still inside the
+            Pass-A budget), and render_stress frame_time +5.0%.
+
+    config BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS_MAX
+        int "Maximum unmounted Dynamic screens kept resident per document (0 = unlimited)"
+        depends on BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS
+        range 0 64
+        # 8 was below the Dynamic screen count of the measured application (15),
+        # which turned every navigation cycle into evict+rebuild thrash
+        # (908 evictions in one capture). 16 covers a typical app without
+        # leaving the bound unbounded.
+        default 16
+        help
+            Keeping unmounted Dynamic screens resident trades memory for mount latency:
+            rebuilding a screen costs 20-180 ms depending on its size. This bounds that
+            trade by evicting the screen that has been unmounted the longest once the
+            document holds more than this many unmounted screens. 0 disables the bound
+            and keeps every screen until the document is unloaded.
+
+    config BROOKESIA_GUI_INTERFACE_STYLE_POOL_SLOTS
+        int "Interned style residency pool slots (0 = heap)"
+        range 0 512
+        default 0
+        help
+            A linked document interns one immutable SparseResolvedStyle per
+            unique style. Left at 0 every interned style is an individual heap
+            allocation. Setting a slot count reserves one contiguous slab instead
+            and returns slots through the shared_ptr deleter, which keeps the
+            reference-counting semantics but reduces small-block fragmentation.
+
+            When the pool is exhausted the runtime falls back to the heap, so
+            interning never fails. Size it above the unique-style count of the
+            largest document on the board. Disabled by default.
+
+            The pool was measured on the earlier, non-sparse ResolvedStyle
+            representation (PSRAM block count +19%, fragmentation -2.4%);
+            re-validate it on the sparse representation before enabling.
+
+    config BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS
+        bool "Prewarm dynamic screens during idle (default n)"
+        default n
+        help
+            A Dynamic screen is built on its first mount, and that build is the
+            dominant part of the switch: on esp32_p4_function_ev the heaviest
+            screens spend 134-166 ms building versus ~16 ms to reuse an existing
+            subtree. Enabling this queues Dynamic screens into the existing
+            idle-warm pass, so the subtree is built in the background and the
+            first mount only attaches it.
+
+            Each prewarmed screen stays resident until it is unmounted, so this
+            trades memory for first-mount latency. Combine it with
+            BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS to also keep the screens
+            resident afterwards, and size the budget below from the board's
+            remaining memory. Disabled by default.
+
+    config BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_MIN_IDLE_MS
+        int "Idle time required before the next prewarm step (ms, 0 = no guard)"
+        depends on BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS
+        range 0 60000
+        default 2000
+        help
+            Before building the next screen in the idle prewarm pass, check how long the
+            user has been away from the screen. If the last input is more recent than this,
+            the step is re-posted instead of run, so a background build never competes with
+            an active touch. 0 disables the guard.
+
+    config BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_DELAY_MS
+        int "Delay before the prewarm pass starts (ms)"
+        depends on BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS
+        range 0 60000
+        default 5000
+        help
+            A screen build holds the LVGL lock for its whole duration (10-180 ms on
+            esp32_p4_function_ev), so starting the warm pass right after load races with the
+            foreground mount path: an LVGL-lock user with a short timeout (perf_eval uses
+            100 ms) times out and aborts. Wait this long after load before the first warm
+            step, so boot-time mounting finishes first.
+
+    config BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_MAX
+        int "Max Dynamic screens to prewarm (0 = all)"
+        depends on BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS
+        range 0 64
+        default 0
+        help
+            Upper bound on how many Dynamic screens the idle pass builds. 0
+            prewarms every Dynamic screen of the document. Use it to cap the
+            resident memory a warm document adds.
 
     menuconfig BROOKESIA_GUI_INTERFACE_ENABLE_EXAMPLES
         bool "Enable JSON-UI example suite"

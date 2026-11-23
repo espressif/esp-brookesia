@@ -38,6 +38,14 @@
 #   endif
 #endif
 
+#if !defined(BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE)
+#   if defined(CONFIG_BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE)
+#       define BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE  CONFIG_BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE
+#   else
+#       define BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE  (0)
+#   endif
+#endif
+
 /**
  * @brief Enable parser/runtime stage timing logs.
  *
@@ -49,6 +57,89 @@
 #       define BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG  CONFIG_BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
 #   else
 #       define BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG  (0)
+#   endif
+#endif
+
+/**
+ * @brief Keep unmounted dynamic screens resident (B4 keep-alive).
+ *
+ * When enabled, unmounting a dynamic screen only unmounts the backend screen and
+ * keeps the runtime subtree, so a later mount reuses the built nodes instead of
+ * rebuilding them. Off by default: it trades resident memory and per-flush apply
+ * cost for page-switch latency.
+ */
+#if !defined(BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS)
+#   if defined(CONFIG_BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS)
+#       define BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS  CONFIG_BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS
+#   else
+#       define BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS  (0)
+#   endif
+#endif
+
+#if !defined(BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS_MAX)
+#   if defined(CONFIG_BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS_MAX)
+#       define BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS_MAX  CONFIG_BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS_MAX
+#   elif BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS
+#       define BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS_MAX  (16)
+#   else
+#       define BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS_MAX  (0)
+#   endif
+#endif
+
+/**
+ * @brief Prewarm Dynamic screens during the idle pass instead of on first mount.
+ */
+#if !defined(BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS)
+#   if defined(CONFIG_BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS)
+#       define BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS  CONFIG_BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS
+#   else
+#       define BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS  (0)
+#   endif
+#endif
+
+/**
+ * @brief Delay before the prewarm pass starts after a document load, in milliseconds.
+ */
+#if !defined(BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_DELAY_MS)
+#   if defined(CONFIG_BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_DELAY_MS)
+#       define BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_DELAY_MS  CONFIG_BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_DELAY_MS
+#   else
+#       define BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_DELAY_MS  (0)
+#   endif
+#endif
+
+#if !defined(BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_MIN_IDLE_MS)
+#   if defined(CONFIG_BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_MIN_IDLE_MS)
+#       define BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_MIN_IDLE_MS  CONFIG_BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_MIN_IDLE_MS
+#   elif BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS
+#       define BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_MIN_IDLE_MS  (2000)
+#   else
+#       define BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_MIN_IDLE_MS  (0)
+#   endif
+#endif
+
+/**
+ * @brief Upper bound on the prewarmed Dynamic screens (0 = all of them).
+ */
+#if !defined(BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_MAX)
+#   if defined(CONFIG_BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_MAX)
+#       define BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_MAX  CONFIG_BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_MAX
+#   else
+#       define BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_MAX  (0)
+#   endif
+#endif
+
+/**
+ * @brief Number of interned ResolvedStyle objects served from a contiguous pool.
+ *
+ * 0 keeps every interned style on the heap. A non-zero value reserves that many
+ * slots up front and falls back to the heap when they run out.
+ */
+#if !defined(BROOKESIA_GUI_INTERFACE_STYLE_POOL_SLOTS)
+#   if defined(CONFIG_BROOKESIA_GUI_INTERFACE_STYLE_POOL_SLOTS)
+#       define BROOKESIA_GUI_INTERFACE_STYLE_POOL_SLOTS  CONFIG_BROOKESIA_GUI_INTERFACE_STYLE_POOL_SLOTS
+#   else
+#       define BROOKESIA_GUI_INTERFACE_STYLE_POOL_SLOTS  (0)
 #   endif
 #endif
 

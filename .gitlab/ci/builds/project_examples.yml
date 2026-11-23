@@ -120,7 +120,14 @@ build_examples_system_super:
     exclude:
       - "**/build*/*.map"
       - "**/build_esp32s3*/*.elf"
-  timeout: 3 hour
+  # The esp32s31 leg builds three boards sequentially (esp32_s31_korvo1,
+  # esp_mosaico_v1_0, esp_mosaico_v1_2) at --build-jobs 2, and one full build
+  # takes ~63 min on the shared build runner, so the leg needs ~3h10m end to
+  # end. The 3h cut terminated the third board at step 2824/2972 (job
+  # 106593125), so keep headroom for slower runner days. If the runner ever
+  # caps this below the need, split the leg into one matrix entry per board
+  # instead of raising this further.
+  timeout: 5 hour
   variables:
     EXAMPLE_DIR: examples/system/super
 # system/perf_eval

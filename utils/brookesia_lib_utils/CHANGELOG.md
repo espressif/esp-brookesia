@@ -1,5 +1,12 @@
 # ChangeLog
 
+## v0.8.4 - 2026-11-19
+
+### Enhancements:
+
+- feat(platform): add `can_read_local_files()` so the parser and the image loader share one gate for
+  direct filesystem reads on PC and PSRAM-XIP targets.
+
 ## v0.8.3 - 2026-11-10
 
 ### Enhancements:

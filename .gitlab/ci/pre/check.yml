@@ -47,8 +47,27 @@ check_host_regressions:
     - .pre_check_template
   image: ubuntu:24.04
   before_script:
-    - apt-get update
-    - DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3 g++-13 cmake make libboost-json-dev libboost-thread-dev zlib1g-dev
+    # The build-runner network occasionally drops one apt index: noble/main
+    # Packages was Ign'd while the rest of the update completed, apt-get
+    # update still exited 0, and the install step then failed with "no
+    # installation candidate" for every main-component package (jobs
+    # 106636649/106636652). A dry run resolves every package before the real
+    # install, and an incomplete index retries the update instead of failing.
+    - |
+      set -e
+      PKGS="python3 g++-13 cmake make libboost-json-dev libboost-thread-dev zlib1g-dev"
+      ok=
+      for attempt in 1 2 3; do
+        if apt-get update && \
+           apt-get install --dry-run --no-install-recommends $PKGS >/dev/null 2>&1; then
+          ok=1
+          break
+        fi
+        echo "apt index incomplete (attempt ${attempt}/3), retrying in 10s"
+        sleep 10
+      done
+      [ -n "$ok" ] || { echo "ERROR: apt indexes still incomplete after 3 attempts"; exit 1; }
+      DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $PKGS
   variables:
     CXX: g++-13
   script:

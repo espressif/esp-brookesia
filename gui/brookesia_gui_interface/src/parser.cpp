@@ -40,7 +40,8 @@ static std::expected<SparseParsedDocument, std::string> parse_document_impl(
     std::string_view json,
     std::string_view base_dir,
     const Environment &environment,
-    std::vector<std::string> dependency_files)
+    std::vector<std::string> dependency_files,
+    bool use_asset_bundle)
 {
     BROOKESIA_LOG_TRACE_GUARD();
 
@@ -86,6 +87,12 @@ static std::expected<SparseParsedDocument, std::string> parse_document_impl(
     parsed_document.dependency_files = std::move(dependency_files);
 
     const std::filesystem::path resolved_base_dir = std::filesystem::path(base_dir).lexically_normal();
+    // One open for the whole document instead of one per asset. Null when the feature is off, the
+    // file is missing, or the caller has no local filesystem (Storage-worker path).
+    // A successful open takes one registry hold. The runtime releases that hold when the document
+    // is unloaded, or when a live-preview reload is accepted. A parse that fails before the hold
+    // is taken leaves every existing holder in place.
+    const auto asset_bundle = use_asset_bundle ? open_asset_bundle(resolved_base_dir) : nullptr;
     boost::json::value constants(boost::json::object(), make_gui_json_storage());
     boost::unordered_flat_set<std::string> loaded_asset_paths;
     std::vector<RootAssetEntry> asset_entries;
@@ -104,7 +111,8 @@ static std::expected<SparseParsedDocument, std::string> parse_document_impl(
                              loaded_asset_paths,
                              &parsed_document.dependency_files,
                              asset_entries,
-                             "inline asset"
+                             "inline asset",
+                             asset_bundle.get()
                          );
     if (!append_result) {
         return std::unexpected(append_result.error());
@@ -182,7 +190,8 @@ static std::expected<SparseParsedDocument, std::string> parse_document_impl(
                                 loaded_asset_paths,
                                 &parsed_document.dependency_files,
                                 asset_entries,
-                                "inline variant asset"
+                                "inline variant asset",
+                                asset_bundle.get()
                             );
             if (!append_result) {
                 return std::unexpected(append_result.error());
@@ -536,7 +545,8 @@ static std::expected<SparseParsedDocument, std::string> parse_document_impl(
         view_screen_assets.push_back(&asset_entry);
     }
 
-    auto parse_one_view_screen = [&](ResolvedAssetEntry & asset_entry) -> std::expected<SparseNode, std::string> {
+    auto parse_one_view_screen = [&](ResolvedAssetEntry & asset_entry,
+    ParserNodeTiming * node_timing) -> std::expected<SparseNode, std::string> {
         std::vector<std::string> template_stack;
         return parse_view_node(
             asset_entry.value.as_object(),
@@ -544,23 +554,32 @@ static std::expected<SparseParsedDocument, std::string> parse_document_impl(
             raw_templates,
             raw_interactions,
             template_stack,
-            NodeType::Screen
+            NodeType::Screen,
+            node_timing
         );
     };
 
     size_t parsed_screens = 0;
     for (auto *asset_entry : view_screen_assets) {
         const auto asset_start = ParserProfileClock::now();
-        auto node = parse_one_view_screen(*asset_entry);
+        ParserNodeTiming node_timing;
+        auto node = parse_one_view_screen(*asset_entry, &node_timing);
         if (!node) {
             return std::unexpected(
                        "Failed to parse viewScreen asset '" + asset_entry->source_label + "': " + node.error()
                    );
         }
         GUI_INTERFACE_PROFILE_LOGI(
-            "GUI parser profile: base_dir(%1%), stage(parse_screen_item), source(%2%), elapsed_ms(%3%), total_ms(%4%)",
+            "GUI parser profile: base_dir(%1%), stage(parse_screen_detail), source(%2%), nodes(%3%), "
+            "template_us(%4%), style_us(%5%), self_props_us(%6%), children_subtree_us(%7%), elapsed_ms(%8%), "
+            "total_ms(%9%)",
             base_dir,
             asset_entry->source_label,
+            node_timing.nodes,
+            node_timing.template_us,
+            node_timing.style_us,
+            node_timing.self_props_us,
+            node_timing.children_us,
             parser_profile_elapsed_ms(asset_start, ParserProfileClock::now()),
             parser_profile_elapsed_ms(total_start, ParserProfileClock::now()));
         document.screens.push_back(std::move(*node));
@@ -611,15 +630,45 @@ static std::expected<SparseParsedDocument, std::string> parse_document_impl(
         parser_profile_elapsed_ms(total_start, stage_end),
         parser_profile_elapsed_ms(total_start, stage_end)
     );
+#if BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE
+    // Remember the resource root even when the bundle is unavailable, so the runtime
+    // can set up a bypass that prevents reads from hitting another document's bundle.
+    parsed_document.asset_bundle_root = resolved_base_dir.lexically_normal().generic_string();
+    if (asset_bundle) {
+        // One new hold. This does not replace a bundle another document already holds for the
+        // same root. The runtime keeps the id; a parse-only caller releases it before returning.
+        parsed_document.asset_bundle_hold = parser_detail::register_asset_bundle(resolved_base_dir, asset_bundle);
+    }
+#endif
     return parsed_document;
 }
 
 std::expected<SparseDocument, std::string> parse_sparse_document(
-    std::string_view json, std::string_view base_dir, const Environment &environment)
+    std::string_view json,
+    std::string_view base_dir,
+    const Environment &environment,
+    std::string *asset_bundle_root,
+    std::uint64_t *asset_bundle_hold)
 {
-    auto parsed_document = parse_document_impl(json, base_dir, environment, {});
+    auto parsed_document = parse_document_impl(json, base_dir, environment, {}, true);
     if (!parsed_document) {
         return std::unexpected(parsed_document.error());
+    }
+    if (asset_bundle_root != nullptr) {
+        *asset_bundle_root = std::move(parsed_document->asset_bundle_root);
+        if (asset_bundle_hold != nullptr) {
+            *asset_bundle_hold = parsed_document->asset_bundle_hold;
+        } else if (parsed_document->asset_bundle_hold != 0) {
+            // A caller that does not take the hold id cannot unload it later.
+            parser_detail::unregister_asset_bundle(
+                *asset_bundle_root, parsed_document->asset_bundle_hold
+            );
+        }
+    } else if (parsed_document->asset_bundle_hold != 0) {
+        // parse_document() does not load a runtime document, so it cannot unload this hold.
+        parser_detail::unregister_asset_bundle(
+            parsed_document->asset_bundle_root, parsed_document->asset_bundle_hold
+        );
     }
     return std::move(parsed_document->document);
 }
@@ -712,7 +761,8 @@ std::expected<SparseThemeAsset, std::string> parse_sparse_theme_asset_file(
 
 std::expected<SparseParsedDocument, std::string> parse_sparse_document_file_with_metadata(
     std::string_view path,
-    const Environment &environment)
+    const Environment &environment,
+    bool use_asset_bundle)
 {
     BROOKESIA_LOG_TRACE_GUARD();
 
@@ -727,7 +777,7 @@ std::expected<SparseParsedDocument, std::string> parse_sparse_document_file_with
     std::vector<std::string> dependency_files;
     dependency_files.push_back(file_path.string());
     return parse_document_impl(
-               *text, file_path.parent_path().string(), environment, std::move(dependency_files));
+               *text, file_path.parent_path().string(), environment, std::move(dependency_files), use_asset_bundle);
 }
 
 std::expected<Document, std::string> parse_document(
@@ -763,6 +813,17 @@ std::expected<ThemeAsset, std::string> parse_theme_asset_file(
     return to_public(*theme);
 }
 
+static void release_parse_only_bundle(const SparseParsedDocument &parsed)
+{
+#if BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE
+    if (parsed.asset_bundle_hold != 0) {
+        parser_detail::unregister_asset_bundle(parsed.asset_bundle_root, parsed.asset_bundle_hold);
+    }
+#else
+    (void)parsed;
+#endif
+}
+
 std::expected<ParsedDocument, std::string> parse_document_file_with_metadata(
     std::string_view path,
     const Environment &environment)
@@ -771,6 +832,7 @@ std::expected<ParsedDocument, std::string> parse_document_file_with_metadata(
     if (!parsed) {
         return std::unexpected(parsed.error());
     }
+    release_parse_only_bundle(*parsed);
     return ParsedDocument{
         .document = to_public(parsed->document),
         .dependency_files = std::move(parsed->dependency_files),
@@ -783,6 +845,7 @@ std::expected<Document, std::string> parse_document_file(std::string_view path, 
     if (!parsed) {
         return std::unexpected(parsed.error());
     }
+    release_parse_only_bundle(*parsed);
     return to_public(parsed->document);
 }
 

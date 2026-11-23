@@ -5,6 +5,11 @@
  */
 #include "private/props_impl.hpp"
 
+#include <fstream>
+
+#include "brookesia/lib_utils/platform.hpp"
+#include "brookesia/gui_interface/asset_source.hpp"
+
 namespace esp_brookesia::gui::lvgl::props_detail {
 
 
@@ -187,11 +192,66 @@ std::expected<lv_image_header_t, std::string> make_jpeg_image_header(
     return std::unexpected("JPEG image frame header is not found: " + path);
 }
 
+namespace {
+
+// The storage service round-trip costs several milliseconds per file, which is what made
+// image-heavy screens show up as 120-136 ms in the subtree build profile. Read the bytes
+// directly when this context can touch the filesystem (PC builds and PSRAM-XIP targets,
+// same gate the parser uses) and keep the service as the fallback.
+bool can_read_image_file_locally()
+{
+    return esp_brookesia::lib_utils::can_read_local_files();
+}
+
+std::expected<std::string, std::string> read_image_file_locally(const std::string &path)
+{
+    std::ifstream input(path, std::ios::binary);
+    if (!input) {
+        return std::unexpected("Failed to open image file: " + path);
+    }
+    // Read into the string. The LVGL display task stack defaults to 40 KiB, so a 16 KiB scratch
+    // array on top of the mount call chain does not leave a safe margin.
+    constexpr size_t kReadChunk = 4096;
+    std::string bytes;
+    bytes.reserve(16384);
+    while (input) {
+        const size_t offset = bytes.size();
+        bytes.resize(offset + kReadChunk);
+        input.read(bytes.data() + offset, static_cast<std::streamsize>(kReadChunk));
+        const auto read_size = input.gcount();
+        if (read_size > 0) {
+            bytes.resize(offset + static_cast<size_t>(read_size));
+        } else {
+            bytes.resize(offset);
+            break;
+        }
+    }
+    if (input.bad()) {
+        return std::unexpected("Failed to read image file: " + path);
+    }
+    return bytes;
+}
+
+} // namespace
+
 std::expected<std::vector<uint8_t>, std::string> read_storage_file_bytes(
     const std::string &path, std::string_view format_name
 )
 {
-    auto content = StorageHelper::fs_read_text(path);
+    std::expected<std::string, std::string> content = std::unexpected("Image read not attempted");
+    if (can_read_image_file_locally()) {
+        if (auto bundled = esp_brookesia::gui::read_bundled_asset(std::filesystem::path(path));
+                bundled.has_value()) {
+            content = std::move(*bundled);
+        } else {
+            content = read_image_file_locally(path);
+            if (!content) {
+                content = StorageHelper::fs_read_text(path);
+            }
+        }
+    } else {
+        content = StorageHelper::fs_read_text(path);
+    }
     if (!content) {
         return std::unexpected(
                    "Failed to read " + std::string(format_name) + " image file: " + path +

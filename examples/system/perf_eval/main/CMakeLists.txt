@@ -53,6 +53,50 @@ foreach(res_file ${PERF_EVAL_RES_FILES})
 endforeach()
 message(STATUS "perf_eval: staged ${CMAKE_CURRENT_BINARY_DIR}/res_stage")
 
+# Packed asset bundles: one per document root. The runtime opens
+# <resource root>/assets.bundle once and serves every JSON asset from it, which
+# replaces one littlefs open per asset (5.25 ms each) with a single open plus a
+# seek. The packer lives in tools/gui_asset_bundle and is invoked with the same
+# Python that drives the build.
+#
+# This runs at configure time because target_add_binary_data needs the file when
+# the component is registered, mirroring how res/ itself is staged above.
+# Only the bundle-enabled build pays for the embedded bundles (about 600 KB):
+# the manifest rows are compiled out under the same symbol, so an unset switch
+# leaves both the flash image and the firmware unchanged.
+if(CONFIG_BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE)
+if(NOT PYTHON)
+    set(PYTHON python3)
+endif()
+set(PERF_EVAL_ASSET_BUNDLE_SRC
+    "${CMAKE_CURRENT_LIST_DIR}/../../../../tools/gui_asset_bundle/src")
+file(GLOB_RECURSE PERF_EVAL_DOC_ROOTS "${PERF_EVAL_RES_DIR}/*/root.json")
+foreach(doc_root ${PERF_EVAL_DOC_ROOTS})
+    get_filename_component(doc_dir "${doc_root}" DIRECTORY)
+    file(RELATIVE_PATH doc_rel "${PERF_EVAL_RES_DIR}" "${doc_dir}")
+    set(bundle_rel "${doc_rel}/assets.bundle")
+    string(REPLACE "/" "_" bundle_flat "${bundle_rel}")
+    string(REPLACE "." "_" bundle_flat "${bundle_flat}")
+    string(REPLACE "-" "_" bundle_flat "${bundle_flat}")
+    set(bundle_staged "${PERF_EVAL_RES_STAGE}/${bundle_flat}")
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${PERF_EVAL_ASSET_BUNDLE_SRC}"
+                "${PYTHON}" -m brookesia_gui_asset_bundle.cli pack
+                --res-root "${doc_dir}" --out "${bundle_staged}"
+                --include "*.json" --include "*.png" --include "*.jpg" --include "*.jpeg"
+                --include "*.bin"
+        RESULT_VARIABLE bundle_status
+        OUTPUT_VARIABLE bundle_output
+        ERROR_VARIABLE bundle_error
+    )
+    if(NOT bundle_status EQUAL 0)
+        message(FATAL_ERROR "perf_eval: packing ${doc_dir} failed: ${bundle_error}")
+    endif()
+    message(STATUS "perf_eval: ${bundle_output}")
+    target_add_binary_data(${COMPONENT_LIB} "${bundle_staged}" BINARY)
+endforeach()
+endif()
+
 # v1.8 section 5.1: sdkconfig_hash must identify the build configuration so a
 # baseline and an optimized run from the same config share it. Hash the
 # *effective* configuration (enabled symbols only): a tree that merely defines an

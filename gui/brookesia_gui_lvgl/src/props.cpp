@@ -85,7 +85,7 @@ std::expected<void, std::string> preload_image_resource(BackendImpl &impl, const
     }
 
     if (is_lvgl_bin_path(resource.primary_src)) {
-        auto cache_it = impl.binary_image_cache.find(resource.primary_src);
+        auto cache_it = impl.binary_image_cache.find(image_cache_key(resource.primary_src));
         if (cache_it != impl.binary_image_cache.end()) {
             ++cache_it->second.ref_count;
             return {};
@@ -96,7 +96,7 @@ std::expected<void, std::string> preload_image_resource(BackendImpl &impl, const
             return std::unexpected(source.error());
         }
 
-        impl.binary_image_cache.emplace(resource.primary_src, BinaryImageCacheEntry{
+        impl.binary_image_cache.emplace(image_cache_key(resource.primary_src), BinaryImageCacheEntry{
             .source = *source,
             .ref_count = 1,
         });
@@ -105,7 +105,7 @@ std::expected<void, std::string> preload_image_resource(BackendImpl &impl, const
     }
 
     if (is_png_path(resource.primary_src)) {
-        auto cache_it = impl.decoded_image_cache.find(resource.primary_src);
+        auto cache_it = impl.decoded_image_cache.find(image_cache_key(resource.primary_src));
         if (cache_it != impl.decoded_image_cache.end()) {
             ++cache_it->second.ref_count;
             return {};
@@ -116,7 +116,7 @@ std::expected<void, std::string> preload_image_resource(BackendImpl &impl, const
             return std::unexpected(source.error());
         }
 
-        impl.decoded_image_cache.emplace(resource.primary_src, BinaryImageCacheEntry{
+        impl.decoded_image_cache.emplace(image_cache_key(resource.primary_src), BinaryImageCacheEntry{
             .source = *source,
             .ref_count = 1,
         });
@@ -125,7 +125,7 @@ std::expected<void, std::string> preload_image_resource(BackendImpl &impl, const
     }
 
     if (is_jpeg_path(resource.primary_src)) {
-        auto cache_it = impl.decoded_image_cache.find(resource.primary_src);
+        auto cache_it = impl.decoded_image_cache.find(image_cache_key(resource.primary_src));
         if (cache_it != impl.decoded_image_cache.end()) {
             ++cache_it->second.ref_count;
             return {};
@@ -136,7 +136,7 @@ std::expected<void, std::string> preload_image_resource(BackendImpl &impl, const
             return std::unexpected(source.error());
         }
 
-        impl.decoded_image_cache.emplace(resource.primary_src, BinaryImageCacheEntry{
+        impl.decoded_image_cache.emplace(image_cache_key(resource.primary_src), BinaryImageCacheEntry{
             .source = *source,
             .ref_count = 1,
         });
@@ -154,7 +154,7 @@ void release_image_resource(BackendImpl &impl, const RuntimeImageResource &resou
     }
 
     if (is_lvgl_bin_path(resource.primary_src)) {
-        auto cache_it = impl.binary_image_cache.find(resource.primary_src);
+        auto cache_it = impl.binary_image_cache.find(image_cache_key(resource.primary_src));
         if (cache_it == impl.binary_image_cache.end()) {
             return;
         }
@@ -172,7 +172,7 @@ void release_image_resource(BackendImpl &impl, const RuntimeImageResource &resou
     }
 
     if (is_png_path(resource.primary_src)) {
-        auto cache_it = impl.decoded_image_cache.find(resource.primary_src);
+        auto cache_it = impl.decoded_image_cache.find(image_cache_key(resource.primary_src));
         if (cache_it == impl.decoded_image_cache.end()) {
             return;
         }
@@ -190,7 +190,7 @@ void release_image_resource(BackendImpl &impl, const RuntimeImageResource &resou
     }
 
     if (is_jpeg_path(resource.primary_src)) {
-        auto cache_it = impl.decoded_image_cache.find(resource.primary_src);
+        auto cache_it = impl.decoded_image_cache.find(image_cache_key(resource.primary_src));
         if (cache_it == impl.decoded_image_cache.end()) {
             return;
         }
@@ -226,7 +226,7 @@ static void apply_image_source(BackendImpl &impl, Record &record, const Node &no
     image.native_src = next_image_native_src;
     if (image.native_src == 0) {
         if (is_lvgl_bin_path(next_image_src)) {
-            auto cache_it = impl.binary_image_cache.find(next_image_src);
+            auto cache_it = impl.binary_image_cache.find(image_cache_key(next_image_src));
             if (cache_it != impl.binary_image_cache.end()) {
                 image.binary_src = cache_it->second.source;
             } else if (source_changed || image.binary_src == nullptr) {
@@ -234,7 +234,7 @@ static void apply_image_source(BackendImpl &impl, Record &record, const Node &no
                 BROOKESIA_LOGW("LVGL image bin was not preloaded: path='%1%'", next_image_src);
             }
         } else {
-            auto cache_it = impl.decoded_image_cache.find(next_image_src);
+            auto cache_it = impl.decoded_image_cache.find(image_cache_key(next_image_src));
             if (cache_it != impl.decoded_image_cache.end()) {
                 image.binary_src = cache_it->second.source;
             } else {

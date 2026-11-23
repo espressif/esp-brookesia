@@ -1,5 +1,32 @@
 # ChangeLog
 
+## v0.8.9 - 2026-11-04
+
+### Enhancements:
+
+- perf(image): consult the document's asset bundle before reading an image file, which removes one
+  open per image when the bundle carries media.
+
+### Bug Fixes:
+
+- fix(deps): require GUI Interface `>=0.8.7,<0.9` and lib_utils `>=0.8.4,<0.9`, which are the first
+  versions that provide `asset_source.hpp` and `can_read_local_files()`.
+- fix(image): key the decoded-image cache by the current bundle-read scope, so a document that
+  is reading source files does not reuse another document's bundle bytes for the same path.
+- fix(keyboard): retain each key image while the document read scope is active. The draw callback
+  runs after that scope ends, and a path-only lookup would miss bytes preloaded through a bundle.
+
+## v0.8.8 - 2026-10-29
+
+### Enhancements:
+
+- perf(image): read image files directly instead of through the storage service when the caller can
+  touch the filesystem, cutting the image part of a screen build by 60-65% (keyboard_input
+  136 -> 51 ms, settings_home 60 -> 21 ms on esp32_p4x_function_ev).
+- perf(layout): skip the relative-placement scan when no record uses relative placement. Every
+  property/style/layout/placement apply ends in that scan, so resident screens used to turn a
+  constant-cost write into an O(records) one (-60% `flush_apply_ms` with keep-alive enabled).
+
 ## v0.8.7 - 2026-10-27
 
 ### Enhancements:

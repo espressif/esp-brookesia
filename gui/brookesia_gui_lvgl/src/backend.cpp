@@ -350,6 +350,13 @@ void BackendImpl::destroy_node(BackendHandle handle)
         auto record_it = records.find(handle_value);
         if (record_it != records.end()) {
             detach_keyboard_globals(record_it->second);
+            if (record_it->second.type == NodeType::Keyboard) {
+                // detach_keyboard_globals() has pointed every mode at a static empty map,
+                // so the borrowed label storage can go with the Record.
+                std::erase_if(keyboard_layout_backing_store, [handle_value](const KeyboardLayoutBacking & entry) {
+                    return entry.owner == handle_value;
+                });
+            }
         }
     }
 
@@ -687,6 +694,9 @@ bool BackendImpl::mount_screen(BackendHandle handle, const MountTarget &target)
     lv_obj_set_parent(record->object, layer_parent);
     lv_obj_remove_flag(record->object, LV_OBJ_FLAG_HIDDEN);
     lv_obj_move_foreground(record->object);
+    // lv_obj_update_layout() walks the parentless ancestor of its argument. After set_parent the
+    // screen and the layer share that ancestor, so passing the screen would not skip the other
+    // screens kept on the layer.
     lv_obj_update_layout(layer_parent);
 
     std::vector<BackendHandle::Value> refresh_handles;
@@ -1520,6 +1530,12 @@ Backend::~Backend()
     lock_thread();
     lib_utils::FunctionGuard unlock_guard(unlock_thread);
     impl_.reset();
+}
+
+uint32_t Backend::get_input_idle_ms() const
+{
+    ThreadLockGuard lock;
+    return lv_display_get_inactive_time(nullptr);
 }
 
 void Backend::set_event_sink(EventSink sink)

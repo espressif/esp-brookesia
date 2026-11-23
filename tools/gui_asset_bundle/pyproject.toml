@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "brookesia-gui-asset-bundle"
+version = "0.1.0"
+description = "Packer and verifier for the ESP-Brookesia GUI asset bundle format"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Espressif Systems (Shanghai) Co., Ltd." }]
+
+[project.scripts]
+brookesia-gui-asset-bundle = "brookesia_gui_asset_bundle.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

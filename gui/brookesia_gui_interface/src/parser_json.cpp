@@ -5,6 +5,7 @@
  */
 #include "private/parser_impl.hpp"
 #include "private/gui_json_storage.hpp"
+#include "brookesia/lib_utils/platform.hpp"
 
 #include <fstream>
 #include <iterator>
@@ -23,13 +24,7 @@ constexpr size_t kRootAssetReadBatchMaxFiles = 8;
 
 bool can_read_text_on_caller()
 {
-#if !defined(ESP_PLATFORM)
-    return true;
-#elif defined(CONFIG_SPIRAM_XIP_FROM_PSRAM) && CONFIG_SPIRAM_XIP_FROM_PSRAM
-    return true;
-#else
-    return false;
-#endif
+    return esp_brookesia::lib_utils::can_read_local_files();
 }
 
 std::expected<std::string, std::string> read_text_file_local(const std::filesystem::path &path)
@@ -39,13 +34,27 @@ std::expected<std::string, std::string> read_text_file_local(const std::filesyst
         return std::unexpected("Failed to open file: " + path.generic_string());
     }
 
+    // Read in chunks straight through the stream buffer, into the string itself. Two things
+    // dominated document load on littlefs before chunked reads: istreambuf_iterator<char> walks
+    // the stream one character at a time through sbumpc, and std::filesystem::file_size() costs
+    // ~10-15 ms per file. Chunked reads without the stat cut a 30-asset load from 659 to 324 ms
+    // on esp32_p4x_function_ev. The bytes land in the string so the caller does not also keep a
+    // large scratch array: this runs on the system worker, whose stack is 64 KiB.
+    constexpr size_t kReadChunk = 4096;
     std::string text;
-    std::error_code size_error;
-    const auto expected_size = std::filesystem::file_size(path, size_error);
-    if (!size_error) {
-        text.reserve(static_cast<size_t>(expected_size));
+    text.reserve(16384);
+    while (input) {
+        const size_t offset = text.size();
+        text.resize(offset + kReadChunk);
+        input.read(text.data() + offset, static_cast<std::streamsize>(kReadChunk));
+        const auto read_size = input.gcount();
+        if (read_size > 0) {
+            text.resize(offset + static_cast<size_t>(read_size));
+        } else {
+            text.resize(offset);
+            break;
+        }
     }
-    text.assign(std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>());
     if (input.bad()) {
         return std::unexpected("Failed to read file: " + path.generic_string());
     }
@@ -54,7 +63,29 @@ std::expected<std::string, std::string> read_text_file_local(const std::filesyst
 
 } // namespace
 
-std::expected<std::string, std::string> read_text_file(const std::filesystem::path &path)
+std::shared_ptr<AssetBundle> open_asset_bundle(const std::filesystem::path &root_dir)
+{
+#if BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE
+    if (!can_read_text_on_caller()) {
+        return nullptr;
+    }
+    auto opened = AssetBundle::open(root_dir / AssetBundle::kFileName);
+    if (!opened) {
+        BROOKESIA_LOGD("Asset bundle unavailable: %1%", opened.error());
+        return nullptr;
+    }
+    BROOKESIA_LOGD(
+        "Asset bundle opened: root(%1%), entries(%2%)", root_dir.generic_string(), (*opened)->entry_count()
+    );
+    return std::move(*opened);
+#else
+    (void)root_dir;
+    return nullptr;
+#endif
+}
+
+std::expected<std::string, std::string> read_text_file(
+    const std::filesystem::path &path, const AssetBundle *bundle)
 {
     BROOKESIA_LOG_TRACE_GUARD();
 
@@ -63,14 +94,22 @@ std::expected<std::string, std::string> read_text_file(const std::filesystem::pa
     const auto start = ParserProfileClock::now();
     std::expected<std::string, std::string> result = std::unexpected("Failed to read file");
     const char *via = "storage";
-    if (can_read_text_on_caller()) {
+    bool served_from_bundle = false;
+    if (bundle != nullptr) {
+        if (auto packed = bundle->read(path); packed.has_value()) {
+            via = "bundle";
+            result = std::move(*packed);
+            served_from_bundle = true;
+        }
+    }
+    if (!served_from_bundle && can_read_text_on_caller()) {
         via = "local";
         result = read_text_file_local(path);
         if (!result) {
             via = "storage";
             result = StorageHelper::fs_read_text(path.generic_string());
         }
-    } else {
+    } else if (!served_from_bundle) {
         result = StorageHelper::fs_read_text(path.generic_string());
     }
     const auto end = ParserProfileClock::now();
@@ -240,21 +279,73 @@ bool is_valid_color_literal(std::string_view color)
     return true;
 }
 
-boost::json::object::const_iterator find_key(const boost::json::object &object, std::string_view key)
+// Allocation-free equivalents of make_camel_case_key()/normalize_object_key(). Every field lookup
+// walks these fallbacks, and the previous implementation heap-allocated one string per query plus
+// one string per object key, which dominated screen parsing (a node object only has a handful of
+// keys but a node reads well over a hundred fields).
+static bool key_equals_camel_case(std::string_view object_key, std::string_view query)
+{
+    bool uppercase_next = false;
+    size_t index = 0;
+    for (const char ch : query) {
+        if (ch == '_') {
+            uppercase_next = true;
+            continue;
+        }
+        const char expected = uppercase_next ?
+                              static_cast<char>(std::toupper(static_cast<unsigned char>(ch))) : ch;
+        uppercase_next = false;
+        if (index >= object_key.size() || object_key[index] != expected) {
+            return false;
+        }
+        ++index;
+    }
+    return index == object_key.size();
+}
+
+static bool key_equals_normalized(std::string_view object_key, std::string_view query)
+{
+    size_t index = 0;
+    for (const char ch : object_key) {
+        if (std::isupper(static_cast<unsigned char>(ch)) != 0) {
+            if (index != 0) {
+                if (index >= query.size() || query[index] != '_') {
+                    return false;
+                }
+                ++index;
+            }
+            if (index >= query.size() ||
+                    query[index] != static_cast<char>(std::tolower(static_cast<unsigned char>(ch)))) {
+                return false;
+            }
+            ++index;
+        } else {
+            if (index >= query.size() || query[index] != ch) {
+                return false;
+            }
+            ++index;
+        }
+    }
+    return index == query.size();
+}
+
+template <typename Object>
+static auto find_key_in_object(Object &object, std::string_view key) -> decltype(object.begin())
 {
     auto it = object.find(key);
     if (it != object.end()) {
         return it;
     }
-    if (auto camel_key = make_camel_case_key(key); camel_key.has_value()) {
-        it = object.find(*camel_key);
-        if (it != object.end()) {
-            return it;
+    // camelCase spelling, only when the query contains an underscore, mirroring make_camel_case_key().
+    if (key.find('_') != std::string_view::npos) {
+        for (auto current = object.begin(); current != object.end(); ++current) {
+            if (key_equals_camel_case(current->key(), key)) {
+                return current;
+            }
         }
     }
-
     for (auto current = object.begin(); current != object.end(); ++current) {
-        if (normalize_object_key(current->key()) == key) {
+        if (key_equals_normalized(current->key(), key)) {
             return current;
         }
     }
@@ -262,26 +353,14 @@ boost::json::object::const_iterator find_key(const boost::json::object &object, 
     return object.end();
 }
 
+boost::json::object::const_iterator find_key(const boost::json::object &object, std::string_view key)
+{
+    return find_key_in_object(object, key);
+}
+
 boost::json::object::iterator find_key(boost::json::object &object, std::string_view key)
 {
-    auto it = object.find(key);
-    if (it != object.end()) {
-        return it;
-    }
-    if (auto camel_key = make_camel_case_key(key); camel_key.has_value()) {
-        it = object.find(*camel_key);
-        if (it != object.end()) {
-            return it;
-        }
-    }
-
-    for (auto current = object.begin(); current != object.end(); ++current) {
-        if (normalize_object_key(current->key()) == key) {
-            return current;
-        }
-    }
-
-    return object.end();
+    return find_key_in_object(object, key);
 }
 
 const boost::json::value *find_child_value(const boost::json::object &object, std::string_view key)
@@ -300,7 +379,8 @@ std::expected<void, std::string> append_root_asset_entries(
     boost::unordered_flat_set<std::string> &loaded_paths,
     std::vector<std::string> *dependency_files,
     std::vector<RootAssetEntry> &ordered_entries,
-    std::string_view inline_entry_label)
+    std::string_view inline_entry_label,
+    const AssetBundle *bundle)
 {
     const auto *value = find_child_value(object, key);
     if (value == nullptr) {
@@ -351,7 +431,7 @@ std::expected<void, std::string> append_root_asset_entries(
     // On Storage-worker paths (no caller-local FS), prefetch file assets in
     // file-count batches. Size/stat stays off the caller. On PC / PSRAM XIP,
     // keep one-file-at-a-time. Inline entries keep their original relative order.
-    const bool use_storage_batches = !can_read_text_on_caller();
+    const bool use_storage_batches = !can_read_text_on_caller() && bundle == nullptr;
     size_t pending_index = 0;
     while (pending_index < pending_entries.size()) {
         auto &pending_entry = pending_entries[pending_index];
@@ -366,7 +446,7 @@ std::expected<void, std::string> append_root_asset_entries(
         }
 
         if (!use_storage_batches) {
-            auto one = read_text_file(pending_entry.path);
+            auto one = read_text_file(pending_entry.path, bundle);
             if (!one) {
                 return std::unexpected(one.error());
             }
@@ -374,6 +454,23 @@ std::expected<void, std::string> append_root_asset_entries(
             auto asset_value = parse_json_text(pending_entry.path, text);
             text.clear();
             text.shrink_to_fit();
+            // Fall back to the source file when the bundle payload is missing, unparsable,
+            // or does not contain a JSON object. A corrupted bundle may have valid syntax
+            // but wrong content (e.g. null), while the source file is still correct.
+            if ((!asset_value || !asset_value->is_object()) && bundle != nullptr) {
+                BROOKESIA_LOGW(
+                    "Asset bundle parse failed for '%1%', retrying from source: %2%",
+                    pending_entry.path.generic_string(),
+                    asset_value ? "not a JSON object" : asset_value.error()
+                );
+                auto fallback = read_text_file(pending_entry.path, nullptr);
+                if (fallback) {
+                    auto fallback_value = parse_json_text(pending_entry.path, *fallback);
+                    if (fallback_value && fallback_value->is_object()) {
+                        asset_value = std::move(fallback_value);
+                    }
+                }
+            }
             if (!asset_value) {
                 return std::unexpected(asset_value.error());
             }

@@ -88,6 +88,7 @@ menu "ESP-Brookesia: GUI LVGL Configurations"
             default n
             help
                 Whether the LVGL display source requires double buffering by default.
+
     endmenu
 
     menuconfig BROOKESIA_GUI_LVGL_ENABLE_DEBUG_LOG

@@ -101,6 +101,14 @@ public:
         std::string_view key,
         std::string value
     );
+    // Scoped keys are rebuilt for each write and each notification. A batch write can build the
+    // key once and reuse it for both, which removes two string constructions per update.
+    static std::string make_scoped_key(
+        DocumentId document_id,
+        std::string_view absolute_path,
+        std::string_view key
+    );
+    void notify_string_if_value_keyed(const std::string &scoped_key, std::string_view expected_value);
     void notify_string_if_value(std::string_view key, std::string_view expected_value);
     void notify_string_if_value(
         DocumentId document_id,

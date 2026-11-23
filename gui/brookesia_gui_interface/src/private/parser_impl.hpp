@@ -41,6 +41,8 @@
 #include "boost/unordered/unordered_flat_set.hpp"
 #include "brookesia/service_helper/system/storage.hpp"
 
+#include "private/asset_bundle.hpp"
+
 #if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
 #   define GUI_INTERFACE_PROFILE_LOGI(...) BROOKESIA_LOGI(__VA_ARGS__)
 #else
@@ -60,6 +62,28 @@ static int64_t parser_profile_elapsed_ms(
 {
     return std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 }
+
+// Per-node attribution for the DOM -> SparseNode walk. Populated only when the caller
+// passes a non-null pointer, so production builds pay nothing for it.
+struct ParserNodeTiming {
+    uint64_t template_us = 0;   // interactionRefs lookup + interaction template merge
+    uint64_t style_us = 0;      // style / stateStyles parse
+    uint64_t self_props_us = 0; // everything except the child recursion
+    uint64_t children_us = 0;   // time inside the child recursion (includes subtrees)
+    uint32_t nodes = 0;
+
+    void reset()
+    {
+        *this = ParserNodeTiming{};
+    }
+
+    static uint64_t elapsed_us(
+        const ParserProfileClock::time_point &start,
+        const ParserProfileClock::time_point &end)
+    {
+        return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
+    }
+};
 
 using VariantValue = std::variant<double, std::string, bool>;
 
@@ -561,7 +585,12 @@ private:
     Token current_;
 };
 
-std::expected<std::string, std::string> read_text_file(const std::filesystem::path &path)
+std::expected<std::string, std::string> read_text_file(
+    const std::filesystem::path &path, const parser_detail::AssetBundle *bundle = nullptr)
+;
+// Opens <root_dir>/assets.bundle when the build enables bundles and the caller can read a local
+// filesystem. Returns nullptr otherwise so every caller keeps the per-file path.
+std::shared_ptr<parser_detail::AssetBundle> open_asset_bundle(const std::filesystem::path &root_dir)
 ;
 std::expected<std::vector<std::string>, std::string> read_text_files(const std::vector<std::filesystem::path> &paths)
 ;
@@ -600,7 +629,8 @@ std::expected<void, std::string> append_root_asset_entries(
     boost::unordered_flat_set<std::string> &loaded_paths,
     std::vector<std::string> *dependency_files,
     std::vector<RootAssetEntry> &ordered_entries,
-    std::string_view inline_entry_label)
+    std::string_view inline_entry_label,
+    const parser_detail::AssetBundle *bundle = nullptr)
 ;
 
 std::expected<std::vector<std::string>, std::string> parse_string_array(
@@ -1340,7 +1370,7 @@ std::expected<std::vector<std::string>, std::string> parse_resource_reference_ar
 ;
 
 std::expected<std::string, std::string> parse_string_field(
-    const boost::json::object &object, std::string_view key, std::string default_value
+    const boost::json::object &object, std::string_view key, std::string_view default_value
 );
 std::expected<int32_t, std::string> parse_scaled_value(
     const boost::json::value *value, std::string_view field_name, std::string_view unit, float scale
@@ -1427,7 +1457,7 @@ std::expected<T, std::string> parse_enum_field(
 }
 
 std::expected<std::string, std::string> parse_string_field(
-    const boost::json::object &object, std::string_view key, std::string default_value = {})
+    const boost::json::object &object, std::string_view key, std::string_view default_value = {})
 ;
 
 std::expected<bool, std::string> parse_bool_field(
@@ -1529,7 +1559,9 @@ std::expected<SparseNode, std::string> parse_view_node(
     const TemplateRawMap &templates,
     const InteractionTemplateRawMap &interactions,
     std::vector<std::string> &template_stack,
-    std::optional<NodeType> forced_type = std::nullopt);
+    std::optional<NodeType> forced_type = std::nullopt,
+    ParserNodeTiming *timing = nullptr,
+    const std::string *id_override = nullptr);
 std::expected<FontAsset, std::string> parse_font_asset(
     const boost::json::object &object, const std::filesystem::path &asset_dir);
 
@@ -1562,7 +1594,8 @@ std::expected<SparseNode, std::string> parse_template_ref(
     const Environment &environment,
     const TemplateRawMap &templates,
     const InteractionTemplateRawMap &interactions,
-    std::vector<std::string> &template_stack)
+    std::vector<std::string> &template_stack,
+    ParserNodeTiming *timing = nullptr)
 ;
 
 std::expected<std::vector<SparseNode>, std::string> parse_children(
@@ -1570,7 +1603,8 @@ std::expected<std::vector<SparseNode>, std::string> parse_children(
     const Environment &environment,
     const TemplateRawMap &templates,
     const InteractionTemplateRawMap &interactions,
-    std::vector<std::string> &template_stack)
+    std::vector<std::string> &template_stack,
+    ParserNodeTiming *timing = nullptr)
 ;
 
 std::expected<NodeType, std::string> parse_node_type(std::string_view type)
@@ -1617,7 +1651,9 @@ std::expected<SparseNode, std::string> parse_view_node(
     const TemplateRawMap &templates,
     const InteractionTemplateRawMap &interactions,
     std::vector<std::string> &template_stack,
-    std::optional<NodeType> forced_type)
+    std::optional<NodeType> forced_type,
+    ParserNodeTiming *timing,
+    const std::string *id_override)
 ;
 
 std::expected<uint32_t, std::string> parse_image_font_codepoint(std::string_view text)

@@ -47,11 +47,24 @@ std::expected<DocumentId, std::string> Runtime::load_json(
     const DocumentLoadOptions &options)
 {
     const auto parse_environment = impl_->make_parse_environment(environment);
-    auto document = parse_sparse_document(json, base_dir, parse_environment);
+    std::string asset_bundle_root;
+    std::uint64_t asset_bundle_hold = 0;
+    auto document = parse_sparse_document(
+                        json, base_dir, parse_environment, &asset_bundle_root, &asset_bundle_hold
+                    );
     if (!document) {
         return std::unexpected(document.error());
     }
-    return impl_->load(root_path, std::move(*document), environment, false, {}, options);
+    return impl_->load(
+               root_path,
+               std::move(*document),
+               environment,
+               false,
+               {},
+               options,
+               std::move(asset_bundle_root),
+               asset_bundle_hold
+           );
 }
 
 std::expected<DocumentId, std::string> Runtime::load_file(std::string_view path, const Environment &environment)
@@ -102,7 +115,9 @@ std::expected<DocumentId, std::string> Runtime::load_file(
                       environment,
                       true,
                       std::move(parsed_document->dependency_files),
-                      options
+                      options,
+                      std::move(parsed_document->asset_bundle_root),
+                      parsed_document->asset_bundle_hold
                   );
     stage_end = RuntimeProfileClock::now();
     if (!result) {

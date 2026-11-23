@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "private/runtime_impl.hpp"
+#include "private/asset_bundle.hpp"
 
 namespace esp_brookesia::gui {
 
@@ -77,6 +78,11 @@ Runtime::Impl::Impl(std::unique_ptr<IBackend> backend_in, RuntimeTaskConfig task
     , store(std::make_shared<MemoryDataStore>())
     , task_config(std::move(task_config_in))
 {
+#if BROOKESIA_GUI_INTERFACE_STYLE_POOL_SLOTS > 0
+    resolved_style_pool_ = std::make_shared<SparseResolvedStylePool>(
+                               static_cast<size_t>(BROOKESIA_GUI_INTERFACE_STYLE_POOL_SLOTS)
+                           );
+#endif
     if (backend != nullptr) {
         auto sink = [this](const BackendEvent & event) {
             if (try_dispatch_fast_action_event(event)) {
@@ -163,9 +169,12 @@ std::expected<DocumentId, std::string> Runtime::Impl::load(
     const Environment &environment,
     bool file_backed,
     std::vector<std::string> dependency_files,
-    DocumentLoadOptions options)
+    DocumentLoadOptions options,
+    std::string asset_bundle_root,
+    std::uint64_t asset_bundle_hold)
 {
     if (backend == nullptr) {
+        discard_asset_bundle_hold(asset_bundle_root, asset_bundle_hold);
         return std::unexpected("GUI backend is null");
     }
 
@@ -181,10 +190,18 @@ std::expected<DocumentId, std::string> Runtime::Impl::load(
         runtime_profile_elapsed_ms(total_start, stage_end)
     );
     if (!validation.success) {
+        discard_asset_bundle_hold(asset_bundle_root, asset_bundle_hold);
         return std::unexpected(validation.errors.empty() ? "Invalid GUI document" : validation.errors.front());
     }
 
     const DocumentId document_id(next_document_id_++);
+    auto fail_before_store = [&](const std::string & message) {
+        if (resolve_tree(document_id) == nullptr) {
+            discard_asset_bundle_hold(asset_bundle_root, asset_bundle_hold);
+        }
+        unload(document_id);
+        return std::unexpected(message);
+    };
 
     try {
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
@@ -293,8 +310,20 @@ std::expected<DocumentId, std::string> Runtime::Impl::load(
         trees.emplace(document_id.value(), std::move(tree));
         auto *stored_tree = resolve_tree(document_id);
         if (stored_tree == nullptr) {
-            return std::unexpected("Failed to store GUI tree");
+            return fail_before_store("Failed to store GUI tree");
         }
+        // The parser already took the hold. Move it onto the tree before any later unload.
+        stored_tree->asset_bundle_root = std::move(asset_bundle_root);
+        stored_tree->asset_bundle_hold = asset_bundle_hold;
+        asset_bundle_hold = 0;
+#if BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE
+        // When the bundle was unavailable (hold == 0) but the parser still resolved a
+        // resource root, set up a bypass so this document's image reads do not fall
+        // through to another document's bundle registered for the same root.
+        if (stored_tree->asset_bundle_hold == 0 && !stored_tree->asset_bundle_root.empty()) {
+            stored_tree->bundle_bypass_root = std::move(stored_tree->asset_bundle_root);
+        }
+#endif
         stage_start = RuntimeProfileClock::now();
         auto resource_validation = validate_resource_references(*stored_tree);
         stage_end = RuntimeProfileClock::now();
@@ -339,12 +368,38 @@ std::expected<DocumentId, std::string> Runtime::Impl::load(
         size_t eager_screen_count = 0;
         size_t deferred_screen_count = 0;
         size_t dynamic_screen_count = 0;
+#if BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS
+        size_t prewarmed_dynamic_count = 0;
+#endif
         stored_tree->pending_warm_screens.clear();
         stored_tree->idle_warm_scheduled = false;
         for (const auto &[unused_id, screen] : stored_tree->screens) {
             (void)unused_id;
             if (screen.mount_mode == MountMode::Dynamic) {
                 ++dynamic_screen_count;
+#if BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS
+                // A Dynamic screen is normally built on its first mount. Queue it for the idle pass
+                // so that build happens off the interaction path; the budget caps the extra
+                // resident memory this adds.
+                const int prewarm_budget = BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_MAX;
+                const bool within_budget =
+                    prewarm_budget <= 0 ||
+                    prewarmed_dynamic_count < static_cast<size_t>(prewarm_budget);
+                if (options.schedule_idle_warm && within_budget) {
+                    stored_tree->pending_warm_screens.push_back(screen.id);
+                    stored_tree->warm_not_before =
+                        std::chrono::steady_clock::now() +
+                        std::chrono::milliseconds(BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_DELAY_MS);
+                    ++prewarmed_dynamic_count;
+#if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
+                    BROOKESIA_LOGI(
+                        "[HeapTrace][gui.eager_mount] screen(%1%) mode(dynamic) action(prewarm)",
+                        screen.id
+                    );
+#endif
+                    continue;
+                }
+#endif
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
                 BROOKESIA_LOGI(
                     "[HeapTrace][gui.eager_mount] screen(%1%) mode(dynamic) action(skipped)", screen.id);
@@ -424,16 +479,13 @@ std::expected<DocumentId, std::string> Runtime::Impl::load(
         );
         return document_id;
     } catch (const std::bad_alloc &) {
-        unload(document_id);
-        return std::unexpected("Out of memory while loading GUI document: " + file_path);
+        return fail_before_store("Out of memory while loading GUI document: " + file_path);
     } catch (const std::exception &e) {
-        unload(document_id);
-        return std::unexpected(
+        return fail_before_store(
                    "Exception while loading GUI document: " + file_path + ", error=" + std::string(e.what())
                );
     } catch (...) {
-        unload(document_id);
-        return std::unexpected("Unknown exception while loading GUI document: " + file_path);
+        return fail_before_store("Unknown exception while loading GUI document: " + file_path);
     }
 }
 std::vector<RuntimeImageResource> Runtime::Impl::collect_image_resources(const TreeRecord &tree) const
@@ -554,6 +606,8 @@ std::expected<void, std::string> Runtime::Impl::preload_image_resource_for_tree(
         return {};
     }
 
+    const auto bundle_reads = asset_bundle_read_scope(tree);
+    (void)bundle_reads;
     auto result = backend->preload_image_resource(resource);
     if (!result) {
         return result;
@@ -676,6 +730,8 @@ void Runtime::Impl::release_image_resource_from_tree(
     if (it->automatic_ref_count > 0 || it->manual_ref_count > 0) {
         return;
     }
+    const auto bundle_reads = asset_bundle_read_scope(tree);
+    (void)bundle_reads;
     backend->release_image_resource(it->resource);
     tree.preloaded_images.erase(it);
 }
@@ -742,6 +798,10 @@ std::expected<void, std::string> Runtime::Impl::update_image_source(
 void Runtime::Impl::release_tree_image_resources(TreeRecord &tree)
 {
     if (backend != nullptr) {
+        // Preload stored each image under the document's bundle-read token. Release must
+        // use the same token so the cache lookup finds the entry instead of leaking it.
+        const auto bundle_reads = asset_bundle_read_scope(tree);
+        (void)bundle_reads;
         for (const auto &record : tree.preloaded_images) {
             backend->release_image_resource(record.resource);
         }
@@ -876,6 +936,85 @@ bool Runtime::Impl::disable_live_preview(DocumentId document_id)
     tree->live_preview_enabled = false;
     return true;
 }
+void Runtime::Impl::adopt_asset_bundle_hold(
+    TreeRecord &tree, std::string parsed_root, std::uint64_t parsed_hold
+)
+{
+#if BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE
+    if (parsed_hold != 0) {
+        if (tree.asset_bundle_hold != 0 && tree.asset_bundle_hold != parsed_hold) {
+            parser_detail::unregister_asset_bundle(tree.asset_bundle_root, tree.asset_bundle_hold);
+        }
+        tree.asset_bundle_root = std::move(parsed_root);
+        tree.asset_bundle_hold = parsed_hold;
+        tree.bundle_bypass_root.clear();
+    } else if (tree.asset_bundle_hold != 0) {
+        const std::string bypass_root = tree.asset_bundle_root;
+        parser_detail::unregister_asset_bundle(tree.asset_bundle_root, tree.asset_bundle_hold);
+        tree.asset_bundle_root.clear();
+        tree.asset_bundle_hold = 0;
+        tree.bundle_bypass_root = bypass_root;
+    } else if (!parsed_root.empty()) {
+        // The document loaded without a bundle (hold == 0) but the parser resolved a
+        // resource root. Set up a bypass so this document's reads skip any bundle that
+        // another document still holds for the same root and fall back to source files.
+        tree.bundle_bypass_root = std::move(parsed_root);
+    }
+    // update() releases images before this call, so that release still uses the previous
+    // epoch. Bumping here makes the following preload miss bytes kept for another document
+    // or for the revision just released. A document that is already bypassing still bumps:
+    // dropping the hold only happens on the first source-file parse.
+    if (parsed_hold == 0 && !tree.bundle_bypass_root.empty()) {
+        ++tree.bundle_source_epoch;
+    }
+#else
+    (void)tree;
+    (void)parsed_root;
+    (void)parsed_hold;
+#endif
+}
+void Runtime::Impl::discard_asset_bundle_hold(const std::string &root, std::uint64_t hold_id)
+{
+#if BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE
+    if (hold_id != 0) {
+        parser_detail::unregister_asset_bundle(root, hold_id);
+    }
+#else
+    (void)root;
+    (void)hold_id;
+#endif
+}
+void Runtime::Impl::release_tree_asset_bundle(TreeRecord &tree)
+{
+#if BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE
+    if (tree.asset_bundle_hold != 0) {
+        parser_detail::unregister_asset_bundle(tree.asset_bundle_root, tree.asset_bundle_hold);
+    }
+    tree.asset_bundle_root.clear();
+    tree.asset_bundle_hold = 0;
+    tree.bundle_bypass_root.clear();
+#else
+    (void)tree;
+#endif
+}
+AssetBundleReadScope Runtime::Impl::asset_bundle_read_scope(const TreeRecord &tree) const
+{
+#if BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE
+    if (tree.asset_bundle_hold != 0) {
+        return AssetBundleReadScope::hold(tree.asset_bundle_root, tree.asset_bundle_hold);
+    }
+    if (!tree.bundle_bypass_root.empty()) {
+        const std::string cache_identity =
+            std::to_string(tree.document_id.value()) + ":" +
+            std::to_string(tree.bundle_source_epoch) + ":" +
+            tree.bundle_bypass_root;
+        return AssetBundleReadScope::bypass(tree.bundle_bypass_root, cache_identity);
+    }
+#else
+    (void)tree;
+#endif
+    return {};
+}
 bool Runtime::Impl::unload(DocumentId document_id)
 {
     auto tree_it = trees.find(document_id.value());
@@ -904,7 +1043,9 @@ bool Runtime::Impl::unload(DocumentId document_id)
     stop_idle_screen_warm(tree_it->second);
     unload_partial_tree(tree_it->second);
     release_tree_image_resources(tree_it->second);
+    release_tree_asset_bundle(tree_it->second);
     trees.erase(tree_it);
+    resident_unmounted_screens.erase(document_id.value());
 
     std::vector<std::string> mounted_targets_to_erase;
     for (const auto &[target_key, mounted_ref] : mounted_screens_) {
@@ -1012,7 +1153,11 @@ void Runtime::Impl::poll_live_preview(Runtime *runtime)
         }
 
         const auto parse_environment = make_parse_environment(tree.environment);
-        auto parsed_document = parse_sparse_document_file_with_metadata(tree.file_path, parse_environment);
+        // Skip the packed bundle. update() drops this document's hold only after the reload is
+        // accepted, so a rejected reload keeps the running UI on the bundle it already has.
+        // Another document that still holds the same root keeps the file open.
+        auto parsed_document = parse_sparse_document_file_with_metadata(
+                                   tree.file_path, parse_environment, false);
         if (!parsed_document) {
             BROOKESIA_LOGW(
                 "Live preview parse failed: document_id=%1%, root='%2%', error=%3%",

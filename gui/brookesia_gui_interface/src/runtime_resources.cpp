@@ -405,6 +405,8 @@ void Runtime::Impl::refresh_image_references(TreeRecord &tree, std::string_view 
             if (apply_node.resolved_image.primary_src.empty() && apply_node.resolved_image.native_src == 0) {
                 apply_node.image_props.src.clear();
             }
+            const auto bundle_reads = asset_bundle_read_scope(tree);
+            (void)bundle_reads;
             apply_backend_props(*backend, record.handle, apply_node, PropsApplyMask::ImageSource);
             backend->apply_placement(record.handle, record.placement(), PlacementApplyMask::Size);
             continue;
@@ -429,6 +431,8 @@ void Runtime::Impl::refresh_image_references(TreeRecord &tree, std::string_view 
             continue;
         }
         if (record.node().type == NodeType::Keyboard) {
+            const auto bundle_reads = asset_bundle_read_scope(tree);
+            (void)bundle_reads;
             apply_record_props(record, PropsApplyMask::KeyboardConfig);
         }
     }

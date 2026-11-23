@@ -10,6 +10,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include "brookesia/gui_interface/asset_source.hpp"
 #include "brookesia/gui_interface/runtime.hpp"
 #include "brookesia/gui_interface/data_store.hpp"
 #include "brookesia/gui_interface/parser.hpp"
@@ -19,6 +20,7 @@
 #include "private/sparse_backend.hpp"
 #include "private/sparse_parser.hpp"
 #include "private/sparse_validator.hpp"
+#include "private/style_pool.hpp"
 #include "brookesia/gui_interface/macro_configs.h"
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
 #include "brookesia/lib_utils/memory_profiler.hpp"
@@ -1401,6 +1403,18 @@ public:
         DocumentId document_id;
         std::string file_path;
         bool file_backed = false;
+        // Resource root whose assets.bundle this document currently holds open, plus the hold id
+        // returned by register_asset_bundle(). Empty / 0 when it holds none. unload() drops that
+        // hold only; another document's hold of the same root stays open.
+        std::string asset_bundle_root;
+        std::uint64_t asset_bundle_hold = 0;
+        // Set when live preview drops this document's hold. Image reads then skip the bundle for
+        // this root even if another document still has it registered.
+        std::string bundle_bypass_root;
+        // Advances once per accepted source-file parse while bypassing. The image-cache token
+        // includes it, so a later preview does not reuse bytes decoded for another document or
+        // for an older revision of this one. Release of the previous revision happens first.
+        std::uint64_t bundle_source_epoch = 0;
         EnvironmentDependencies environment_dependencies;
         bool theme_sensitive = false;
         boost::json::value constants;
@@ -1432,6 +1446,9 @@ public:
         boost::unordered_flat_map<std::string, uint64_t> screen_roots;
         // Eager screens not built during load; warmed on idle or first mount.
         std::vector<std::string> pending_warm_screens;
+        // Earliest time the idle warm pass may start. Set when prewarm queues Dynamic screens so
+        // their builds do not race the foreground mount path for the LVGL lock.
+        std::chrono::steady_clock::time_point warm_not_before{};
         DocumentLoadOptions load_options;
         bool idle_warm_scheduled = false;
         lib_utils::TaskScheduler::TaskId idle_warm_task_id = 0;
@@ -1516,7 +1533,9 @@ public:
         const Environment &environment,
         bool file_backed = false,
         std::vector<std::string> dependency_files = {},
-        DocumentLoadOptions options = {})
+        DocumentLoadOptions options = {},
+        std::string asset_bundle_root = {},
+        std::uint64_t asset_bundle_hold = 0)
     ;
 
     std::vector<RuntimeImageResource> collect_image_resources(const TreeRecord &tree) const
@@ -1610,6 +1629,22 @@ public:
     ;
 
     bool unload(DocumentId document_id)
+    ;
+
+    // Accounts for a parse that already took one registry hold. A zero hold means this parse
+    // took none, so an existing hold on the document is released and later image reads bypass
+    // any bundle still registered for that root.
+    void adopt_asset_bundle_hold(TreeRecord &tree, std::string parsed_root, std::uint64_t parsed_hold)
+    ;
+
+    // Drops a hold that no loaded document kept, such as a parse whose load failed first.
+    void discard_asset_bundle_hold(const std::string &root, std::uint64_t hold_id)
+    ;
+
+    void release_tree_asset_bundle(TreeRecord &tree)
+    ;
+
+    AssetBundleReadScope asset_bundle_read_scope(const TreeRecord &tree) const
     ;
 
     void set_view_debug_enabled(bool enabled)
@@ -2005,6 +2040,13 @@ public:
     std::mutex fast_action_mutex_;
     boost::unordered_flat_map<std::string, Event> fast_action_events_;
     boost::unordered_flat_map<DocumentId::Value, TreeRecord> trees;
+    // Unmounted Dynamic screens kept resident by BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS,
+    // in least-recently-unmounted order. Kept outside TreeRecord so the tree stays trivially
+    // movable for the flat map that stores it.
+    boost::unordered_flat_map<DocumentId::Value, std::deque<std::string>> resident_unmounted_screens;
+    // A3: null when BROOKESIA_GUI_INTERFACE_STYLE_POOL_SLOTS is 0. Interior styles hold a
+    // shared_ptr to it through their deleter, so the slab outlives every interned style.
+    std::shared_ptr<SparseResolvedStylePool> resolved_style_pool_;
     std::unordered_map<std::string, MountedScreenRef> mounted_screens_;
     std::unordered_map<TransientMountId::Value, TransientScreenRef> transient_screens_;
     /** Space out warm builds so GUI refresh is not starved (was 16ms). */
@@ -2116,6 +2158,15 @@ private:
     ;
 
     bool unmount_mounted_screen(TreeRecord &tree, std::string_view absolute_path)
+    ;
+
+    void remember_resident_screen(DocumentId document_id, const std::string &screen_id)
+    ;
+
+    void enforce_resident_screen_budget(TreeRecord &tree)
+    ;
+
+    bool is_screen_mounted(DocumentId document_id, std::string_view screen_id) const
     ;
 
     void destroy_subtree(TreeRecord &tree, NodeUid uid)
