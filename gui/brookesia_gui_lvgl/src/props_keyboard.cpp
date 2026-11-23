@@ -582,7 +582,7 @@ void apply_keyboard_layouts(BackendImpl &impl, Record &record, const KeyboardPro
         }
         storage.map.push_back("");
 
-        lv_keyboard_set_map(
+        publish_keyboard_map(
             record.object,
             to_keyboard_mode(mode),
             storage.map.data(),
@@ -602,20 +602,12 @@ void apply_keyboard_layouts(BackendImpl &impl, Record &record, const KeyboardPro
             .storage = std::move(storage_owner),
         });
     }
-    std::erase_if(
-        impl.keyboard_layout_backing_store,
-    [&fresh_backing](const BackendImpl::KeyboardLayoutBacking & entry) {
-        for (const auto &fresh : fresh_backing) {
-            if (entry.owner == fresh.owner && entry.layout_index == fresh.layout_index) {
-                return true;
-            }
-        }
-        return false;
-    }
-    );
     for (auto &fresh : fresh_backing) {
         impl.keyboard_layout_backing_store.push_back(std::move(fresh));
     }
+    // The new arrays are the published globals. Drop the previous owner's arrays only
+    // when no surviving keyboard still displays them.
+    release_unreferenced_keyboard_layouts(impl);
 
     if (!keyboard.event_registered) {
         keyboard.value_event_context = std::make_unique<EventContext>(EventContext{
@@ -698,3 +690,33 @@ lv_image_align_t to_image_inner_align(std::string_view align)
     return LV_IMAGE_ALIGN_DEFAULT;
 }
 }
+
+namespace esp_brookesia::gui::lvgl {
+
+void detach_keyboard_callbacks(Record &record)
+{
+    auto *keyboard = record.get_type_payload<Record::KeyboardPayload>();
+    if (keyboard == nullptr || record.object == nullptr || !lv_obj_is_valid(record.object)) {
+        return;
+    }
+
+    if (keyboard->event_registered && keyboard->value_event_context != nullptr) {
+        lv_obj_remove_event_cb_with_user_data(
+            record.object,
+            &props_detail::keyboard_value_changed_event_cb,
+            keyboard->value_event_context.get()
+        );
+        keyboard->event_registered = false;
+    }
+    if (keyboard->draw_event_registered && keyboard->draw_event_context != nullptr) {
+        lv_obj_remove_event_cb_with_user_data(
+            record.object,
+            &props_detail::keyboard_draw_event_cb,
+            keyboard->draw_event_context.get()
+        );
+        keyboard->draw_event_registered = false;
+        lv_obj_remove_flag(record.object, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+    }
+}
+
+} // namespace esp_brookesia::gui::lvgl

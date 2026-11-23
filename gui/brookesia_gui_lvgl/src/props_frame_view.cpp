@@ -4,6 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "private/props_impl.hpp"
+// lv_image_cache_drop() lives in an instance header that lvgl.h does not aggregate.
+#if __has_include("lvgl/src/misc/cache/instance/lv_image_cache.h")
+#   include "lvgl/src/misc/cache/instance/lv_image_cache.h"
+#elif __has_include("src/misc/cache/instance/lv_image_cache.h")
+#   include "src/misc/cache/instance/lv_image_cache.h"
+#endif
 
 namespace esp_brookesia::gui::lvgl::props_detail {
 
@@ -158,6 +164,9 @@ bool copy_frame_view_buffer_to_shadow(
 void clear_frame_view_image(Record &record, Record::FrameViewPayload &frame_view)
 {
     frame_view.frame_connection.disconnect();
+    // The variable-image cache is keyed by this descriptor address. Drop it before the
+    // descriptor is cleared, or a later allocation at the same address can reuse a stale decode.
+    lv_image_cache_drop(&frame_view.descriptor);
     frame_view.ready = false;
     frame_view.width = 0;
     frame_view.height = 0;

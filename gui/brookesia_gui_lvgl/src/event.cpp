@@ -238,4 +238,9 @@ void bind_events(BackendImpl &impl, Record &record, const std::vector<EventBindi
     }
 }
 
+void release_events(Record &record)
+{
+    unbind_events(record);
+}
+
 } // namespace esp_brookesia::gui::lvgl

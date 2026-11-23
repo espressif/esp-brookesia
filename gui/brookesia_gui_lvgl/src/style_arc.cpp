@@ -148,3 +148,25 @@ void apply_arc_gradient(BackendImpl &impl, Record &record, const ResolvedStyle &
     lv_obj_add_flag(record.object, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
 }
 }
+
+namespace esp_brookesia::gui::lvgl {
+
+void detach_arc_gradient_callback(Record &record)
+{
+    auto *style_extras = record.style_extras_payload.get();
+    if (style_extras == nullptr || !style_extras->arc_gradient_event_registered ||
+            style_extras->arc_gradient_context == nullptr || record.object == nullptr ||
+            !lv_obj_is_valid(record.object)) {
+        return;
+    }
+
+    lv_obj_remove_event_cb_with_user_data(
+        record.object,
+        &style_detail::on_arc_gradient_draw_task_added,
+        style_extras->arc_gradient_context.get()
+    );
+    style_extras->arc_gradient_event_registered = false;
+    lv_obj_remove_flag(record.object, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+}
+
+} // namespace esp_brookesia::gui::lvgl

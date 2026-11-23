@@ -267,6 +267,19 @@ static void apply_image_source(BackendImpl &impl, Record &record, const Node &no
         image.height
     );
     lv_image_set_src(record.object, image_src);
+    if (record.lifetime != nullptr && record.lifetime->retain_image) {
+        auto &held = record.lifetime->image;
+        const bool show_binary = image.binary_src != nullptr && image_src == &image.binary_src->descriptor;
+        if (show_binary) {
+            if (held != nullptr && held.get() != image.binary_src.get()) {
+                lv_image_cache_drop(&held->descriptor);
+            }
+            held = image.binary_src;
+        } else if (held != nullptr) {
+            lv_image_cache_drop(&held->descriptor);
+            held.reset();
+        }
+    }
     const auto &placement = node.placement;
     const bool match_sized_flow_image = placement.mode == PlacementMode::Flow &&
                                         placement.width.mode == SizeMode::Match &&

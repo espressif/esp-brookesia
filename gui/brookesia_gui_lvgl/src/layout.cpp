@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -377,6 +378,37 @@ static void apply_flex_layout(Record &record, const Layout &layout, LayoutApplyM
     }
 }
 
+// Returns false when the lifetime or the new arrays are unavailable. A previous copy, if
+// any, stays installed. LVGL must not be given the record vector: destroy_node frees it
+// while a reparented widget can still resolve these addresses.
+bool publish_grid_tracks(Record &record)
+{
+    auto &grid = *record.grid_payload;
+    if (record.lifetime == nullptr || record.object == nullptr || grid.columns.empty() || grid.rows.empty()) {
+        return false;
+    }
+    const auto column_bytes = grid.columns.size() * sizeof(int32_t);
+    const auto row_bytes = grid.rows.size() * sizeof(int32_t);
+    auto *columns = static_cast<int32_t *>(lv_malloc(column_bytes));
+    auto *rows = static_cast<int32_t *>(lv_malloc(row_bytes));
+    if (columns == nullptr || rows == nullptr) {
+        lv_free(columns);
+        lv_free(rows);
+        return false;
+    }
+    std::memcpy(columns, grid.columns.data(), column_bytes);
+    std::memcpy(rows, grid.rows.data(), row_bytes);
+
+    auto *previous_columns = record.lifetime->grid_columns;
+    auto *previous_rows = record.lifetime->grid_rows;
+    record.lifetime->grid_columns = columns;
+    record.lifetime->grid_rows = rows;
+    lv_obj_set_grid_dsc_array(record.object, columns, rows);
+    lv_free(previous_columns);
+    lv_free(previous_rows);
+    return true;
+}
+
 static void apply_grid_tracks(Record &record, const Layout &layout)
 {
     if (record.grid_payload == nullptr) {
@@ -393,7 +425,9 @@ static void apply_grid_tracks(Record &record, const Layout &layout)
     }
     grid.columns.push_back(LV_GRID_TEMPLATE_LAST);
     grid.rows.push_back(LV_GRID_TEMPLATE_LAST);
-    lv_obj_set_grid_dsc_array(record.object, grid.columns.data(), grid.rows.data());
+    if (!publish_grid_tracks(record)) {
+        return;
+    }
 }
 
 static void apply_grid_layout(Record &record, const Layout &layout, LayoutApplyMask mask)
