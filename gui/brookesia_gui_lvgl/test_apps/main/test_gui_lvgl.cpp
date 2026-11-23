@@ -102,6 +102,31 @@ BackendHandle create_test_frame(
     return handle;
 }
 
+BackendHandle create_test_container(
+    lvgl::Backend &backend,
+    BackendHandle parent,
+    std::string_view parent_path,
+    std::string id
+)
+{
+    Node container{
+        .type = NodeType::Container,
+        .id = std::move(id),
+    };
+    return backend.create_node(container, parent, parent_path, parent_path);
+}
+
+// Mirrors Runtime::with_native_object: a null native object must not enter the callback.
+bool dispatch_native_object(lvgl::Backend &backend, BackendHandle handle, int &calls)
+{
+    void *object = backend.get_native_object(handle);
+    if (object == nullptr) {
+        return false;
+    }
+    ++calls;
+    return true;
+}
+
 } // namespace
 #endif
 
@@ -303,6 +328,113 @@ BROOKESIA_TEST_CASE(
     TEST_ASSERT_FALSE(
         esp_brookesia::service::Display::get_instance().get_buffer_output(OUTPUT_NAME).has_value()
     );
+#else
+    TEST_IGNORE_MESSAGE("LVGL backend execution requires a provisioned lvgl target");
+#endif
+}
+
+BROOKESIA_TEST_CASE(
+    test_gui_lvgl_deleted_native_object_rejects_recycled_address,
+    "GUI LVGL drops a handle when LVGL deletes its widget and reuses the address",
+    "[gui][lvgl][native]"
+)
+{
+#if BROOKESIA_GUI_LVGL_TEST_APPS_HAS_BACKEND
+    ensure_test_display();
+
+    lvgl::Backend backend;
+    auto screen = create_test_screen(backend, "recycle_screen");
+    TEST_ASSERT_TRUE(screen.is_valid());
+    auto child = create_test_container(backend, screen, "/recycle_screen/", "child");
+    TEST_ASSERT_TRUE(child.is_valid());
+
+    auto *freed = static_cast<lv_obj_t *>(backend.get_native_object(child));
+    TEST_ASSERT_NOT_NULL(freed);
+    // Bypass destroy_node, as a native view callback can.
+    lv_obj_delete(freed);
+
+    int stale_calls = 0;
+    TEST_ASSERT_FALSE(dispatch_native_object(backend, child, stale_calls));
+    TEST_ASSERT_TRUE(stale_calls == 0);
+
+    BackendHandle replacement;
+    lv_obj_t *recycled = nullptr;
+    for (int attempt = 0; attempt < 16 && recycled == nullptr; ++attempt) {
+        auto candidate = create_test_container(
+                             backend, screen, "/recycle_screen/", "replacement" + std::to_string(attempt));
+        TEST_ASSERT_TRUE(candidate.is_valid());
+        auto *native = static_cast<lv_obj_t *>(backend.get_native_object(candidate));
+        TEST_ASSERT_NOT_NULL(native);
+        TEST_ASSERT_FALSE(dispatch_native_object(backend, child, stale_calls));
+        if (native == freed) {
+            replacement = candidate;
+            recycled = native;
+            break;
+        }
+        lv_obj_delete(native);
+        backend.destroy_node(candidate);
+    }
+    TEST_ASSERT_NOT_NULL(recycled);
+    TEST_ASSERT_TRUE(stale_calls == 0);
+
+    int replacement_calls = 0;
+    TEST_ASSERT_TRUE(dispatch_native_object(backend, replacement, replacement_calls));
+    TEST_ASSERT_TRUE(replacement_calls == 1);
+    TEST_ASSERT_TRUE(backend.get_native_object(replacement) == recycled);
+
+    // Dropping the stale record must not delete the widget now living at the old address.
+    backend.destroy_node(child);
+    TEST_ASSERT_TRUE(backend.get_native_object(replacement) == recycled);
+    int after_drop_calls = 0;
+    TEST_ASSERT_FALSE(dispatch_native_object(backend, child, after_drop_calls));
+    TEST_ASSERT_TRUE(after_drop_calls == 0);
+#else
+    TEST_IGNORE_MESSAGE("LVGL backend execution requires a provisioned lvgl target");
+#endif
+}
+
+BROOKESIA_TEST_CASE(
+    test_gui_lvgl_parent_delete_invalidates_child_native_objects,
+    "GUI LVGL invalidates child handles when a parent is cleaned or deleted",
+    "[gui][lvgl][native]"
+)
+{
+#if BROOKESIA_GUI_LVGL_TEST_APPS_HAS_BACKEND
+    ensure_test_display();
+
+    lvgl::Backend backend;
+    auto screen = create_test_screen(backend, "parent_delete_screen");
+    TEST_ASSERT_TRUE(screen.is_valid());
+    auto child = create_test_container(backend, screen, "/parent_delete_screen/", "child");
+    auto grandchild = create_test_container(backend, child, "/parent_delete_screen/child/", "grandchild");
+    TEST_ASSERT_TRUE(child.is_valid());
+    TEST_ASSERT_TRUE(grandchild.is_valid());
+    TEST_ASSERT_NOT_NULL(backend.get_native_object(child));
+    TEST_ASSERT_NOT_NULL(backend.get_native_object(grandchild));
+
+    auto *screen_object = static_cast<lv_obj_t *>(backend.get_native_object(screen));
+    TEST_ASSERT_NOT_NULL(screen_object);
+    lv_obj_clean(screen_object);
+
+    int calls = 0;
+    TEST_ASSERT_TRUE(backend.get_native_object(screen) == screen_object);
+    TEST_ASSERT_FALSE(dispatch_native_object(backend, child, calls));
+    TEST_ASSERT_FALSE(dispatch_native_object(backend, grandchild, calls));
+    TEST_ASSERT_TRUE(calls == 0);
+
+    auto survivor = create_test_container(backend, screen, "/parent_delete_screen/", "survivor");
+    auto nested = create_test_container(backend, survivor, "/parent_delete_screen/survivor/", "nested");
+    TEST_ASSERT_TRUE(survivor.is_valid());
+    TEST_ASSERT_TRUE(nested.is_valid());
+    TEST_ASSERT_NOT_NULL(backend.get_native_object(survivor));
+    TEST_ASSERT_NOT_NULL(backend.get_native_object(nested));
+
+    lv_obj_delete(screen_object);
+    TEST_ASSERT_FALSE(dispatch_native_object(backend, screen, calls));
+    TEST_ASSERT_FALSE(dispatch_native_object(backend, survivor, calls));
+    TEST_ASSERT_FALSE(dispatch_native_object(backend, nested, calls));
+    TEST_ASSERT_FALSE(dispatch_native_object(backend, child, calls));
+    TEST_ASSERT_TRUE(calls == 0);
 #else
     TEST_IGNORE_MESSAGE("LVGL backend execution requires a provisioned lvgl target");
 #endif

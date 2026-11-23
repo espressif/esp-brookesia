@@ -2224,10 +2224,6 @@ std::expected<void, std::string> System::gui_with_native_view(
     return impl_->run_task_sync<std::expected<void, std::string>>(
                SYSTEM_GUI_TASK_GROUP,
     [this, app_id, absolute_path = std::string(absolute_path), native_fn = std::move(native_fn)]() -> std::expected<void, std::string> {
-        // Mark the callback context so stop_app/request_close_app fail fast instead of deadlocking
-        // against the app callback mutex held by the outer action that scheduled this GUI task.
-        in_native_view_callback = true;
-        lib_utils::FunctionGuard reset_guard([]() { in_native_view_callback = false; });
         auto record_result = impl_->get_record(app_id);
         if (!record_result || !impl_->gui_runtime_ || !record_result.value()->document_id.has_value())
         {
@@ -2241,6 +2237,15 @@ std::expected<void, std::string> System::gui_with_native_view(
         }
         try
         {
+            // Mark only the user callback so stop_app/request_close_app fail fast instead of
+            // deadlocking against the app callback mutex held by the outer action. Restore the
+            // previous flag: this task runs inline when already on the GUI group, and an inner
+            // with_native_view must not clear the flag before the outer callback returns.
+            const bool was_in_native_view_callback = in_native_view_callback;
+            in_native_view_callback = true;
+            lib_utils::FunctionGuard reset_guard([was_in_native_view_callback]() {
+                in_native_view_callback = was_in_native_view_callback;
+            });
             return impl_->gui_runtime_->with_native_object(view, native_fn);
         } catch (const std::exception &exception)
         {
