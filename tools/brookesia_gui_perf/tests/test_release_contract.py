@@ -31,6 +31,27 @@ CONTRACTS = (
     ),
 )
 
+NATIVE_VIEW_CONTRACTS = (
+    (
+        ROOT / "gui/brookesia_gui_interface/include/brookesia/gui_interface/runtime.hpp",
+        ROOT / "gui/brookesia_gui_interface/CHANGELOG.md",
+        "0.8.8",
+        ("with_native_object",),
+    ),
+    (
+        ROOT / "gui/brookesia_gui_lvgl/include/brookesia/gui_lvgl/backend.hpp",
+        ROOT / "gui/brookesia_gui_lvgl/CHANGELOG.md",
+        "0.8.10",
+        ("get_native_object",),
+    ),
+    (
+        ROOT / "system/brookesia_system_core/include/brookesia/system_core/app/gui_runtime.hpp",
+        ROOT / "system/brookesia_system_core/CHANGELOG.md",
+        "0.8.8",
+        ("with_native_view",),
+    ),
+)
+
 
 def release_section(changelog: Path, version: str) -> str:
     text = changelog.read_text(encoding="utf-8")
@@ -46,10 +67,11 @@ class ReleaseContractTest(unittest.TestCase):
             self.assertEqual(release_section(changelog, "0.8.6").strip(), "old")
             self.assertEqual(release_section(changelog, "0.8.5"), "")
 
-    def test_public_api_is_described_in_its_release(self):
-        for header, changelog, version, names in CONTRACTS:
+    def _assert_names_in_release(self, contracts):
+        for header, changelog, version, names in contracts:
             text = header.read_text(encoding="utf-8")
             section = release_section(changelog, version)
+            self.assertNotEqual(section, "", "missing v%s in %s" % (version, changelog.parent.name))
             for name in names:
                 self.assertIn(name, text, "%s is not declared in %s" % (name, header.name))
                 self.assertIn(
@@ -59,6 +81,12 @@ class ReleaseContractTest(unittest.TestCase):
                     "the registry would not learn when it became available"
                     % (name, header.name, version, changelog.parent.name),
                 )
+
+    def test_public_api_is_described_in_its_release(self):
+        self._assert_names_in_release(CONTRACTS)
+
+    def test_native_view_api_is_described_in_its_release(self):
+        self._assert_names_in_release(NATIVE_VIEW_CONTRACTS)
 
     def test_process_timers_change_is_recorded(self):
         """The refresh-path fix shipped in GUI LVGL v0.8.7."""
