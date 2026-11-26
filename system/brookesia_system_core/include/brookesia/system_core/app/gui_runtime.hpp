@@ -50,6 +50,24 @@ public:
         std::string_view instance_id
     ) const;
     bool destroy_view(std::string_view absolute_path) const;
+    /// @brief Run @p fn with the LVGL widget backing the view at @p absolute_path.
+    /// @param absolute_path Absolute path of the view, e.g. `/main/label`.
+    /// @param fn Callback receiving the opaque native widget pointer (LVGL `lv_obj_t *`).
+    /// @return `void` on success, or an error string if the view/GUI is unavailable or the callback
+    /// threw.
+    ///
+    /// @note The callback runs synchronously on the GUI task group with the GUI thread lock held.
+    /// The native pointer is only valid for the duration of the callback. Inside the callback:
+    /// - Do not call `lv_obj_delete()`/`lv_obj_clean()` on the widget directly; the backend keeps
+    ///   handles stable via a delete event, but deleting the widget invalidates this and any child
+    ///   handles for subsequent callbacks.
+    /// - Do not perform cross-group synchronous system calls (notably `request_close_app()`/
+    ///   `stop_app()`); they would deadlock against the app callback mutex. Issue such requests
+    ///   after the callback returns.
+    std::expected<void, std::string> with_native_view(
+        std::string_view absolute_path,
+        const std::function<void(void *)> &fn
+    ) const;
     std::expected<void, std::string> subscribe_action(std::string_view action) const;
     std::expected<void, std::string> subscribe_actions(const std::vector<std::string> &actions) const;
     gui::ScopedConnection subscribe_action(

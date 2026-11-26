@@ -26,10 +26,54 @@
 #endif
 
 #include <algorithm>
+#include <cstring>
+#include <new>
 #include <string>
 #include <utility>
 
+// lv_image_cache_drop() lives in an instance header that lvgl.h does not aggregate.
+#if __has_include("lvgl/src/misc/cache/instance/lv_image_cache.h")
+#   include "lvgl/src/misc/cache/instance/lv_image_cache.h"
+#elif __has_include("src/misc/cache/instance/lv_image_cache.h")
+#   include "src/misc/cache/instance/lv_image_cache.h"
+#endif
+
+// LVGL 9.5.0 keeps the active event on this stack until lv_obj_send_event()
+// returns. Public headers have no accessor, and destroy_node's counter does
+// not cover a native lv_obj_delete().
+#if __has_include("lvgl/src/core/lv_global.h")
+#   include "lvgl/src/core/lv_global.h"
+#elif __has_include("src/core/lv_global.h")
+#   include "src/core/lv_global.h"
+#else
+#   error "LVGL lv_global.h not found"
+#endif
+#if __has_include("lvgl/src/misc/lv_event_private.h")
+#   include "lvgl/src/misc/lv_event_private.h"
+#elif __has_include("src/misc/lv_event_private.h")
+#   include "src/misc/lv_event_private.h"
+#else
+#   error "LVGL lv_event_private.h not found"
+#endif
+// screen_cnt and the inactive-screen list are not in the public display API.
+#if __has_include("lvgl/src/display/lv_display_private.h")
+#   include "lvgl/src/display/lv_display_private.h"
+#elif __has_include("src/display/lv_display_private.h")
+#   include "src/display/lv_display_private.h"
+#else
+#   error "LVGL lv_display_private.h not found"
+#endif
+// map_p is not returned by a public call that skips lv_obj_is_valid().
+#if __has_include("lvgl/src/widgets/buttonmatrix/lv_buttonmatrix_private.h")
+#   include "lvgl/src/widgets/buttonmatrix/lv_buttonmatrix_private.h"
+#elif __has_include("src/widgets/buttonmatrix/lv_buttonmatrix_private.h")
+#   include "src/widgets/buttonmatrix/lv_buttonmatrix_private.h"
+#else
+#   error "LVGL lv_buttonmatrix_private.h not found"
+#endif
+
 namespace esp_brookesia::gui::lvgl {
+
 namespace {
 
 class ThreadLockGuard {
@@ -65,6 +109,383 @@ bool requires_mount_refresh(const Record &record)
     return record.type == NodeType::FrameView || requires_mount_placement_reapply(record);
 }
 
+// Line points are addresses owned by the record. A null point list is valid and does not
+// allocate. Canvas pixels and grid tracks live on the widget lifetime instead.
+void detach_borrowed_widget_buffers(Record &record)
+{
+    if (record.type != NodeType::Line) {
+        return;
+    }
+    auto *line = record.get_type_payload<Record::LinePayload>();
+    if (line != nullptr && lv_line_get_points(record.object) == line->points.data()) {
+        lv_line_set_points(record.object, nullptr, 0);
+    }
+}
+
+bool suppress_image_source_owner_for_test = false;
+
+WidgetLifetime *pending_widget_lifetimes = nullptr;
+uint32_t lifetime_release_serial = 0;
+int lifetime_destroy_depth = 0;
+bool lifetime_draining = false;
+// Same as the ESP adapter's default task_max_delay_ms, so this timer does not
+// wake that task any sooner than the loop already runs.
+constexpr uint32_t LIFETIME_DRAIN_PERIOD_MS = 15;
+lv_timer_t *lifetime_drain_timer = nullptr;
+int lifetime_drain_timer_token = 0;
+
+// The pointer survives esp_lv_adapter_deinit()/lv_deinit(), which frees the timer
+// list. Only a timer still on this LVGL instance's list belongs to us. Comparing
+// against lv_timer_get_next() does not dereference a timer from the previous instance.
+bool lifetime_drain_timer_is_current()
+{
+    if (lifetime_drain_timer == nullptr || !lv_is_initialized()) {
+        return false;
+    }
+    for (lv_timer_t *timer = lv_timer_get_next(nullptr); timer != nullptr; timer = lv_timer_get_next(timer)) {
+        if (timer == lifetime_drain_timer && lv_timer_get_user_data(timer) == &lifetime_drain_timer_token) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// LV_EVENT_DELETE stays on the stack until every listener of that send returns.
+// Children are deleted only after the parent event is popped, and their own
+// delete events keep this non-zero until the outer lv_obj_delete() returns.
+int native_delete_depth()
+{
+    if (!lv_is_initialized()) {
+        return 0;
+    }
+    int depth = 0;
+    for (lv_event_t *event = LV_GLOBAL_DEFAULT()->event_header; event != nullptr; event = event->prev) {
+        const auto code = static_cast<uint32_t>(event->code) & ~static_cast<uint32_t>(LV_EVENT_PREPROCESS);
+        if (code == static_cast<uint32_t>(LV_EVENT_DELETE)) {
+            ++depth;
+        }
+    }
+    return depth;
+}
+
+void release_widget_lifetime(WidgetLifetime *life)
+{
+    if (life->image != nullptr) {
+        lv_image_cache_drop(&life->image->descriptor);
+        life->image.reset();
+    }
+    lv_free(life->grid_columns);
+    lv_free(life->grid_rows);
+    lv_free(life->canvas);
+    delete life;
+}
+
+void release_widget_lifetimes_after(uint32_t serial)
+{
+    WidgetLifetime **link = &pending_widget_lifetimes;
+    while (*link != nullptr) {
+        auto *life = *link;
+        if (life->release_serial <= serial) {
+            link = &life->next;
+            continue;
+        }
+        *link = life->next;
+        life->next = nullptr;
+        life->queued = false;
+        release_widget_lifetime(life);
+    }
+}
+
+void enqueue_widget_lifetime(WidgetLifetime *life)
+{
+    if (life == nullptr || life->queued) {
+        return;
+    }
+    life->release_serial = ++lifetime_release_serial;
+    if (life->release_serial == 0) {
+        life->release_serial = ++lifetime_release_serial;
+    }
+    life->queued = true;
+    life->next = pending_widget_lifetimes;
+    pending_widget_lifetimes = life;
+}
+
+// lv_event_add() returns the descriptor even when the event array cannot grow.
+// With LV_USE_ASSERT_NULL disabled that looks like success while the callback is absent.
+bool callback_was_stored(lv_obj_t *object, uint32_t events_before, lv_event_dsc_t *descriptor)
+{
+    const auto events_after = lv_obj_get_event_count(object);
+    if (descriptor != nullptr && events_after > events_before) {
+        return true;
+    }
+    if (descriptor != nullptr && events_after == events_before) {
+        lv_free(descriptor);
+    }
+    return false;
+}
+
+// Registered once, in place of the record callback, when the lifetime allocation succeeds.
+// LVGL 9.5.0 runs ordinary delete listeners in registration order and asserts if a new
+// descriptor cannot be allocated, so this callback must not free buffers or register another.
+void on_widget_lifetime_delete(lv_event_t *event)
+{
+    auto *life = static_cast<WidgetLifetime *>(lv_event_get_user_data(event));
+    if (life == nullptr) {
+        return;
+    }
+    if (life->record != nullptr) {
+        life->record->object = nullptr;
+        life->record->lifetime = nullptr;
+        life->record = nullptr;
+    }
+    enqueue_widget_lifetime(life);
+}
+
+void retain_image_source(Record &record)
+{
+    auto *image = record.get_type_payload<Record::ImagePayload>();
+    if (record.type != NodeType::Image || image == nullptr || image->binary_src == nullptr) {
+        return;
+    }
+    if (lv_image_get_src(record.object) != &image->binary_src->descriptor) {
+        return;
+    }
+    if (suppress_image_source_owner_for_test || record.lifetime == nullptr || !record.lifetime->retain_image) {
+        lv_image_set_src(record.object, nullptr);
+        if (record.lifetime != nullptr && record.lifetime->image != nullptr) {
+            lv_image_cache_drop(&record.lifetime->image->descriptor);
+            record.lifetime->image.reset();
+        }
+        return;
+    }
+    record.lifetime->image = image->binary_src;
+}
+
+// child_handles can still name a widget after lv_obj_set_parent() moved it out of this
+// subtree. The LVGL object then outlives the Record, so drop every callback and buffer
+// that still points into the record. Leave the widget itself under its new parent.
+void detach_reparented_native_object(Record &record)
+{
+    if (record.object == nullptr || !lv_obj_is_valid(record.object)) {
+        if (record.lifetime != nullptr) {
+            record.lifetime->record = nullptr;
+            record.lifetime = nullptr;
+        }
+        return;
+    }
+
+    if (record.lifetime == nullptr) {
+        lv_obj_remove_event_cb_with_user_data(
+            record.object,
+            &BackendImpl::on_native_object_delete,
+            &record
+        );
+    }
+    release_events(record);
+    detach_keyboard_callbacks(record);
+    detach_arc_gradient_callback(record);
+    retain_image_source(record);
+    detach_borrowed_widget_buffers(record);
+    if (record.style_initialized) {
+        lv_obj_remove_style(record.object, &record.style, LV_PART_MAIN);
+    }
+    if (auto *style_extras = record.style_extras_payload.get(); style_extras != nullptr) {
+        for (auto &[unused_state, state_style] : style_extras->state_styles) {
+            (void)unused_state;
+            lv_obj_remove_style(record.object, &state_style.style, state_style.selector);
+        }
+        for (auto &[unused_part, part_style] : style_extras->part_styles) {
+            (void)unused_part;
+            lv_obj_remove_style(record.object, &part_style.style, part_style.selector);
+            for (auto &[unused_state, state_style] : part_style.state_styles) {
+                (void)unused_state;
+                lv_obj_remove_style(record.object, &state_style.style, state_style.selector);
+            }
+        }
+    }
+    if (record.debug_style_payload != nullptr) {
+        lv_obj_remove_style(record.object, &record.debug_style_payload->style, LV_PART_MAIN);
+    }
+    if (record.lifetime != nullptr) {
+        record.lifetime->record = nullptr;
+        record.lifetime = nullptr;
+    }
+    record.object = nullptr;
+}
+
+// Same width as LVGL 9.5.0's static kb_map[10]. Modes we never publish stay nullptr.
+constexpr size_t PUBLISHED_KEYBOARD_MODE_COUNT = 10;
+
+struct PublishedKeyboardMap {
+    const char *const *map = nullptr;
+    const lv_buttonmatrix_ctrl_t *controls = nullptr;
+};
+
+PublishedKeyboardMap published_keyboard_maps[PUBLISHED_KEYBOARD_MODE_COUNT];
+std::vector<BackendImpl *> keyboard_layout_owners;
+// destroy_node can run from an LV_EVENT_DELETE listener. The record is then gone while
+// LVGL still has the global pointers. The backing object keeps itself alive and is linked
+// here until a later release. Linking does not allocate.
+Record::KeyboardLayoutStorage *retained_keyboard_layouts = nullptr;
+// Bumped before each display walk. A storage whose display_scan matches was seen on a
+// keyboard. The counter lives with the process, so the walk does not allocate a set.
+uint32_t keyboard_display_scan_generation = 0;
+
+const char *const *keyboard_layout_map(const Record::KeyboardLayoutStorage &storage)
+{
+    return storage.map.empty() ? nullptr : storage.map.data();
+}
+
+const lv_buttonmatrix_ctrl_t *keyboard_layout_controls(const Record::KeyboardLayoutStorage &storage)
+{
+    return storage.controls.empty() ? nullptr : storage.controls.data();
+}
+
+bool keyboard_map_is_published(const char *const *map, const lv_buttonmatrix_ctrl_t *controls)
+{
+    if (map == nullptr && controls == nullptr) {
+        return false;
+    }
+    for (const auto &published : published_keyboard_maps) {
+        if ((map != nullptr && published.map == map) || (controls != nullptr && published.controls == controls)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+template <typename Visitor>
+void visit_keyboard_layout_storage(Visitor &&visitor)
+{
+    for (auto *impl : keyboard_layout_owners) {
+        for (auto &entry : impl->keyboard_layout_backing_store) {
+            if (entry.storage != nullptr) {
+                visitor(*entry.storage);
+            }
+        }
+    }
+    for (auto *storage = retained_keyboard_layouts; storage != nullptr; storage = storage->retain_next) {
+        visitor(*storage);
+    }
+}
+
+bool keyboard_layout_is_published(const Record::KeyboardLayoutStorage &storage)
+{
+    return keyboard_map_is_published(keyboard_layout_map(storage), keyboard_layout_controls(storage));
+}
+
+void begin_keyboard_display_scan()
+{
+    if (keyboard_display_scan_generation == static_cast<uint32_t>(-1)) {
+        visit_keyboard_layout_storage([](Record::KeyboardLayoutStorage & storage) {
+            storage.display_scan = 0;
+        });
+        keyboard_display_scan_generation = 1;
+        return;
+    }
+    ++keyboard_display_scan_generation;
+}
+
+void mark_displayed_keyboard_map(const char *const *map, size_t &unmarked)
+{
+    if (map == nullptr || unmarked == 0) {
+        return;
+    }
+    const auto generation = keyboard_display_scan_generation;
+    visit_keyboard_layout_storage([&](Record::KeyboardLayoutStorage & storage) {
+        if (storage.display_scan == generation || keyboard_layout_map(storage) != map) {
+            return;
+        }
+        const auto published = keyboard_layout_is_published(storage);
+        storage.display_scan = generation;
+        if (!published && unmarked > 0) {
+            --unmarked;
+        }
+    });
+}
+
+// One walk of every display's screen list. Layers, the active screen, and screens created
+// with lv_obj_create(nullptr) are already in that list, so they are not visited again.
+// Child pointers come from spec_attr. lv_obj_get_child() and lv_obj_get_child_count() run
+// LV_ASSERT_OBJ, and an enabled LV_USE_ASSERT_OBJ calls lv_obj_is_valid() from the first
+// display. lv_obj_has_class() matches a Keyboard subclass, which still runs the base
+// constructor and borrows the global map. map_p is read directly. The result is a generation
+// on the storage itself, so the walk does not allocate and cannot fail out of destroy.
+void note_displayed_keyboard_maps(lv_obj_t *object, size_t &unmarked)
+{
+    if (object == nullptr || unmarked == 0) {
+        return;
+    }
+    if (lv_obj_has_class(object, &lv_keyboard_class)) {
+        const auto *matrix = reinterpret_cast<const lv_buttonmatrix_t *>(object);
+        mark_displayed_keyboard_map(matrix->map_p, unmarked);
+        if (unmarked == 0) {
+            return;
+        }
+    }
+    const auto *spec = object->spec_attr;
+    if (spec == nullptr || spec->children == nullptr || spec->child_cnt == 0) {
+        return;
+    }
+    const auto count = spec->child_cnt;
+    auto *const *children = spec->children;
+    for (uint16_t index = 0; index < count; ++index) {
+        note_displayed_keyboard_maps(children[index], unmarked);
+        if (unmarked == 0) {
+            return;
+        }
+    }
+}
+
+void scan_displayed_keyboard_maps()
+{
+    begin_keyboard_display_scan();
+    if (!lv_is_initialized()) {
+        return;
+    }
+    size_t unmarked = 0;
+    visit_keyboard_layout_storage([&](const Record::KeyboardLayoutStorage & storage) {
+        if (keyboard_layout_map(storage) != nullptr && !keyboard_layout_is_published(storage)) {
+            ++unmarked;
+        }
+    });
+    if (unmarked == 0) {
+        return;
+    }
+    for (lv_display_t *display = lv_display_get_next(nullptr); display != nullptr && unmarked > 0;
+            display = lv_display_get_next(display)) {
+        if (display->screens == nullptr) {
+            continue;
+        }
+        for (uint32_t index = 0; index < display->screen_cnt && unmarked > 0; ++index) {
+            note_displayed_keyboard_maps(display->screens[index], unmarked);
+        }
+    }
+}
+
+bool keyboard_layout_is_referenced(const Record::KeyboardLayoutStorage &storage)
+{
+    // A native delete does not clear kb_map[]. Keep that backing until a normal
+    // publish_keyboard_map() replaces the slot. Do not create a widget to do it:
+    // lv_obj_class_create_obj() dereferences a failed children realloc.
+    if (keyboard_layout_is_published(storage)) {
+        return true;
+    }
+    return keyboard_display_scan_generation != 0 &&
+           storage.display_scan == keyboard_display_scan_generation &&
+           keyboard_layout_map(storage) != nullptr;
+}
+
+void retain_keyboard_layout(std::shared_ptr<Record::KeyboardLayoutStorage> storage)
+{
+    if (storage == nullptr || storage->retained_self != nullptr) {
+        return;
+    }
+    storage->retain_next = retained_keyboard_layouts;
+    retained_keyboard_layouts = storage.get();
+    storage->retained_self = std::move(storage);
+}
+
 void detach_keyboard_globals(Record &record)
 {
     if (record.type != NodeType::Keyboard || record.object == nullptr || !lv_obj_is_valid(record.object)) {
@@ -75,13 +496,139 @@ void detach_keyboard_globals(Record &record)
     static const lv_buttonmatrix_ctrl_t EMPTY_CONTROLS[] = {static_cast<lv_buttonmatrix_ctrl_t>(0)};
 
     lv_keyboard_set_textarea(record.object, nullptr);
-    lv_keyboard_set_map(record.object, LV_KEYBOARD_MODE_TEXT_LOWER, EMPTY_MAP, EMPTY_CONTROLS);
-    lv_keyboard_set_map(record.object, LV_KEYBOARD_MODE_TEXT_UPPER, EMPTY_MAP, EMPTY_CONTROLS);
-    lv_keyboard_set_map(record.object, LV_KEYBOARD_MODE_NUMBER, EMPTY_MAP, EMPTY_CONTROLS);
-    lv_keyboard_set_map(record.object, LV_KEYBOARD_MODE_SPECIAL, EMPTY_MAP, EMPTY_CONTROLS);
+    publish_keyboard_map(record.object, LV_KEYBOARD_MODE_TEXT_LOWER, EMPTY_MAP, EMPTY_CONTROLS);
+    publish_keyboard_map(record.object, LV_KEYBOARD_MODE_TEXT_UPPER, EMPTY_MAP, EMPTY_CONTROLS);
+    publish_keyboard_map(record.object, LV_KEYBOARD_MODE_NUMBER, EMPTY_MAP, EMPTY_CONTROLS);
+    publish_keyboard_map(record.object, LV_KEYBOARD_MODE_SPECIAL, EMPTY_MAP, EMPTY_CONTROLS);
 }
 
 } // namespace
+
+void publish_keyboard_map(
+    lv_obj_t *object,
+    lv_keyboard_mode_t mode,
+    const char *const *map,
+    const lv_buttonmatrix_ctrl_t *controls
+)
+{
+    lv_keyboard_set_map(object, mode, map, controls);
+    const auto index = static_cast<size_t>(mode);
+    if (index < PUBLISHED_KEYBOARD_MODE_COUNT) {
+        published_keyboard_maps[index].map = map;
+        published_keyboard_maps[index].controls = controls;
+    }
+}
+
+void release_unreferenced_keyboard_layouts(BackendImpl &impl)
+{
+    (void)impl;
+    scan_displayed_keyboard_maps();
+    auto unreferenced = [](const BackendImpl::KeyboardLayoutBacking & entry) {
+        return entry.storage == nullptr || !keyboard_layout_is_referenced(*entry.storage);
+    };
+    for (auto *owner : keyboard_layout_owners) {
+        std::erase_if(owner->keyboard_layout_backing_store, unreferenced);
+    }
+    Record::KeyboardLayoutStorage *previous = nullptr;
+    for (auto *current = retained_keyboard_layouts; current != nullptr; ) {
+        auto *next = current->retain_next;
+        if (keyboard_layout_is_referenced(*current)) {
+            previous = current;
+            current = next;
+            continue;
+        }
+        if (previous == nullptr) {
+            retained_keyboard_layouts = next;
+        } else {
+            previous->retain_next = next;
+        }
+        current->retain_next = nullptr;
+        auto owned = std::move(current->retained_self);
+        current = next;
+        owned.reset();
+    }
+}
+
+bool keyboard_layout_storage_retains(const char *const *map)
+{
+    if (map == nullptr) {
+        return false;
+    }
+    for (auto *owner : keyboard_layout_owners) {
+        for (const auto &entry : owner->keyboard_layout_backing_store) {
+            if (entry.storage != nullptr && keyboard_layout_map(*entry.storage) == map) {
+                return true;
+            }
+        }
+    }
+    for (auto *storage = retained_keyboard_layouts; storage != nullptr; storage = storage->retain_next) {
+        if (keyboard_layout_map(*storage) == map) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void drain_widget_lifetimes()
+{
+    ThreadLockGuard lock;
+    if (lifetime_draining || lifetime_destroy_depth > 0 || native_delete_depth() > 0) {
+        return;
+    }
+    lifetime_draining = true;
+    release_widget_lifetimes_after(0);
+    lifetime_draining = false;
+}
+
+bool ensure_widget_lifetime_drain_timer()
+{
+    if (lifetime_drain_timer_is_current()) {
+        return true;
+    }
+    // Drop a pointer left by the previous LVGL instance before creating one for this one.
+    lifetime_drain_timer = nullptr;
+    if (!lv_is_initialized()) {
+        return false;
+    }
+    lifetime_drain_timer = lv_timer_create(
+    [](lv_timer_t *timer) {
+        (void)timer;
+        drain_widget_lifetimes();
+    },
+    LIFETIME_DRAIN_PERIOD_MS,
+    &lifetime_drain_timer_token
+                           );
+    if (lifetime_drain_timer == nullptr) {
+        BROOKESIA_LOGE("Failed to create the widget lifetime drain timer");
+        return false;
+    }
+    return true;
+}
+
+void forget_widget_lifetime_drain_timer()
+{
+    if (lifetime_drain_timer_is_current()) {
+        lv_timer_delete(lifetime_drain_timer);
+    }
+    lifetime_drain_timer = nullptr;
+}
+
+void reset_widget_lifetime_state()
+{
+    ThreadLockGuard lock;
+    if (lifetime_draining) {
+        return;
+    }
+    lifetime_draining = true;
+    release_widget_lifetimes_after(0);
+    lifetime_release_serial = 0;
+    lifetime_draining = false;
+}
+
+void suppress_image_source_owner(bool suppress)
+{
+    suppress_image_source_owner_for_test = suppress;
+}
 
 bool BackendImpl::is_staged_object(const lv_obj_t *object) const
 {
@@ -123,6 +670,8 @@ BackendImpl::BackendImpl()
     if (auto *display = lv_display_get_default(); display != nullptr) {
         (void)register_display("Default", display, true);
     }
+    (void)ensure_widget_lifetime_drain_timer();
+    keyboard_layout_owners.push_back(this);
 }
 
 BackendImpl::~BackendImpl()
@@ -146,6 +695,22 @@ BackendImpl::~BackendImpl()
 
         destroy_node(root_it->second.handle);
     }
+
+    if (native_delete_depth() == 0) {
+        release_unreferenced_keyboard_layouts(*this);
+        for (auto &entry : keyboard_layout_backing_store) {
+            retain_keyboard_layout(std::move(entry.storage));
+        }
+    } else {
+        scan_displayed_keyboard_maps();
+        for (auto &entry : keyboard_layout_backing_store) {
+            if (entry.storage != nullptr && keyboard_layout_is_referenced(*entry.storage)) {
+                retain_keyboard_layout(std::move(entry.storage));
+            }
+        }
+    }
+    keyboard_layout_backing_store.clear();
+    std::erase(keyboard_layout_owners, this);
 
     if ((staging_screen != nullptr) && lv_obj_is_valid(staging_screen)) {
         lv_obj_delete(staging_screen);
@@ -295,8 +860,54 @@ BackendHandle BackendImpl::create_node(
         child_handles[parent.value()].push_back(handle.value());
     }
     auto *created_record = find_record(handle);
-    if (created_record != nullptr && requires_mount_refresh(*created_record)) {
-        adjust_mount_refresh_ancestors(handle, true);
+    if (created_record != nullptr) {
+        // Invalidate this handle the moment LVGL frees the widget, including direct lv_obj_delete/
+        // lv_obj_clean from a native view callback. Without this, lv_obj_is_valid()'s address-only
+        // check would accept a recycled address and hand a different widget to a later callback.
+        // One registration only: a second lv_obj_add_event_cb() can assert inside lv_event_add().
+        bool delete_callback_installed = false;
+        auto *life = new (std::nothrow) WidgetLifetime();
+        if (life == nullptr) {
+            const auto events_before = lv_obj_get_event_count(object);
+            auto *descriptor = lv_obj_add_event_cb(
+                                   object, &BackendImpl::on_native_object_delete, LV_EVENT_DELETE, created_record
+                               );
+            delete_callback_installed = callback_was_stored(object, events_before, descriptor);
+        } else {
+            life->record = created_record;
+            life->retain_image = !suppress_image_source_owner_for_test;
+            const auto events_before = lv_obj_get_event_count(object);
+            auto *descriptor = lv_obj_add_event_cb(object, on_widget_lifetime_delete, LV_EVENT_DELETE, life);
+            if (callback_was_stored(object, events_before, descriptor)) {
+                created_record->lifetime = life;
+                delete_callback_installed = true;
+            } else {
+                delete life;
+            }
+        }
+        if (!delete_callback_installed) {
+            // Keyboard's constructor already occupies an event slot. If the array cannot grow,
+            // the descriptor comes back unstored. Drop the node so a recycled address cannot
+            // resolve this handle.
+            if (parent.is_valid()) {
+                auto children_it = child_handles.find(parent.value());
+                if (children_it != child_handles.end()) {
+                    std::erase(children_it->second, handle.value());
+                    if (children_it->second.empty()) {
+                        child_handles.erase(children_it);
+                    }
+                }
+            }
+            records.erase(handle.value());
+            if (lv_obj_is_valid(object)) {
+                lv_obj_delete(object);
+            }
+            BROOKESIA_LOGE("Delete notification was not installed for node id='%1%'", node.id);
+            return BackendHandle();
+        }
+        if (requires_mount_refresh(*created_record)) {
+            adjust_mount_refresh_ancestors(handle, true);
+        }
     }
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
     BROOKESIA_LOGI(
@@ -346,31 +957,45 @@ void BackendImpl::destroy_node(BackendHandle handle)
 
     mounted_targets.erase(handle.value());
 
+    bool release_keyboard_layouts = !keyboard_layout_backing_store.empty() ||
+                                    retained_keyboard_layouts != nullptr;
     for (auto handle_value : subtree_handles) {
         auto record_it = records.find(handle_value);
-        if (record_it != records.end()) {
-            detach_keyboard_globals(record_it->second);
-            if (record_it->second.type == NodeType::Keyboard) {
-                // detach_keyboard_globals() has pointed every mode at a static empty map,
-                // so the borrowed label storage can go with the Record.
-                std::erase_if(keyboard_layout_backing_store, [handle_value](const KeyboardLayoutBacking & entry) {
-                    return entry.owner == handle_value;
-                });
-            }
+        if (record_it == records.end()) {
+            continue;
         }
+        if (record_it->second.type == NodeType::Keyboard) {
+            release_keyboard_layouts = true;
+        }
+        // A live object can be pointed at the static empty map. A native delete has already
+        // cleared Record::object, and LVGL keeps the previous global entry, so that array
+        // stays until release below finds it unreferenced.
+        detach_keyboard_globals(record_it->second);
+    }
+    if (release_keyboard_layouts) {
+        release_unreferenced_keyboard_layouts(*this);
     }
 
+    ++lifetime_destroy_depth;
+    const auto lifetime_mark = lifetime_release_serial;
     if (it->second.object != nullptr) {
         if (lv_obj_is_valid(it->second.object)) {
             lv_obj_delete(it->second.object);
         }
         it->second.object = nullptr;
     }
+    // Listeners registered after the lifetime callback have now returned, including
+    // listeners on children deleted inside this call. Only release lifetimes queued
+    // by this call. An outer native delete stays queued until its LV_EVENT_DELETE
+    // leaves the event stack and a port poll runs.
+    release_widget_lifetimes_after(lifetime_mark);
+    --lifetime_destroy_depth;
 
     for (auto handle_value : subtree_handles) {
         auto record_it = records.find(handle_value);
         if (record_it != records.end()) {
             release_frame_view(record_it->second);
+            detach_reparented_native_object(record_it->second);
             release_font(*this, record_it->second);
             if (record_it->second.style_initialized) {
                 lv_style_reset(&record_it->second.style);
@@ -464,14 +1089,20 @@ void BackendImpl::process_timers()
         // The port already drives lv_timer_handler on its own cadence, so forcing a
         // refresh here made every host tick invalidate the whole screen and all of its
         // layers: a carrier calling process_timers() every 15 ms measured local widget
-        // animations under a full-screen repaint the scenario never asked for. Nothing
-        // to do: pending work is flushed by the port timer.
+        // animations under a full-screen repaint the scenario never asked for.
+        // Release buffers queued by a native delete once its LV_EVENT_DELETE has
+        // left the event stack. A listener of that event must not free them, and
+        // this path does not refresh.
+        drain_widget_lifetimes();
         return;
     }
 
     ThreadLockGuard lock;
 
     lv_timer_handler();
+    // A nested lv_timer_handler() returns immediately. The drain still refuses
+    // while the outer LV_EVENT_DELETE remains on the event stack.
+    drain_widget_lifetimes();
 }
 
 void BackendImpl::apply_layout(BackendHandle handle, const Layout &layout, LayoutApplyMask mask)
@@ -1851,6 +2482,39 @@ bool Backend::unmount_image_assets(char fs_letter)
     BROOKESIA_LOGD("Params: fs_letter(%1%)", fs_letter);
 
     return impl_->unmount_image_assets(fs_letter);
+}
+void *BackendImpl::get_native_object(BackendHandle handle)
+{
+    ThreadLockGuard lock;
+
+    if (!handle.is_valid()) {
+        return nullptr;
+    }
+    auto *record = find_record(handle);
+    if (record == nullptr || record->object == nullptr || !lv_obj_is_valid(record->object)) {
+        return nullptr;
+    }
+    return record->object;
+}
+
+void BackendImpl::on_native_object_delete(lv_event_t *event)
+{
+    auto *record = static_cast<Record *>(lv_event_get_user_data(event));
+    if (record != nullptr) {
+        // The widget is being freed by LVGL; drop the stale address so a later recycled address can
+        // never pass lv_obj_is_valid() for this handle. destroy_node also clears it, but native view
+        // callbacks may delete widgets without going through destroy_node.
+        record->object = nullptr;
+    }
+}
+
+void *Backend::get_native_object(BackendHandle handle)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: handle(%1%)", handle.value());
+
+    return impl_->get_native_object(handle);
 }
 
 } // namespace esp_brookesia::gui::lvgl

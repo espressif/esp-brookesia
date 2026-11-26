@@ -717,4 +717,27 @@ std::expected<void, std::string> Runtime::Impl::refresh_document_if_dirty(Runtim
     }
     return {};
 }
+
+std::expected<void, std::string> Runtime::Impl::with_native_object(
+    const View &view,
+    const std::function<void(void *)> &fn
+)
+{
+    if (!fn) {
+        return std::unexpected("native view callback is required");
+    }
+    auto *record = resolve_view_record(view);
+    if (record == nullptr) {
+        return std::unexpected("view native object unavailable");
+    }
+    if (backend == nullptr) {
+        return std::unexpected("view native object unavailable");
+    }
+    void *object = backend->get_native_object(record->handle);
+    if (object == nullptr) {
+        return std::unexpected("view native object unavailable");
+    }
+    fn(object);
+    return {};
+}
 }

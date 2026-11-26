@@ -77,6 +77,24 @@ struct BinaryImageSource {
     lv_image_dsc_t descriptor {};
 };
 
+struct Record;
+
+// One object per widget. It keeps the buffers LVGL still points at after the Record is
+// freed, and it is released only once lv_obj_delete has returned.
+struct WidgetLifetime {
+    Record *record = nullptr;
+    int32_t *grid_columns = nullptr;
+    int32_t *grid_rows = nullptr;
+    std::shared_ptr<BinaryImageSource> image;
+    uint8_t *canvas = nullptr;
+    std::size_t canvas_bytes = 0;
+    WidgetLifetime *next = nullptr;
+    uint32_t release_serial = 0;
+    bool queued = false;
+    // Cleared when creation is told not to keep an image descriptor after detach.
+    bool retain_image = true;
+};
+
 struct BinaryImageCacheEntry {
     std::shared_ptr<BinaryImageSource> source;
     std::size_t ref_count = 0;
@@ -104,6 +122,9 @@ struct Record {
     std::string node_id;
     NodeType type = NodeType::Container;
     lv_obj_t *object = nullptr;
+    // Null when the widget could not store a lifetime. Detach then clears an image source
+    // instead of retaining it, and grid or canvas buffers are not published.
+    WidgetLifetime *lifetime = nullptr;
     // Borrowed from BackendImpl::font_cache while this Record contributes one ref_count.
     FontCacheEntry *font_cache_entry = nullptr;
     uint32_t depth = 0;
@@ -163,9 +184,6 @@ struct Record {
         std::vector<int32_t> rows;
     };
     std::unique_ptr<GridPayload> grid_payload;
-    struct CanvasPayload {
-        std::vector<lv_color_t> buffer;
-    };
     struct FrameViewPayload {
         FrameViewProps props;
         std::string output_name;
@@ -188,6 +206,13 @@ struct Record {
         std::vector<std::shared_ptr<BinaryImageSource>> image_sources;
         std::vector<const char *> map;
         std::vector<lv_buttonmatrix_ctrl_t> controls;
+        // Used only on the backing object LVGL borrowed. The copy into KeyboardPayload
+        // happens before either field is set. display_scan matches the current walk.
+        // retained_self keeps this object alive without allocating another node; retain_next
+        // links those objects while a global slot or a keyboard still uses them.
+        uint32_t display_scan = 0;
+        KeyboardLayoutStorage *retain_next = nullptr;
+        std::shared_ptr<KeyboardLayoutStorage> retained_self;
     };
     struct KeyboardPayload {
         std::array<KeyboardLayoutStorage, 4> layouts;
@@ -209,12 +234,11 @@ struct Record {
                         std::monostate,
                         std::unique_ptr<ImagePayload>,
                         std::unique_ptr<LinePayload>,
-                        std::unique_ptr<CanvasPayload>,
                         std::unique_ptr<FrameViewPayload>,
                         std::unique_ptr<KeyboardPayload>
                         >;
-    // A node has exactly one immutable NodeType, so these five view-only payloads are mutually
-    // exclusive. Keep one tagged owner instead of reserving five pointers in every Record.
+    // A node has exactly one immutable NodeType, so these view-only payloads are mutually
+    // exclusive. Keep one tagged owner instead of reserving a pointer for each in every Record.
     TypePayload type_payload;
 
     template <typename T>
@@ -341,7 +365,12 @@ public:
     void bind_events(BackendHandle handle, const std::vector<EventBinding> &events);
     std::vector<GuiDisplayInfo> list_displays() const;
     std::vector<GuiLayer> list_layers() const;
+    void *get_native_object(BackendHandle handle);
     lv_obj_t *resolve_layer_parent(lv_display_t *display, GuiLayer layer) const;
+    // Clears the owning Record's object pointer when LVGL deletes the widget, so a recycled address
+    // can never be mistaken for the original handle in get_native_object(). Registered for every
+    // created widget via LV_EVENT_DELETE; covers both destroy_node and direct lv_obj_delete/clean.
+    static void on_native_object_delete(lv_event_t *event);
     bool mount_screen(BackendHandle handle, const MountTarget &target);
     bool unmount_screen(BackendHandle handle);
     std::vector<RuntimeFontResource> list_font_resources() const;
@@ -398,8 +427,11 @@ public:
     std::size_t placement_cache_hits = 0;
     std::size_t placement_cache_misses = 0;
 #endif
-    // LVGL borrows the map and control pointers until the layout is replaced or the keyboard
-    // is destroyed. Image bytes stay on the Record layout copy; this store does not keep them.
+    // LVGL 9.5.0 stores these pointers in the process-wide kb_map[] and kb_ctrl[] and does not
+    // clear them when the keyboard object is deleted. A native delete nulls Record::object
+    // before destroy_node runs, so the arrays stay until that global slot is replaced and no
+    // keyboard object still displays them. The display walk records that on KeyboardLayoutStorage
+    // itself. Image bytes stay on the Record layout copy.
     struct KeyboardLayoutBacking {
         BackendHandle::Value owner = 0;
         std::size_t layout_index = 0;
@@ -459,5 +491,32 @@ std::optional<BackendAnimationStartResult> start_animation(
     Record &record, const Animation &animation, std::function<void()> completed_handler = {}
 );
 void bind_events(BackendImpl &impl, Record &record, const std::vector<EventBinding> &events);
+void release_events(Record &record);
+void detach_keyboard_callbacks(Record &record);
+// lv_keyboard_set_map() copies the pointers into LVGL's process-wide tables. Remember the
+// pointers here, because those tables are private to lv_keyboard.c.
+void publish_keyboard_map(
+    lv_obj_t *object,
+    lv_keyboard_mode_t mode,
+    const char *const *map,
+    const lv_buttonmatrix_ctrl_t *controls
+);
+// Drop layout arrays that are no longer the published global entry and that no keyboard
+// object still displays. While an LV_EVENT_DELETE is on the stack, published arrays stay.
+void release_unreferenced_keyboard_layouts(BackendImpl &impl);
+// True when a backing entry still owns this map. Host tests use it to tell a retained
+// table from one destroy_node has already released.
+bool keyboard_layout_storage_retains(const char *const *map);
+void detach_arc_gradient_callback(Record &record);
+// Free buffers queued by a native lv_obj_delete once that LV_EVENT_DELETE has
+// left LVGL's event stack. A poll nested inside the event keeps the queue.
+void drain_widget_lifetimes();
+// After the display is gone and before lv_deinit, drop any remainder and the static queue.
+void reset_widget_lifetime_state();
+// Join the current LVGL timer list. A pointer left behind by lv_deinit() is not
+// reused; the next call registers a timer for the new LVGL instance.
+bool ensure_widget_lifetime_drain_timer();
+// Delete the timer when it still belongs to this LVGL instance, then drop the pointer.
+void forget_widget_lifetime_drain_timer();
 
 } // namespace esp_brookesia::gui::lvgl

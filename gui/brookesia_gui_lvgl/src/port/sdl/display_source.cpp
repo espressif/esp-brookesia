@@ -30,6 +30,7 @@
 #include "lvgl/lvgl.h"
 #include "port/private/multi_touch_pointer.hpp"
 #include "port/private/threading.hpp"
+#include "private/types.hpp"
 #include "private/utils.hpp"
 
 namespace esp_brookesia::gui::lvgl {
@@ -228,6 +229,9 @@ bool DisplaySourceImpl::start(const DisplaySourceConfig &config)
         lvgl_initialized_by_us_ = true;
     }
     lv_tick_set_cb(tick_get_ms);
+    lock_thread();
+    (void)ensure_widget_lifetime_drain_timer();
+    unlock_thread();
 
     lib_utils::FunctionGuard cleanup([this]() {
         stop();
@@ -265,6 +269,14 @@ void DisplaySourceImpl::stop()
     if (group_ != nullptr) {
         lv_group_delete(group_);
         group_ = nullptr;
+    }
+    // Display deletion queues widget buffers. lv_deinit() drops timers without running
+    // them, so release the queue and clear its process-lifetime state first.
+    if (lv_is_initialized()) {
+        reset_widget_lifetime_state();
+        if (lvgl_initialized_by_us_) {
+            forget_widget_lifetime_drain_timer();
+        }
     }
     unlock_guard.release();
     unlock_thread();
@@ -456,6 +468,7 @@ void DisplaySourceImpl::timer_loop(uint32_t period_ms)
         unlock_thread();
     });
     lv_timer_handler();
+    drain_widget_lifetimes();
     unlock_guard.release();
     esp_brookesia::gui::wasm::set_gui_task_blocked(false);
     unlock_thread();
@@ -464,6 +477,7 @@ void DisplaySourceImpl::timer_loop(uint32_t period_ms)
     while (!stop_timer_requested_.load() && lv_is_initialized()) {
         lock_thread();
         lv_timer_handler();
+        drain_widget_lifetimes();
         unlock_thread();
         std::this_thread::sleep_for(std::chrono::milliseconds(period_ms));
     }

@@ -419,6 +419,17 @@ View Runtime::find_view(DocumentId id, std::string_view absolute_path) const
     return impl_->find_view(const_cast<Runtime *>(this), id, absolute_path);
 }
 
+std::expected<void, std::string> Runtime::with_native_object(
+    const View &view,
+    const std::function<void(void *)> &fn
+)
+{
+    if (view.runtime_ != this) {
+        return std::unexpected("view native object unavailable");
+    }
+    return impl_->with_native_object(view, fn);
+}
+
 std::expected<View, std::string> Runtime::create_view(
     DocumentId id, std::string_view template_id, std::string_view parent_absolute_path, std::string_view instance_id)
 {

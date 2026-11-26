@@ -12,6 +12,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
+#include <exception>
 #include <new>
 #include <set>
 #include <span>
@@ -30,6 +31,7 @@
 #include "boost/json.hpp"
 
 #include "brookesia/service_helper/system/storage.hpp"
+#include "brookesia/lib_utils/function_guard.hpp"
 #include "private/utils.hpp"
 #include "private/heap_trace.hpp"
 #include "private/system/impl.hpp"
@@ -2202,6 +2204,58 @@ std::optional<gui::ViewFrame> System::gui_get_view_frame(AppId app_id, std::stri
         return *frame;
     },
     std::nullopt
+           );
+#endif
+}
+
+std::expected<void, std::string> System::gui_with_native_view(
+    AppId app_id,
+    std::string_view absolute_path,
+    const std::function<void(void *)> &fn
+)
+{
+#if !BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
+    (void)app_id;
+    (void)absolute_path;
+    (void)fn;
+    return std::unexpected("JSON GUI is unavailable with the GSP backend");
+#else
+    auto native_fn = fn;
+    return impl_->run_task_sync<std::expected<void, std::string>>(
+               SYSTEM_GUI_TASK_GROUP,
+    [this, app_id, absolute_path = std::string(absolute_path), native_fn = std::move(native_fn)]() -> std::expected<void, std::string> {
+        auto record_result = impl_->get_record(app_id);
+        if (!record_result || !impl_->gui_runtime_ || !record_result.value()->document_id.has_value())
+        {
+            return std::unexpected("app GUI document is not available");
+        }
+        impl_->flush_pending_gui_bindings(app_id);
+        auto view = impl_->gui_runtime_->find_view(*record_result.value()->document_id, absolute_path);
+        if (!view.valid())
+        {
+            return std::unexpected("view not found");
+        }
+        try
+        {
+            // Mark only the user callback so stop_app/request_close_app fail fast instead of
+            // deadlocking against the app callback mutex held by the outer action. Restore the
+            // previous flag: this task runs inline when already on the GUI group, and an inner
+            // with_native_view must not clear the flag before the outer callback returns.
+            const bool was_in_native_view_callback = in_native_view_callback;
+            in_native_view_callback = true;
+            lib_utils::FunctionGuard reset_guard([was_in_native_view_callback]() {
+                in_native_view_callback = was_in_native_view_callback;
+            });
+            return impl_->gui_runtime_->with_native_object(view, native_fn);
+        } catch (const std::exception &exception)
+        {
+            return std::unexpected(std::string("native view callback failed: ") + exception.what());
+        } catch (...)
+        {
+            return std::unexpected("native view callback failed");
+        }
+    },
+    std::unexpected("GUI task group unavailable")
            );
 #endif
 }

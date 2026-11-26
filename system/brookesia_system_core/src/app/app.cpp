@@ -345,6 +345,17 @@ bool AppGuiRuntime::destroy_view(std::string_view absolute_path) const
     return (system_ != nullptr) && system_->gui_destroy_view(app_id_, absolute_path);
 }
 
+std::expected<void, std::string> AppGuiRuntime::with_native_view(
+    std::string_view absolute_path,
+    const std::function<void(void *)> &fn
+) const
+{
+    if (system_ == nullptr || !is_native_system_app()) {
+        return std::unexpected("Native GUI access is only available to native system apps");
+    }
+    return system_->gui_with_native_view(app_id_, absolute_path, fn);
+}
+
 std::expected<void, std::string> AppGuiRuntime::subscribe_action(std::string_view action) const
 {
     if (system_ == nullptr) {

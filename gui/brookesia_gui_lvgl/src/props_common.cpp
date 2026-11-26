@@ -5,6 +5,8 @@
  */
 #include "private/props_impl.hpp"
 
+#include <cstring>
+
 namespace esp_brookesia::gui::lvgl::props_detail {
 
 uint32_t calculate_scale(int32_t target, int32_t source)
@@ -141,14 +143,29 @@ void apply_canvas(Record &record, const Node &node)
 {
     const auto width = node.placement.width.mode == SizeMode::Fixed ? node.placement.width.value : 96;
     const auto height = node.placement.height.mode == SizeMode::Fixed ? node.placement.height.value : 96;
-    if (width <= 0 || height <= 0) {
+    if (width <= 0 || height <= 0 || record.object == nullptr || record.lifetime == nullptr) {
         return;
     }
 
-    auto &canvas = record.ensure_type_payload<Record::CanvasPayload>();
-    auto &buffer = canvas.buffer;
-    buffer.assign(static_cast<size_t>(width) * static_cast<size_t>(height), lv_color_hex(0xffffff));
-    lv_canvas_set_buffer(record.object, buffer.data(), width, height, LV_COLOR_FORMAT_NATIVE);
+    const auto stride = lv_draw_buf_width_to_stride(static_cast<uint32_t>(width), LV_COLOR_FORMAT_NATIVE);
+    if (stride == 0 || static_cast<uint64_t>(stride) * static_cast<uint64_t>(height) > SIZE_MAX) {
+        return;
+    }
+    const auto bytes = static_cast<size_t>(stride) * static_cast<size_t>(height);
+    auto *life = record.lifetime;
+    uint8_t *pixels = life->canvas;
+    uint8_t *previous = nullptr;
+    if (pixels == nullptr || life->canvas_bytes != bytes) {
+        pixels = static_cast<uint8_t *>(lv_malloc(bytes));
+        if (pixels == nullptr) {
+            return;
+        }
+        previous = life->canvas;
+        life->canvas = pixels;
+        life->canvas_bytes = bytes;
+    }
+
+    lv_canvas_set_buffer(record.object, pixels, width, height, LV_COLOR_FORMAT_NATIVE);
     lv_canvas_fill_bg(record.object, lv_color_hex(0xffffff), LV_OPA_COVER);
     for (const auto &command : node.canvas_props.commands) {
         if (command.type == "fill") {
@@ -163,6 +180,7 @@ void apply_canvas(Record &record, const Node &node)
             }
         }
     }
+    lv_free(previous);
 }
 
 uint16_t read_le16(const std::vector<uint8_t> &data, size_t offset)

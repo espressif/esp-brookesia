@@ -45,8 +45,11 @@ A native app obtains ``AppGuiRuntime`` through ``AppContext::gui()``. The app-ow
 - ``load_theme_file(resource_dir, path)``
 - ``set_theme(theme_id, reapply_loaded_documents)``
 - ``get_theme()``
+- ``with_native_view(path, callback)``
 
 These interfaces implicitly act on the current app's document. ``set_binding_values(updates)`` is a batch binding write interface, suited to game loops or scripted apps refreshing many bindings at high frequency; the Runtime merges the dirty mask per node before triggering the backend apply.
+
+``with_native_view(path, callback)`` is a restricted native-integration escape hatch: the callback is invoked in the GUI task group and receives an opaque native handle for the current app's own GUI document. The handle is valid only during the callback and must not be stored or used after it returns. Unloading the document, destroying the view (e.g. via ``destroy_view`` or a Dynamic screen unmount), or any backend operation that deletes the underlying object invalidates the handle; a plain Eager screen unmount only hides the object and does not by itself invalidate it. The GUI thread guard is already held by the task group, so callers must not lock it again. This interface is only exposed to trusted native apps through ``AppGuiRuntime``; the runtime-app ``SystemGui`` service does not provide it. It is not a replacement for bindings, ``update()`` or ``setText()``.
 
 ``get_constant_value(path)`` reads the parser-merged constant value of the current app GUI document. ``path`` is the dotted path part inside ``${constant.<path>}``, without the ``${}`` or ``constant.`` prefix, and the return value keeps its original JSON type.
 

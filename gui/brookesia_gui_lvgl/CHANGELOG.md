@@ -1,5 +1,15 @@
 # ChangeLog
 
+## v0.8.10 - 2026-11-23
+
+### Enhancements:
+
+- feat(runtime): expose callback access to the LVGL object backing a GUI view through `get_native_object`.
+
+### Bug Fixes:
+
+- fix(deps): require GUI Interface `>=0.8.8,<0.9`.
+
 ## v0.8.9 - 2026-11-04
 
 ### Enhancements:

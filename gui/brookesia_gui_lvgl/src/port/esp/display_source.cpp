@@ -20,6 +20,7 @@
 #include "brookesia/service_manager/service/manager.hpp"
 #include "port/private/multi_touch_pointer.hpp"
 #include "port/private/threading.hpp"
+#include "private/types.hpp"
 #include "private/utils.hpp"
 
 namespace esp_brookesia::gui::lvgl {
@@ -169,6 +170,8 @@ private:
     bool select_output(std::string_view preferred_output_name);
     bool register_display_source(const DisplaySourceConfig &config);
     bool start_lvgl_adapter(const DisplaySourceConfig &config);
+    void release_display_runtime();
+    void abort_start();
     bool register_panel_event_bridge();
     bool unregister_panel_event_bridge();
     esp_err_t submit_frame(int x_start, int y_start, int x_end, int y_end, const void *data);
@@ -187,6 +190,10 @@ private:
     PixelFormat pixel_format_ = PixelFormat::Max;
 
     bool started_ = false;
+    // Set only after this start() call initializes the adapter, and cleared once
+    // that call commits. A failed attempt deinits this adapter; an adapter left
+    // running by an earlier stop() is not touched.
+    bool adapter_init_pending_rollback_ = false;
     lv_display_t *display_ = nullptr;
     MultiTouchPointerManager pointer_inputs_;
     std::string output_name_;
@@ -282,6 +289,13 @@ bool DisplaySourceImpl::start(const DisplaySourceConfig &config)
         return true;
     }
 
+    bool committed = false;
+    lib_utils::FunctionGuard rollback([this, &committed]() {
+        if (!committed) {
+            abort_start();
+        }
+    });
+
     config_ = config;
     BROOKESIA_CHECK_FALSE_RETURN(acquire_hal_interfaces(), false, "Failed to acquire display HAL interfaces");
     BROOKESIA_CHECK_FALSE_RETURN(bind_display_service(), false, "Failed to bind Display service");
@@ -289,11 +303,13 @@ bool DisplaySourceImpl::start(const DisplaySourceConfig &config)
     BROOKESIA_CHECK_FALSE_RETURN(register_display_source(config), false, "Failed to register LVGL Display source");
     BROOKESIA_CHECK_FALSE_RETURN(start_lvgl_adapter(config), false, "Failed to start LVGL adapter Display source");
 
+    committed = true;
+    adapter_init_pending_rollback_ = false;
     started_ = true;
     return true;
 }
 
-void DisplaySourceImpl::stop()
+void DisplaySourceImpl::release_display_runtime()
 {
     source_state_connection_.disconnect();
     (void)unregister_panel_event_bridge();
@@ -309,7 +325,34 @@ void DisplaySourceImpl::stop()
         (void)esp_lv_adapter_unregister_display(display_);
         display_ = nullptr;
     }
+    // Unregister has returned, so the delete events are finished. Drain here as
+    // well as from the adapter timer; stop must not leave the queue behind.
+    if (is_timer_managed_by_port()) {
+        lock_thread();
+        drain_widget_lifetimes();
+        unlock_thread();
+    }
     release_display_service();
+}
+
+void DisplaySourceImpl::abort_start()
+{
+    const bool deinit_adapter = adapter_init_pending_rollback_;
+    adapter_init_pending_rollback_ = false;
+    release_display_runtime();
+    // esp_lv_adapter_init() is not idempotent. A failed attempt has to undo the
+    // adapter it started, or the next start() gets ESP_ERR_INVALID_STATE.
+    if (deinit_adapter && esp_lv_adapter_is_initialized()) {
+        lock_thread();
+        forget_widget_lifetime_drain_timer();
+        unlock_thread();
+        (void)esp_lv_adapter_deinit();
+    }
+}
+
+void DisplaySourceImpl::stop()
+{
+    release_display_runtime();
     started_ = false;
 }
 
@@ -419,6 +462,7 @@ bool DisplaySourceImpl::start_lvgl_adapter(const DisplaySourceConfig &config)
     adapter_config.task_max_delay_ms = config.task_max_delay_ms;
     adapter_config.stack_in_psram = config.stack_in_psram;
     BROOKESIA_CHECK_ESP_ERR_RETURN(esp_lv_adapter_init(&adapter_config), false, "Failed to initialize LVGL adapter");
+    adapter_init_pending_rollback_ = true;
 
     hal::display::PanelIface::DriverSpecific panel_specific;
     BROOKESIA_CHECK_FALSE_RETURN(
@@ -595,6 +639,16 @@ bool DisplaySourceImpl::start_lvgl_adapter(const DisplaySourceConfig &config)
     );
 
     BROOKESIA_CHECK_ESP_ERR_RETURN(esp_lv_adapter_start(), false, "Failed to start LVGL adapter");
+
+    // The adapter task only calls lv_timer_handler(). This timer is that loop's
+    // drain. super does not poll System::process_timers(), and a native delete
+    // must not allocate a timer of its own. Failure returns to start(), which
+    // releases this attempt's display, inputs, and adapter.
+    bool lifetime_drain_ready = false;
+    lock_thread();
+    lifetime_drain_ready = ensure_widget_lifetime_drain_timer();
+    unlock_thread();
+    BROOKESIA_CHECK_FALSE_RETURN(lifetime_drain_ready, false, "Failed to arm the LVGL widget lifetime drain");
 
     return true;
 }

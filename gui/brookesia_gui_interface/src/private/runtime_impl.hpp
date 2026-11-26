@@ -2399,6 +2399,11 @@ private:
 
     NodeRecord *resolve_view_record(const View &view) const
     ;
+
+    std::expected<void, std::string> with_native_object(
+        const View &view,
+        const std::function<void(void *)> &fn
+    );
 };
 
 } // namespace esp_brookesia::gui
